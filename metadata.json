@@ -1,0 +1,5 @@
+{
+  "name": "EulCau D&D 5e auto card",
+  "description": "A dynamic Dungeons & Dragons 5th Edition character sheet that automatically calculates modifiers, skills, and combat statistics based on your inputs. Includes AI-powered backstory generation.",
+  "requestFramePermissions": []
+}
