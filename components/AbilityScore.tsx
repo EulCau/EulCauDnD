@@ -11,6 +11,7 @@ interface AbilityScoreRowProps {
   proficiencies: Set<string>;
   onChangeScore: (val: number) => void;
   onToggleProficiency: (key: string) => void;
+  isTouchMode: boolean;
 }
 
 export const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({
@@ -20,6 +21,7 @@ export const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({
   proficiencies,
   onChangeScore,
   onToggleProficiency,
+  isTouchMode,
 }) => {
   const { t } = useLanguage();
   const mod = calculateModifier(score);
@@ -45,12 +47,32 @@ export const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({
            </div>
            
            {/* Score (Bottom, big number) */}
-           <input
-              type="number"
-              value={score}
-              onChange={(e) => onChangeScore(parseInt(e.target.value) || 0)}
-              className="text-3xl font-bold text-center w-full bg-transparent outline-none font-serif mb-2"
-           />
+           <div className="relative w-full flex justify-center items-center flex-1 mb-2 px-1">
+               <div className="flex items-center justify-center">
+                   <input
+                      type="number"
+                      value={score}
+                      onChange={(e) => onChangeScore(parseInt(e.target.value) || 0)}
+                      className={`text-3xl font-bold text-center w-16 bg-transparent outline-none font-serif z-0 p-0 ${isTouchMode ? 'no-native-spinner' : ''}`}
+                   />
+                   {isTouchMode && (
+                       <div className="flex flex-col gap-0.5 ml-0.5">
+                           <button 
+                               onClick={() => onChangeScore(score + 1)}
+                               className="w-5 h-3.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-t border border-gray-300 flex items-center justify-center text-[8px] leading-none active:bg-gray-300"
+                           >
+                               ▲
+                           </button>
+                           <button 
+                               onClick={() => onChangeScore(score - 1)}
+                               className="w-5 h-3.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-b border border-gray-300 border-t-0 flex items-center justify-center text-[8px] leading-none active:bg-gray-300"
+                           >
+                               ▼
+                           </button>
+                       </div>
+                   )}
+               </div>
+           </div>
         </div>
         
         {/* Helper Badge for Score */}

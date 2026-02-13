@@ -1,15 +1,16 @@
 import React from 'react';
 import { CharacterData } from '../types';
-import { calculateModifier, calculateMaxHP } from '../utils/dndCalculations';
+import { calculateModifier, calculateMaxHP, getTotalLevel } from '../utils/dndCalculations';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface VitalsProps {
   data: CharacterData;
   onChange: (field: keyof CharacterData, value: any) => void;
   profBonus: number;
+  isTouchMode: boolean;
 }
 
-export const Vitals: React.FC<VitalsProps> = ({ data, onChange }) => {
+export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) => {
   const { t } = useLanguage();
   const dexMod = calculateModifier(data.abilities.DEX);
   
@@ -19,7 +20,10 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange }) => {
   const calculatedAC = baseArmor + dexMod + armorBonus;
   const finalAC = data.acOverride !== null ? data.acOverride : calculatedAC;
   
-  const maxHP = calculateMaxHP(data.class, data.level, data.abilities.CON, data.hpMaxOverride);
+  // HP Calc supports multiclass
+  const maxHP = calculateMaxHP(data.classes, data.abilities.CON, data.hpMaxOverride);
+  const totalLevel = getTotalLevel(data.classes);
+  
   const initiative = data.initiativeOverride !== null ? data.initiativeOverride : dexMod;
   const initiativeDisplay = initiative >= 0 ? `+${initiative}` : `${initiative}`;
 
@@ -28,6 +32,15 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange }) => {
     arr[index] = !arr[index];
     onChange('deathSaves', { ...data.deathSaves, [type]: arr });
   };
+
+  const SpinButton = ({ onClick, label }: { onClick: () => void, label: string }) => (
+      <button 
+        onClick={onClick}
+        className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-1 rounded select-none"
+      >
+        {label}
+      </button>
+  );
 
   return (
     <div className="bg-white p-2 rounded-lg border border-gray-300 shadow-sm">
@@ -66,6 +79,17 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange }) => {
         <div className="border-2 border-gray-400 bg-white rounded p-2 flex flex-col items-center justify-start h-24 relative shadow-sm">
           <div className="text-[10px] font-bold text-gray-500 uppercase">{t('vitals.initiative')}</div>
           <span className="text-3xl font-bold font-serif mt-2">{initiativeDisplay}</span>
+          {isTouchMode && (
+              <div className="absolute bottom-1 w-full flex justify-center gap-1">
+                  <input 
+                    type="number" 
+                    placeholder="Ovr"
+                    className="w-10 text-center text-xs border border-gray-300 rounded"
+                    value={data.initiativeOverride ?? ''}
+                    onChange={(e) => onChange('initiativeOverride', e.target.value ? parseInt(e.target.value) : null)}
+                  />
+              </div>
+          )}
         </div>
 
         {/* Speed */}
@@ -95,7 +119,8 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange }) => {
                  />
             </div>
          </div>
-         <div className="flex gap-2">
+         <div className="flex gap-2 items-center">
+            {isTouchMode && <SpinButton onClick={() => onChange('hpCurrent', data.hpCurrent - 1)} label="-" />}
             <input 
                 type="number" 
                 className="flex-1 text-4xl font-serif text-center outline-none"
@@ -103,8 +128,17 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange }) => {
                 onChange={(e) => onChange('hpCurrent', parseInt(e.target.value) || 0)}
                 placeholder={t('vitals.hpCurrent')}
             />
+            {isTouchMode && <SpinButton onClick={() => onChange('hpCurrent', data.hpCurrent + 1)} label="+" />}
          </div>
          <div className="text-center text-[10px] text-gray-500 uppercase font-bold">{t('vitals.hpCurrent')}</div>
+         
+         {isTouchMode && (
+             <div className="flex justify-center gap-2 mt-2">
+                  <button onClick={() => onChange('hpCurrent', data.hpCurrent - 5)} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">-5</button>
+                  <button onClick={() => onChange('hpCurrent', data.hpCurrent + 5)} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">+5</button>
+                  <button onClick={() => onChange('hpCurrent', maxHP)} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">Reset</button>
+             </div>
+         )}
       </div>
 
        {/* Temp HP */}
@@ -125,13 +159,13 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange }) => {
           <div className="border border-gray-300 bg-white rounded p-2">
              <div className="flex justify-between text-[10px] text-gray-500 uppercase font-bold mb-1">
                 <span>{t('vitals.hitDice')}</span>
-                <span className="text-[9px]">{t('vitals.total')}: {data.level}</span>
+                <span className="text-[9px]">{t('vitals.total')}: {totalLevel}</span>
              </div>
              <div className="flex flex-col gap-1">
                  <input 
                     type="text" 
                     className="w-full text-center border-b border-gray-200 text-sm"
-                    placeholder="Die Type"
+                    placeholder="e.g. 5d10"
                     value={data.hitDiceTotal}
                     onChange={(e) => onChange('hitDiceTotal', e.target.value)}
                  />

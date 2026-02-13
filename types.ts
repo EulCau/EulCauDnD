@@ -49,13 +49,25 @@ export interface SpellSlot {
   expended: string;
 }
 
+export interface ClassItem {
+  id: string;
+  name: string;
+  level: number;
+  subclass: string;
+}
+
 export interface CharacterData {
   name: string;
   race: string;
   subrace: string;
-  class: string;
-  subclass: string;
-  level: number;
+  
+  // Multiclassing support
+  classes: ClassItem[];
+  // Legacy fields for backward compatibility types (will be migrated)
+  class?: string;
+  subclass?: string;
+  level?: number;
+
   alignment: string;
   background: string;
   playerName: string;
@@ -131,9 +143,9 @@ export const INITIAL_CHARACTER: CharacterData = {
   name: "",
   race: "",
   subrace: "",
-  class: "Fighter",
-  subclass: "",
-  level: 1,
+  classes: [
+    { id: '1', name: 'Fighter', level: 1, subclass: '' }
+  ],
   alignment: "",
   background: "",
   playerName: "",

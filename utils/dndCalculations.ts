@@ -1,8 +1,12 @@
-import { AbilityScores, AbilityName } from '../types';
+import { AbilityScores, AbilityName, ClassItem } from '../types';
 import { HIT_DICE } from '../constants';
 
 export const calculateModifier = (score: number): number => {
   return Math.floor((score - 10) / 2);
+};
+
+export const getTotalLevel = (classes: ClassItem[]): number => {
+  return classes.reduce((acc, curr) => acc + (curr.level || 0), 0);
 };
 
 export const calculateProficiencyBonus = (level: number): number => {
@@ -23,24 +27,32 @@ export const calculatePassivePerception = (
 };
 
 export const calculateMaxHP = (
-  charClass: string,
-  level: number,
+  classes: ClassItem[],
   conScore: number,
   override: number | null
 ): number => {
   if (override !== null) return override;
   
-  const hitDie = HIT_DICE[charClass] || 8; // Default to d8 if unknown
+  let totalHP = 0;
   const conMod = calculateModifier(conScore);
+
+  classes.forEach((cls, index) => {
+    const hitDie = HIT_DICE[cls.name] || 8;
+    const level = cls.level || 1;
+    
+    // First class level gets max die
+    if (index === 0) {
+      totalHP += hitDie + conMod;
+      if (level > 1) {
+        totalHP += (Math.ceil(hitDie / 2) + 1 + conMod) * (level - 1);
+      }
+    } else {
+      // Multiclass levels get average
+      totalHP += (Math.ceil(hitDie / 2) + 1 + conMod) * level;
+    }
+  });
   
-  // Level 1: Max Hit Die + CON
-  // Level 2+: Average Hit Die (rounded up) + CON
-  
-  const levelOneHP = hitDie + conMod;
-  const subsequentHP = (Math.ceil(hitDie / 2) + 1 + conMod) * (level - 1);
-  
-  const total = levelOneHP + subsequentHP;
-  return total > 0 ? total : 1; // Minimum 1 HP
+  return totalHP > 0 ? totalHP : 1; // Minimum 1 HP
 };
 
 export const calculateSpellSaveDC = (

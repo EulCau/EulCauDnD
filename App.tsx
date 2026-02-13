@@ -11,16 +11,26 @@ import { SpellList } from './components/SpellList';
 import { BackstoryGenerator } from './components/BackstoryGenerator';
 import { AuthScreen } from './components/AuthScreen';
 import { CharacterData, INITIAL_CHARACTER, AbilityName } from './types';
-import { calculateProficiencyBonus, calculateModifier } from './utils/dndCalculations';
+import { calculateProficiencyBonus, calculateModifier, getTotalLevel } from './utils/dndCalculations';
 import { ABILITIES } from './constants';
 import { useLanguage } from './contexts/LanguageContext';
 import { useAuth } from './contexts/AuthContext';
 
 export default function App() {
   const [character, setCharacter] = useState<CharacterData>(INITIAL_CHARACTER);
+  const [isTouchMode, setIsTouchMode] = useState(false);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
   
+  // Apply Touch Mode class to body
+  useEffect(() => {
+    if (isTouchMode) {
+      document.body.classList.add('touch-mode');
+    } else {
+      document.body.classList.remove('touch-mode');
+    }
+  }, [isTouchMode]);
+
   // Load data for user
   useEffect(() => {
     if (!user) return;
@@ -34,6 +44,17 @@ export default function App() {
         
         // Ensure defaults exist for migration
         const defaults = INITIAL_CHARACTER;
+        
+        // BACKWARD COMPATIBILITY: Migrate single class to classes array
+        if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
+            parsed.classes = [{
+                id: 'migrated-1',
+                name: parsed.class || 'Fighter',
+                level: parsed.level || 1,
+                subclass: parsed.subclass || ''
+            }];
+        }
+
         if (!parsed.attacks) parsed.attacks = defaults.attacks;
         if (!parsed.currency) parsed.currency = defaults.currency;
         if (!parsed.proficienciesText) parsed.proficienciesText = defaults.proficienciesText;
@@ -59,7 +80,7 @@ export default function App() {
     }
   }, [user]);
 
-  // Auto-save logic (Debounced slightly by React's nature, but we save on every render that changes character)
+  // Auto-save logic
   useEffect(() => {
     if (!user) return;
 
@@ -134,12 +155,18 @@ export default function App() {
               // Validate/Migrate similar to load
               parsed.proficiencies = new Set(parsed.proficiencies);
               parsed.expertises = new Set(parsed.expertises);
-              const defaults = INITIAL_CHARACTER;
-              // Simple spread to fill missing keys with defaults if possible, 
-              // but mostly rely on the parsed data being correct or close to it.
-              // For safety, we can merge with initial.
+              
+              // Migration for Multiclass if uploading old file
+              if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
+                 parsed.classes = [{
+                    id: 'migrated-upload-1',
+                    name: parsed.class || 'Fighter',
+                    level: parsed.level || 1,
+                    subclass: parsed.subclass || ''
+                 }];
+              }
+
               const merged = { ...INITIAL_CHARACTER, ...parsed };
-              // Fix sets again after merge if they were blown away (they shouldn't be if parsed is correct)
               merged.proficiencies = parsed.proficiencies; 
               
               setCharacter(merged);
@@ -149,7 +176,6 @@ export default function App() {
           }
       };
       reader.readAsText(file);
-      // Reset input
       e.target.value = '';
   };
 
@@ -157,7 +183,8 @@ export default function App() {
       return <AuthScreen />;
   }
 
-  const profBonus = calculateProficiencyBonus(character.level);
+  const totalLevel = getTotalLevel(character.classes);
+  const profBonus = calculateProficiencyBonus(totalLevel);
   const passivePerception = 10 + calculateModifier(character.abilities.WIS) + (character.proficiencies.has('Perception') ? profBonus : 0);
 
   return (
@@ -172,10 +199,12 @@ export default function App() {
         onUpload={handleUpload}
         onLogout={logout}
         username={user.username}
+        isTouchMode={isTouchMode}
+        onToggleTouchMode={() => setIsTouchMode(!isTouchMode)}
       />
 
       {/* MAIN 3-COLUMN LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         
         {/* LEFT COLUMN (3/12) */}
         <div className="lg:col-span-3 flex flex-col gap-4">
@@ -211,6 +240,7 @@ export default function App() {
                         proficiencies={character.proficiencies}
                         onChangeScore={(val) => updateAbility(ability, val)}
                         onToggleProficiency={toggleProficiency}
+                        isTouchMode={isTouchMode}
                     />
                 ))}
              </div>
@@ -226,6 +256,7 @@ export default function App() {
                 data={character} 
                 onChange={updateField} 
                 profBonus={profBonus}
+                isTouchMode={isTouchMode}
             />
 
             <div className="flex-1 min-h-[300px]">
@@ -242,16 +273,19 @@ export default function App() {
 
 
         {/* RIGHT COLUMN (4/12) */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
+        {/* Use h-full to stretch to match the tallest column (likely left/center), and min-h-screen to ensure it's big enough on start */}
+        <div className="lg:col-span-4 flex flex-col gap-4 h-full min-h-[80vh]">
              <div className="flex-none">
                  <Personality data={character} onChange={updateField} />
              </div>
 
-             <div className="flex-1 min-h-[200px]">
+             {/* Features now takes available space */}
+             <div className="flex-1">
                  <FeaturesBox data={character} onChange={(val) => updateField('features', val)} />
              </div>
 
-             <div className="mt-auto">
+             {/* Backstory now takes available space */}
+             <div className="flex-1">
                  <BackstoryGenerator 
                     data={character}
                     onUpdate={(story) => updateField('backstory', story)}

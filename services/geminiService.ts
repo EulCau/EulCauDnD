@@ -32,7 +32,8 @@ export const generateBackstory = async (character: CharacterData): Promise<strin
     return response.text || "Failed to generate backstory.";
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-
+    
+    // Check for 403 Forbidden specifically, which usually indicates Referrer/Domain restriction issues
     if (error.toString().includes('403') || error.message?.includes('403')) {
         return "Security Error (403): Your API Key is restricted. Please check Google Cloud Console and add this domain (e.g., yourname.github.io) to the 'HTTP Referrers' list.";
     }

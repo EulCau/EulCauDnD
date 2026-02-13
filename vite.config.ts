@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      // 关键修改：设置为相对路径，适配 GitHub Pages 的子目录结构
       base: './',
       server: {
         port: 3000,
@@ -17,7 +18,7 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          '@': path.resolve('.'),
         }
       }
     };
