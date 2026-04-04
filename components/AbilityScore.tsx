@@ -9,8 +9,10 @@ interface AbilityScoreRowProps {
   score: number;
   profBonus: number;
   proficiencies: Set<string>;
+  expertises: Set<string>;
   onChangeScore: (val: number) => void;
   onToggleProficiency: (key: string) => void;
+  onToggleExpertise: (key: string) => void;
   isTouchMode: boolean;
 }
 
@@ -19,8 +21,10 @@ export const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({
   score,
   profBonus,
   proficiencies,
+  expertises,
   onChangeScore,
   onToggleProficiency,
+  onToggleExpertise,
   isTouchMode,
 }) => {
   const { t } = useLanguage();
@@ -98,15 +102,31 @@ export const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({
          {/* Skill Rows */}
          {abilitySkills.map(skill => {
             let skillMod = mod;
-            if (proficiencies.has(skill.name)) skillMod += profBonus;
+            const isProficient = proficiencies.has(skill.name);
+            const isExpert = expertises.has(skill.name);
+            
+            if (isExpert) {
+                skillMod += profBonus * 2;
+            } else if (isProficient) {
+                skillMod += profBonus;
+            }
 
             return (
                 <div key={skill.name} className="flex items-center text-sm">
                     <input 
                         type="checkbox" 
-                        checked={proficiencies.has(skill.name)} 
+                        checked={isProficient} 
                         onChange={() => onToggleProficiency(skill.name)}
-                        className="w-4 h-4 rounded-full border-gray-400 mr-2 accent-black"
+                        className="w-4 h-4 rounded-full border-gray-400 mr-1 accent-black"
+                        title="Proficiency"
+                    />
+                    <input 
+                        type="checkbox" 
+                        checked={isExpert} 
+                        disabled={!isProficient}
+                        onChange={() => onToggleExpertise(skill.name)}
+                        className="w-4 h-4 rounded-full border-gray-400 mr-2 accent-dnd-gold disabled:opacity-30"
+                        title="Expertise"
                     />
                     <span className="w-6 text-center border-b border-gray-300 mr-2 font-mono text-gray-600">
                         {formatModifier(skillMod)}

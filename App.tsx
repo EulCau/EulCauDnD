@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { AbilityScoreRow } from './components/AbilityScore';
 import { Vitals } from './components/Vitals';
@@ -19,9 +19,41 @@ import { useAuth } from './contexts/AuthContext';
 export default function App() {
   const [character, setCharacter] = useState<CharacterData>(INITIAL_CHARACTER);
   const [isTouchMode, setIsTouchMode] = useState(false);
+  const [featuresRatio, setFeaturesRatio] = useState(0.5);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    
+    const startY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const startRatio = featuresRatio;
+    
+    const handleDrag = (moveEvent: MouseEvent | TouchEvent) => {
+      if (!containerRef.current) return;
+      const currentY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
+      const deltaY = currentY - startY;
+      const containerHeight = containerRef.current.clientHeight;
+      
+      let newRatio = startRatio + (deltaY / containerHeight);
+      newRatio = Math.max(0.1, Math.min(0.9, newRatio));
+      setFeaturesRatio(newRatio);
+    };
+    
+    const handleDragEnd = () => {
+      document.removeEventListener('mousemove', handleDrag);
+      document.removeEventListener('mouseup', handleDragEnd);
+      document.removeEventListener('touchmove', handleDrag);
+      document.removeEventListener('touchend', handleDragEnd);
+    };
+    
+    document.addEventListener('mousemove', handleDrag);
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchmove', handleDrag);
+    document.addEventListener('touchend', handleDragEnd);
+  };
+
   // Apply Touch Mode class to body
   useEffect(() => {
     if (isTouchMode) {
@@ -106,12 +138,26 @@ export default function App() {
   const toggleProficiency = (key: string) => {
     setCharacter(prev => {
       const newProfs = new Set(prev.proficiencies);
+      const newExps = new Set(prev.expertises);
       if (newProfs.has(key)) {
         newProfs.delete(key);
+        newExps.delete(key);
       } else {
         newProfs.add(key);
       }
-      return { ...prev, proficiencies: newProfs };
+      return { ...prev, proficiencies: newProfs, expertises: newExps };
+    });
+  };
+
+  const toggleExpertise = (key: string) => {
+    setCharacter(prev => {
+      const newExps = new Set(prev.expertises);
+      if (newExps.has(key)) {
+        newExps.delete(key);
+      } else {
+        newExps.add(key);
+      }
+      return { ...prev, expertises: newExps };
     });
   };
 
@@ -238,8 +284,10 @@ export default function App() {
                         score={character.abilities[ability]}
                         profBonus={profBonus}
                         proficiencies={character.proficiencies}
+                        expertises={character.expertises}
                         onChangeScore={(val) => updateAbility(ability, val)}
                         onToggleProficiency={toggleProficiency}
+                        onToggleExpertise={toggleExpertise}
                         isTouchMode={isTouchMode}
                     />
                 ))}
@@ -279,17 +327,27 @@ export default function App() {
                  <Personality data={character} onChange={updateField} />
              </div>
 
-             {/* Features now takes available space */}
-             <div className="flex-1">
-                 <FeaturesBox data={character} onChange={(val) => updateField('features', val)} />
-             </div>
+             {/* Resizable Container for Features & Backstory */}
+             <div ref={containerRef} className="flex-1 flex flex-col min-h-[400px]">
+                 <div style={{ flex: featuresRatio, minHeight: 0 }} className="flex flex-col">
+                     <FeaturesBox data={character} onChange={(val) => updateField('features', val)} />
+                 </div>
 
-             {/* Backstory now takes available space */}
-             <div className="flex-1">
-                 <BackstoryGenerator 
-                    data={character}
-                    onUpdate={(story) => updateField('backstory', story)}
-                 />
+                 {/* Draggable Divider */}
+                 <div 
+                    className="h-4 my-1 cursor-row-resize flex items-center justify-center group"
+                    onMouseDown={handleDragStart}
+                    onTouchStart={handleDragStart}
+                 >
+                    <div className="w-16 h-1 bg-gray-300 rounded-full group-hover:bg-dnd-red transition-colors" />
+                 </div>
+
+                 <div style={{ flex: 1 - featuresRatio, minHeight: 0 }} className="flex flex-col">
+                     <BackstoryGenerator 
+                        data={character}
+                        onUpdate={(story) => updateField('backstory', story)}
+                     />
+                 </div>
              </div>
         </div>
       </div>

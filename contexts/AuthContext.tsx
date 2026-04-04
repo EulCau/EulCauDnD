@@ -6,8 +6,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => boolean;
-  register: (username: string, password: string) => boolean;
+  login: (username: string) => boolean;
   logout: () => void;
 }
 
@@ -23,25 +22,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const login = (username: string, password: string) => {
+  const login = (username: string) => {
     const users = JSON.parse(localStorage.getItem('dnd_users') || '{}');
-    if (users[username] === password) {
-      setUser({ username });
-      localStorage.setItem('dnd_current_user', username);
-      return true;
+    if (!users[username]) {
+      users[username] = 'no-password';
+      localStorage.setItem('dnd_users', JSON.stringify(users));
     }
-    return false;
-  };
-
-  const register = (username: string, password: string) => {
-    const users = JSON.parse(localStorage.getItem('dnd_users') || '{}');
-    if (users[username]) {
-      return false; // User exists
-    }
-    users[username] = password;
-    localStorage.setItem('dnd_users', JSON.stringify(users));
-    
-    // Auto login
     setUser({ username });
     localStorage.setItem('dnd_current_user', username);
     return true;
@@ -53,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
