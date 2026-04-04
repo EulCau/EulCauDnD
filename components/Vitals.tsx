@@ -14,10 +14,9 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
   const { t } = useLanguage();
   const dexMod = calculateModifier(data.abilities.DEX);
   
-  // New AC Logic: Base (or 10) + Dex + Bonus
   const baseArmor = data.armorBase || 10;
   const armorBonus = data.armorBonus || 0;
-  const calculatedAC = baseArmor + dexMod + armorBonus;
+  const calculatedAC = baseArmor + armorBonus;
   const finalAC = data.acOverride !== null ? data.acOverride : calculatedAC;
   
   // HP Calc supports multiclass
