@@ -95,7 +95,8 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                     <span className="font-serif text-2xl font-bold">{displayDC}</span>
                     <input 
                         type="text" 
-                        placeholder="Ovr"
+                        placeholder={t('vitals.overrideShort')}
+                        title={t('vitals.override')}
                         className="w-10 text-xs border-b border-gray-200 text-center outline-none"
                         value={spellcasting.saveDCOverride}
                         onChange={(e) => updateSpellcasting('saveDCOverride', e.target.value)}
@@ -109,7 +110,8 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                     <span className="font-serif text-2xl font-bold">{displayAtk}</span>
                     <input 
                         type="text" 
-                        placeholder="Ovr"
+                        placeholder={t('vitals.overrideShort')}
+                        title={t('vitals.override')}
                         className="w-10 text-xs border-b border-gray-200 text-center outline-none"
                         value={spellcasting.attackBonusOverride}
                         onChange={(e) => updateSpellcasting('attackBonusOverride', e.target.value)}
@@ -248,7 +250,8 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                                 <button 
                                     onClick={() => deleteSpell(spell.id)}
                                     className="text-gray-300 hover:text-red-500 font-bold"
-                                    title="Delete Spell"
+                                    title={t('spells.delete')}
+                                    aria-label={t('spells.delete')}
                                 >
                                     &times;
                                 </button>

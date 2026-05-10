@@ -60,7 +60,8 @@ export const Attacks: React.FC<AttacksProps> = ({ attacks, onUpdate }) => {
                             <button 
                                 onClick={() => deleteAttack(atk.id)}
                                 className="text-gray-300 hover:text-red-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Delete Attack"
+                                title={t('attacks.delete')}
+                                aria-label={t('attacks.delete')}
                             >
                                 &times;
                             </button>

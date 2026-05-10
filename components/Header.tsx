@@ -94,7 +94,12 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Actions & Language Switcher */}
             <div className="flex flex-wrap gap-2 mt-2 items-center justify-between">
                  <div className="flex gap-1">
-                     <button onClick={onToggleTouchMode} className={`p-1.5 rounded border ${isTouchMode ? 'bg-gray-200 text-dnd-gold border-dnd-gold' : 'bg-gray-100 text-gray-600 border-gray-300'}`} title="Touch Mode">
+                     <button
+                        onClick={onToggleTouchMode}
+                        className={`p-1.5 rounded border ${isTouchMode ? 'bg-gray-200 text-dnd-gold border-dnd-gold' : 'bg-gray-100 text-gray-600 border-gray-300'}`}
+                        title={t('header.touchMode')}
+                        aria-pressed={isTouchMode}
+                     >
                          <TouchIcon active={isTouchMode} />
                      </button>
                      <button 

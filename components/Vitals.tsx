@@ -82,7 +82,8 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
               <div className="absolute bottom-1 w-full flex justify-center gap-1">
                   <input 
                     type="number" 
-                    placeholder="Ovr"
+                    placeholder={t('vitals.overrideShort')}
+                    title={t('vitals.override')}
                     className="w-10 text-center text-xs border border-gray-300 rounded"
                     value={data.initiativeOverride ?? ''}
                     onChange={(e) => onChange('initiativeOverride', e.target.value ? parseInt(e.target.value) : null)}
@@ -135,7 +136,7 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
              <div className="flex justify-center gap-2 mt-2">
                   <button onClick={() => onChange('hpCurrent', data.hpCurrent - 5)} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">-5</button>
                   <button onClick={() => onChange('hpCurrent', data.hpCurrent + 5)} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">+5</button>
-                  <button onClick={() => onChange('hpCurrent', maxHP)} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">Reset</button>
+                  <button onClick={() => onChange('hpCurrent', maxHP)} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{t('vitals.resetHp')}</button>
              </div>
          )}
       </div>

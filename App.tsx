@@ -11,14 +11,15 @@ import { SpellList } from './components/SpellList';
 import { BackstoryGenerator } from './components/BackstoryGenerator';
 import { AuthScreen } from './components/AuthScreen';
 import { CharacterData, INITIAL_CHARACTER, AbilityName } from './types';
-import { calculateProficiencyBonus, calculateModifier, getTotalLevel } from './utils/dndCalculations';
+import { calculatePassivePerception, calculateProficiencyBonus, getTotalLevel } from './utils/dndCalculations';
 import { ABILITIES } from './constants';
 import { useLanguage } from './contexts/LanguageContext';
 import { useAuth } from './contexts/AuthContext';
+import { normalizeCharacter, parseCharacterJson, serializeCharacter } from './utils/characterStorage';
 
 export default function App() {
   const [character, setCharacter] = useState<CharacterData>(INITIAL_CHARACTER);
-  const [isTouchMode, setIsTouchMode] = useState(false);
+  const [isTouchMode, setIsTouchMode] = useState(() => localStorage.getItem('dnd_touch_mode') === 'true');
   const [featuresRatio, setFeaturesRatio] = useState(0.5);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
@@ -54,74 +55,33 @@ export default function App() {
     document.addEventListener('touchend', handleDragEnd);
   };
 
-  // Apply Touch Mode class to body
   useEffect(() => {
-    if (isTouchMode) {
-      document.body.classList.add('touch-mode');
-    } else {
-      document.body.classList.remove('touch-mode');
-    }
+    document.body.classList.toggle('touch-mode', isTouchMode);
+    localStorage.setItem('dnd_touch_mode', String(isTouchMode));
+
+    return () => document.body.classList.remove('touch-mode');
   }, [isTouchMode]);
 
-  // Load data for user
   useEffect(() => {
     if (!user) return;
 
     const saved = localStorage.getItem(`dnd_data_${user.username}`);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        parsed.proficiencies = new Set(parsed.proficiencies);
-        parsed.expertises = new Set(parsed.expertises);
-        
-        // Ensure defaults exist for migration
-        const defaults = INITIAL_CHARACTER;
-        
-        // BACKWARD COMPATIBILITY: Migrate single class to classes array
-        if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
-            parsed.classes = [{
-                id: 'migrated-1',
-                name: parsed.class || 'Fighter',
-                level: parsed.level || 1,
-                subclass: parsed.subclass || ''
-            }];
-        }
-
-        if (!parsed.attacks) parsed.attacks = defaults.attacks;
-        if (!parsed.currency) parsed.currency = defaults.currency;
-        if (!parsed.proficienciesText) parsed.proficienciesText = defaults.proficienciesText;
-        if (!parsed.status) parsed.status = defaults.status;
-        if (!parsed.deathSaves) parsed.deathSaves = defaults.deathSaves;
-        if (parsed.armorBase === undefined) parsed.armorBase = 10;
-        if (parsed.armorBonus === undefined) parsed.armorBonus = 0;
-        if (parsed.inspiration === undefined) parsed.inspiration = false;
-        
-        if (typeof parsed.spells === 'string' || !parsed.spellcasting) {
-            parsed.spellcasting = defaults.spellcasting;
-            delete parsed.spells;
-        }
-        if (!parsed.spellcasting.slots) parsed.spellcasting.slots = defaults.spellcasting.slots;
-
-        setCharacter(parsed);
+        setCharacter(parseCharacterJson(saved));
       } catch (e) {
         console.error("Failed to load saved character", e);
-        setCharacter(INITIAL_CHARACTER);
+        setCharacter(normalizeCharacter());
       }
     } else {
-        setCharacter(INITIAL_CHARACTER);
+        setCharacter(normalizeCharacter());
     }
   }, [user]);
 
-  // Auto-save logic
   useEffect(() => {
     if (!user) return;
 
-    const toSave = {
-      ...character,
-      proficiencies: Array.from(character.proficiencies),
-      expertises: Array.from(character.expertises)
-    };
-    localStorage.setItem(`dnd_data_${user.username}`, JSON.stringify(toSave));
+    localStorage.setItem(`dnd_data_${user.username}`, JSON.stringify(serializeCharacter(character)));
   }, [character, user]);
 
   const updateField = (field: keyof CharacterData, value: any) => {
@@ -164,22 +124,12 @@ export default function App() {
   // Header Actions
   const handleSave = () => {
     if (!user) return;
-    const toSave = {
-        ...character,
-        proficiencies: Array.from(character.proficiencies),
-        expertises: Array.from(character.expertises)
-    };
-    localStorage.setItem(`dnd_data_${user.username}`, JSON.stringify(toSave));
+    localStorage.setItem(`dnd_data_${user.username}`, JSON.stringify(serializeCharacter(character)));
     alert(t('header.saved'));
   };
 
   const handleDownload = () => {
-    const toSave = {
-        ...character,
-        proficiencies: Array.from(character.proficiencies),
-        expertises: Array.from(character.expertises)
-    };
-    const blob = new Blob([JSON.stringify(toSave, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(serializeCharacter(character), null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -196,29 +146,10 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (event) => {
           try {
-              const parsed = JSON.parse(event.target?.result as string);
-              
-              // Validate/Migrate similar to load
-              parsed.proficiencies = new Set(parsed.proficiencies);
-              parsed.expertises = new Set(parsed.expertises);
-              
-              // Migration for Multiclass if uploading old file
-              if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
-                 parsed.classes = [{
-                    id: 'migrated-upload-1',
-                    name: parsed.class || 'Fighter',
-                    level: parsed.level || 1,
-                    subclass: parsed.subclass || ''
-                 }];
-              }
-
-              const merged = { ...INITIAL_CHARACTER, ...parsed };
-              merged.proficiencies = parsed.proficiencies; 
-              
-              setCharacter(merged);
+              setCharacter(parseCharacterJson(event.target?.result as string));
           } catch (err) {
               console.error("Failed to parse uploaded JSON", err);
-              alert("Invalid JSON file");
+              alert(t('header.invalidFile'));
           }
       };
       reader.readAsText(file);
@@ -231,7 +162,11 @@ export default function App() {
 
   const totalLevel = getTotalLevel(character.classes);
   const profBonus = calculateProficiencyBonus(totalLevel);
-  const passivePerception = 10 + calculateModifier(character.abilities.WIS) + (character.proficiencies.has('Perception') ? profBonus : 0);
+  const passivePerception = calculatePassivePerception(
+    character.abilities.WIS,
+    profBonus,
+    character.proficiencies.has('Perception'),
+  );
 
   return (
     <div className="container mx-auto max-w-7xl p-4 bg-white">

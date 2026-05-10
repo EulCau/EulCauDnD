@@ -9,12 +9,21 @@ export const TRANSLATIONS = {
     "auth.password": "Password",
     "auth.logout": "Logout",
     "auth.welcome": "Welcome",
+    "auth.usernameRequired": "Please enter a profile name.",
+    "auth.usernamePlaceholder": "Character name or player ID",
+    "auth.loginHint": "Your sheet is saved locally under this profile.",
+    "auth.savedProfiles": "Saved Profiles",
+    "auth.chooseSavedProfile": "Choose a saved profile...",
     "auth.noAccount": "No account?",
     "auth.haveAccount": "Have account?",
+    "common.edit": "Edit",
+    "common.preview": "Preview",
     "header.save": "Save",
     "header.download": "Download",
     "header.upload": "Upload",
     "header.saved": "Saved!",
+    "header.invalidFile": "This does not look like a valid character JSON file.",
+    "header.touchMode": "Touch mode",
 
     // Header
     "header.characterName": "Character Name",
@@ -50,6 +59,9 @@ export const TRANSLATIONS = {
     "vitals.deathSaves": "Death Saves",
     "vitals.success": "Succ",
     "vitals.failures": "Fail",
+    "vitals.override": "Override",
+    "vitals.overrideShort": "Ovr",
+    "vitals.resetHp": "Reset",
 
     // Attacks
     "attacks.title": "Attacks & Spellcasting",
@@ -59,6 +71,7 @@ export const TRANSLATIONS = {
     "attacks.type": "Type",
     "attacks.notes": "Notes",
     "attacks.add": "+ Add Attack Row",
+    "attacks.delete": "Delete attack",
 
     // Equipment
     "equipment.title": "Equipment",
@@ -114,6 +127,7 @@ export const TRANSLATIONS = {
     "spells.concentration": "C",
     "spells.ritual": "R",
     "spells.add": "+ Add Spell",
+    "spells.delete": "Delete spell",
 
     // Footer
     "footer.text": "EulCau D&D 5e auto card. Not affiliated with Wizards of the Coast.",
@@ -171,12 +185,21 @@ export const TRANSLATIONS = {
     "auth.password": "密码",
     "auth.logout": "登出",
     "auth.welcome": "欢迎",
+    "auth.usernameRequired": "请输入档案名称.",
+    "auth.usernamePlaceholder": "角色名或玩家 ID",
+    "auth.loginHint": "角色卡会保存在当前浏览器的这个档案下.",
+    "auth.savedProfiles": "已保存档案",
+    "auth.chooseSavedProfile": "选择已保存档案...",
     "auth.noAccount": "没有账号?",
     "auth.haveAccount": "已有账号?",
+    "common.edit": "编辑",
+    "common.preview": "预览",
     "header.save": "保存",
     "header.download": "下载",
     "header.upload": "上传",
     "header.saved": "已保存!",
+    "header.invalidFile": "这不像有效的角色 JSON 文件.",
+    "header.touchMode": "触控模式",
 
     // Header
     "header.characterName": "角色名称",
@@ -212,6 +235,9 @@ export const TRANSLATIONS = {
     "vitals.deathSaves": "死亡豁免",
     "vitals.success": "成功",
     "vitals.failures": "失败",
+    "vitals.override": "手动值",
+    "vitals.overrideShort": "手动",
+    "vitals.resetHp": "回满",
 
     // Attacks
     "attacks.title": "攻击 & 施法",
@@ -221,6 +247,7 @@ export const TRANSLATIONS = {
     "attacks.type": "类型",
     "attacks.notes": "备注",
     "attacks.add": "+ 添加攻击",
+    "attacks.delete": "删除攻击",
 
     // Equipment
     "equipment.title": "装备",
@@ -276,6 +303,7 @@ export const TRANSLATIONS = {
     "spells.concentration": "专注",
     "spells.ritual": "仪式",
     "spells.add": "+ 添加法术",
+    "spells.delete": "删除法术",
 
     // Footer
     "footer.text": "EulCau D&D 5e auto card。与威世智无关。",
