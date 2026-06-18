@@ -1,0 +1,4 @@
+[submodule "third_party/5etools-cn"]
+	path = third_party/5etools-cn
+	url = https://github.com/tjliqy/5etools-cn.git
+	branch = cn2.0
