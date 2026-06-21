@@ -13,6 +13,7 @@ interface HeaderProps {
   username: string;
   isTouchMode: boolean;
   onToggleTouchMode: () => void;
+  onOpenAutoBuilder: () => void;
 }
 
 // Icons
@@ -43,7 +44,7 @@ const InputGroup = ({ label, value, onChange, placeholder = "" }: { label: strin
 );
 
 export const Header: React.FC<HeaderProps> = ({ 
-  data, onChange, onSave, onDownload, onUpload, onLogout, username, isTouchMode, onToggleTouchMode 
+  data, onChange, onSave, onDownload, onUpload, onLogout, username, isTouchMode, onToggleTouchMode, onOpenAutoBuilder
 }) => {
   const { t, language, setLanguage } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +112,20 @@ export const Header: React.FC<HeaderProps> = ({
                  </div>
 
                  <div className="flex gap-1">
+                     <button
+                        onClick={onOpenAutoBuilder}
+                        className="text-[10px] font-bold px-2 py-1 rounded text-dnd-red border border-dnd-red hover:bg-red-50 transition-colors whitespace-nowrap"
+                     >
+                        {t('auto.open')}
+                     </button>
+                     {data.automation.active && (
+                        <button
+                           onClick={onOpenAutoBuilder}
+                           className="text-[10px] font-bold px-2 py-1 rounded bg-dnd-gold text-white border border-dnd-gold hover:bg-yellow-700 transition-colors whitespace-nowrap"
+                        >
+                           {t('auto.levelUp')}
+                        </button>
+                     )}
                      <button onClick={onSave} className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 border border-gray-300" title={t('header.save')}><SaveIcon /></button>
                      <button onClick={onDownload} className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 border border-gray-300" title={t('header.download')}><DownloadIcon /></button>
                      <label className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 border border-gray-300 cursor-pointer" title={t('header.upload')}>

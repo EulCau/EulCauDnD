@@ -10,16 +10,22 @@ import { FeaturesBox } from './components/FeaturesBox';
 import { SpellList } from './components/SpellList';
 import { BackstoryGenerator } from './components/BackstoryGenerator';
 import { AuthScreen } from './components/AuthScreen';
+import { AutoCharacterBuilder } from './components/AutoCharacterBuilder';
 import { CharacterData, INITIAL_CHARACTER, AbilityName } from './types';
 import { calculatePassivePerception, calculateProficiencyBonus, getTotalLevel } from './utils/dndCalculations';
 import { ABILITIES } from './constants';
 import { useLanguage } from './contexts/LanguageContext';
 import { useAuth } from './contexts/AuthContext';
 import { normalizeCharacter, parseCharacterJson, serializeCharacter } from './utils/characterStorage';
+import { removeCharacterAdjustments } from './utils/characterAdjustments';
+import { loadAutoBuilderContent, type AutoBuilderContent } from './utils/autoBuilderRules';
+import { refreshAutomaticArmorClass, refreshAutomaticStyleAttacks, refreshCharacterAutomation } from './utils/equipmentRules';
 
 export default function App() {
   const [character, setCharacter] = useState<CharacterData>(INITIAL_CHARACTER);
   const [isTouchMode, setIsTouchMode] = useState(() => localStorage.getItem('dnd_touch_mode') === 'true');
+  const [isAutoBuilderOpen, setIsAutoBuilderOpen] = useState(false);
+  const [autoBuilderContent, setAutoBuilderContent] = useState<AutoBuilderContent | null>(null);
   const [featuresRatio, setFeaturesRatio] = useState(0.5);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
@@ -63,6 +69,10 @@ export default function App() {
   }, [isTouchMode]);
 
   useEffect(() => {
+    loadAutoBuilderContent().then(setAutoBuilderContent).catch(() => setAutoBuilderContent(null));
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
 
     const saved = localStorage.getItem(`dnd_data_${user.username}`);
@@ -84,14 +94,23 @@ export default function App() {
     localStorage.setItem(`dnd_data_${user.username}`, JSON.stringify(serializeCharacter(character)));
   }, [character, user]);
 
+  const refreshDerivedCharacter = (next: CharacterData): CharacterData => (
+    autoBuilderContent
+      ? refreshCharacterAutomation(next, autoBuilderContent)
+      : refreshAutomaticStyleAttacks(refreshAutomaticArmorClass(next))
+  );
+
   const updateField = (field: keyof CharacterData, value: any) => {
-    setCharacter(prev => ({ ...prev, [field]: value }));
+    setCharacter(prev => {
+      const next = { ...prev, [field]: value };
+      return field === 'classes' ? refreshDerivedCharacter(next) : next;
+    });
   };
 
   const updateAbility = (ability: AbilityName, val: number) => {
-    setCharacter(prev => ({
+    setCharacter(prev => refreshDerivedCharacter({
       ...prev,
-      abilities: { ...prev.abilities, [ability]: val }
+      abilities: { ...prev.abilities, [ability]: val },
     }));
   };
 
@@ -105,7 +124,7 @@ export default function App() {
       } else {
         newProfs.add(key);
       }
-      return { ...prev, proficiencies: newProfs, expertises: newExps };
+      return refreshDerivedCharacter({ ...prev, proficiencies: newProfs, expertises: newExps });
     });
   };
 
@@ -117,8 +136,19 @@ export default function App() {
       } else {
         newExps.add(key);
       }
-      return { ...prev, expertises: newExps };
+      return refreshDerivedCharacter({ ...prev, expertises: newExps });
     });
+  };
+
+  const updateResource = (resourceId: string, current: number) => {
+    setCharacter(prev => ({
+      ...prev,
+      resources: prev.resources.map(resource => (
+        resource.id === resourceId
+          ? { ...resource, current: Math.max(0, Math.min(resource.max, current)) }
+          : resource
+      )),
+    }));
   };
 
   // Header Actions
@@ -146,7 +176,7 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (event) => {
           try {
-              setCharacter(parseCharacterJson(event.target?.result as string));
+              setCharacter(refreshDerivedCharacter(parseCharacterJson(event.target?.result as string)));
           } catch (err) {
               console.error("Failed to parse uploaded JSON", err);
               alert(t('header.invalidFile'));
@@ -182,6 +212,14 @@ export default function App() {
         username={user.username}
         isTouchMode={isTouchMode}
         onToggleTouchMode={() => setIsTouchMode(!isTouchMode)}
+        onOpenAutoBuilder={() => setIsAutoBuilderOpen(true)}
+      />
+
+      <AutoCharacterBuilder
+        isOpen={isAutoBuilderOpen}
+        data={character}
+        onClose={() => setIsAutoBuilderOpen(false)}
+        onApply={setCharacter}
       />
 
       {/* MAIN 3-COLUMN LAYOUT */}
@@ -250,7 +288,7 @@ export default function App() {
             </div>
 
             <div className="flex-none">
-                <Equipment data={character} onChange={updateField} />
+                <Equipment data={character} onChange={updateField} onUpdateCharacter={setCharacter} />
             </div>
         </div>
 
@@ -265,7 +303,12 @@ export default function App() {
              {/* Resizable Container for Features & Backstory */}
              <div ref={containerRef} className="flex-1 flex flex-col min-h-[400px]">
                  <div style={{ flex: featuresRatio, minHeight: 0 }} className="flex flex-col">
-                     <FeaturesBox data={character} onChange={(val) => updateField('features', val)} />
+                     <FeaturesBox
+                        data={character}
+                        onChange={(val) => updateField('features', val)}
+                        onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
+                        onUpdateResource={updateResource}
+                     />
                  </div>
 
                  {/* Draggable Divider */}

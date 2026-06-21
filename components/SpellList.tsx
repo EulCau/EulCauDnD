@@ -1,5 +1,5 @@
-import React from 'react';
-import { CharacterData, Spell, AbilityName } from '../types';
+import React, { useMemo, useState } from 'react';
+import { CharacterData, Spell, AbilityName, SpellcastingProfile } from '../types';
 import { calculateSpellSaveDC, calculateSpellAttackBonus, formatModifier } from '../utils/dndCalculations';
 import { ABILITIES } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -11,11 +11,41 @@ interface SpellListProps {
 }
 
 export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus }) => {
-  const { spellcasting } = data;
   const { t } = useLanguage();
+  const profiles = useMemo<SpellcastingProfile[]>(() => {
+    if (data.spellcastingProfiles.length) return data.spellcastingProfiles;
+    return [{
+      id: 'legacy-spellcasting',
+      className: data.spellcasting.class,
+      ability: data.spellcasting.ability,
+      preparationMode: 'manual',
+      saveDCOverride: data.spellcasting.saveDCOverride,
+      attackBonusOverride: data.spellcasting.attackBonusOverride,
+      slots: data.spellcasting.slots,
+      spells: data.spellcasting.spells,
+    }];
+  }, [data.spellcasting, data.spellcastingProfiles]);
+  const [activeProfileId, setActiveProfileId] = useState(profiles[0]?.id || 'legacy-spellcasting');
+  const spellcasting = profiles.find(profile => profile.id === activeProfileId) || profiles[0];
+  const slotSourceLabel = spellcasting?.slotSource === 'shared'
+    ? '共享法术位'
+    : spellcasting?.slotSource === 'pact'
+      ? '契约魔法'
+      : '职业法术位';
 
-  const updateSpellcasting = (field: keyof typeof spellcasting, value: any) => {
-    onChange('spellcasting', { ...spellcasting, [field]: value });
+  const updateSpellcasting = (field: keyof SpellcastingProfile, value: any) => {
+    if (data.spellcastingProfiles.length) {
+      const syncSharedSlots = field === 'slots' && spellcasting.slotSource === 'shared';
+      onChange('spellcastingProfiles', data.spellcastingProfiles.map(profile => (
+        profile.id === spellcasting.id || (syncSharedSlots && profile.slotSource === 'shared')
+          ? { ...profile, [field]: value }
+          : profile
+      )));
+      return;
+    }
+
+    const legacyField = field === 'className' ? 'class' : field;
+    onChange('spellcasting', { ...data.spellcasting, [legacyField]: value });
   };
 
   const updateSlot = (level: string, field: 'total' | 'expended', value: string) => {
@@ -73,8 +103,8 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                     type="text" 
                     className="font-serif text-lg font-bold outline-none" 
                     placeholder=""
-                    value={spellcasting.class}
-                    onChange={(e) => updateSpellcasting('class', e.target.value)}
+                    value={spellcasting.className}
+                    onChange={(e) => updateSpellcasting('className', e.target.value)}
                 />
             </div>
             
@@ -120,7 +150,24 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
             </div>
         </div>
 
+        {profiles.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {profiles.map(profile => (
+              <button
+                key={profile.id}
+                onClick={() => setActiveProfileId(profile.id)}
+                className={`px-3 py-1 rounded border text-xs font-bold flex items-center gap-2 ${profile.id === spellcasting.id ? 'bg-dnd-red text-white border-dnd-red' : 'bg-white text-gray-600 border-gray-300'}`}
+              >
+                <span>{profile.className || t('spells.class')}</span>
+                {profile.slotSource === 'shared' && <span className="text-[10px] opacity-80">共享</span>}
+                {profile.slotSource === 'pact' && <span className="text-[10px] opacity-80">契约</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Slot Trackers */}
+        <div className="mb-2 text-center text-[10px] font-bold uppercase text-gray-400">{slotSourceLabel}</div>
         <div className="flex flex-wrap gap-2 mb-6 justify-center">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(lvl => (
                 <div key={lvl} className="border border-gray-300 rounded p-1 flex flex-col items-center w-16 bg-white">

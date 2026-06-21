@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "extract:5etools": "node scripts/extract-5etools-character-data.mjs",
+    "audit:character-data": "node scripts/audit-character-data.mjs",
+    "audit:spell-behavior": "node scripts/audit-spell-behavior.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

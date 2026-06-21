@@ -1,20 +1,81 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CharacterData } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { AutoBuilderContent } from '../utils/autoBuilderRules';
+import {
+    equipArmor,
+    equipShield,
+    equipWeapon,
+    getArmorOptions,
+    getShieldOptions,
+    getWeaponOptions,
+    formatWeaponMasteryNames,
+    formatWeaponPropertyNames,
+    isArmorEquipped,
+    isShieldEquipped,
+    isWeaponEquipped,
+    refreshCharacterAutomation,
+    unequipArmor,
+    unequipShield,
+    unequipWeapon,
+} from '../utils/equipmentRules';
+import { loadAutoBuilderContent } from '../utils/autoBuilderRules';
 
 interface EquipmentProps {
   data: CharacterData;
   onChange: (field: keyof CharacterData, value: any) => void;
+  onUpdateCharacter: (character: CharacterData) => void;
 }
 
-export const Equipment: React.FC<EquipmentProps> = ({ data, onChange }) => {
+export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCharacter }) => {
     const { t } = useLanguage();
+    const [content, setContent] = useState<AutoBuilderContent | null>(null);
+    const [weaponId, setWeaponId] = useState('');
+    const [armorId, setArmorId] = useState('');
+    const [shieldId, setShieldId] = useState('');
     const updateMoney = (key: keyof typeof data.currency, val: string) => {
         onChange('currency', { ...data.currency, [key]: val });
     };
     
     const updateStatus = (key: keyof typeof data.status, val: any) => {
         onChange('status', { ...data.status, [key]: val });
+    };
+
+    useEffect(() => {
+        loadAutoBuilderContent().then(setContent).catch(() => setContent(null));
+    }, []);
+
+    const weaponOptions = useMemo(() => (
+        content ? getWeaponOptions(content, data.automation.ruleSystem) : []
+    ), [content, data.automation.ruleSystem]);
+    const selectedWeapon = weaponOptions.find(weapon => weapon.id === weaponId) || weaponOptions[0];
+    const weaponEquipped = selectedWeapon ? isWeaponEquipped(data, selectedWeapon) : false;
+
+    const armorOptions = useMemo(() => (
+        content ? getArmorOptions(content, data.automation.ruleSystem) : []
+    ), [content, data.automation.ruleSystem]);
+    const selectedArmor = armorOptions.find(armor => armor.id === armorId) || armorOptions[0];
+    const armorEquipped = selectedArmor ? isArmorEquipped(data, selectedArmor) : false;
+
+    const shieldOptions = useMemo(() => (
+        content ? getShieldOptions(content, data.automation.ruleSystem) : []
+    ), [content, data.automation.ruleSystem]);
+    const selectedShield = shieldOptions.find(shield => shield.id === shieldId) || shieldOptions[0];
+    const shieldEquipped = selectedShield ? isShieldEquipped(data, selectedShield) : false;
+
+    const toggleWeapon = () => {
+        if (!selectedWeapon || !content) return;
+        onUpdateCharacter(refreshCharacterAutomation(weaponEquipped ? unequipWeapon(data, selectedWeapon) : equipWeapon(data, selectedWeapon), content));
+    };
+
+    const toggleArmor = () => {
+        if (!selectedArmor || !content) return;
+        onUpdateCharacter(refreshCharacterAutomation(armorEquipped ? unequipArmor(data, selectedArmor) : equipArmor(data, selectedArmor), content));
+    };
+
+    const toggleShield = () => {
+        if (!selectedShield || !content) return;
+        onUpdateCharacter(refreshCharacterAutomation(shieldEquipped ? unequipShield(data, selectedShield) : equipShield(data, selectedShield), content));
     };
 
   return (
@@ -40,6 +101,86 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange }) => {
                     onChange={(e) => updateStatus('conditions', e.target.value)}
                  />
              </div>
+         </div>
+
+         <div className="border border-gray-200 rounded p-2 bg-white">
+            <h4 className="text-[10px] text-gray-500 uppercase font-bold text-center border-b pb-1 mb-2">{t('equipment.weapons')}</h4>
+            <div className="flex gap-2">
+                <select
+                    className="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1 text-xs bg-white"
+                    value={selectedWeapon?.id || ''}
+                    onChange={(event) => setWeaponId(event.target.value)}
+                    disabled={!weaponOptions.length}
+                >
+                    {weaponOptions.map(weapon => (
+                        <option key={weapon.id} value={weapon.id}>{weapon.name}</option>
+                    ))}
+                </select>
+                <button
+                    onClick={toggleWeapon}
+                    disabled={!selectedWeapon}
+                    className="px-2 py-1 text-[10px] uppercase font-bold rounded border border-gray-300 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                >
+                    {weaponEquipped ? t('equipment.unequip') : t('equipment.equip')}
+                </button>
+            </div>
+            {selectedWeapon && (
+                <div className="mt-1 text-[10px] text-gray-500 leading-relaxed">
+                    {selectedWeapon.dmg1} {selectedWeapon.dmgType || ''} {formatWeaponPropertyNames(selectedWeapon) ? `| ${formatWeaponPropertyNames(selectedWeapon)}` : ''} {selectedWeapon.range ? `| ${selectedWeapon.range}` : ''} {formatWeaponMasteryNames(selectedWeapon) ? `| ${formatWeaponMasteryNames(selectedWeapon)}` : ''}
+                </div>
+            )}
+         </div>
+
+         <div className="border border-gray-200 rounded p-2 bg-white">
+            <h4 className="text-[10px] text-gray-500 uppercase font-bold text-center border-b pb-1 mb-2">{t('equipment.armor')}</h4>
+            <div className="flex gap-2">
+                <select
+                    className="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1 text-xs bg-white"
+                    value={selectedArmor?.id || ''}
+                    onChange={(event) => setArmorId(event.target.value)}
+                    disabled={!armorOptions.length}
+                >
+                    {armorOptions.map(armor => (
+                        <option key={armor.id} value={armor.id}>{armor.name}</option>
+                    ))}
+                </select>
+                <button
+                    onClick={toggleArmor}
+                    disabled={!selectedArmor}
+                    className="px-2 py-1 text-[10px] uppercase font-bold rounded border border-gray-300 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                >
+                    {armorEquipped ? t('equipment.unequip') : t('equipment.equip')}
+                </button>
+            </div>
+            {selectedArmor && (
+                <div className="mt-1 text-[10px] text-gray-500 leading-relaxed">
+                    AC {selectedArmor.ac} {selectedArmor.strength ? `| STR ${selectedArmor.strength}` : ''} {selectedArmor.stealth ? `| ${t('equipment.stealthDisadvantage')}` : ''}
+                </div>
+            )}
+            <div className="flex gap-2 mt-2">
+                <select
+                    className="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1 text-xs bg-white"
+                    value={selectedShield?.id || ''}
+                    onChange={(event) => setShieldId(event.target.value)}
+                    disabled={!shieldOptions.length}
+                >
+                    {shieldOptions.map(shield => (
+                        <option key={shield.id} value={shield.id}>{shield.name}</option>
+                    ))}
+                </select>
+                <button
+                    onClick={toggleShield}
+                    disabled={!selectedShield}
+                    className="px-2 py-1 text-[10px] uppercase font-bold rounded border border-gray-300 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                >
+                    {shieldEquipped ? t('equipment.unequip') : t('equipment.equip')}
+                </button>
+            </div>
+            {selectedShield && (
+                <div className="mt-1 text-[10px] text-gray-500 leading-relaxed">
+                    +{selectedShield.ac || 2} AC
+                </div>
+            )}
          </div>
 
          {/* Money & Equipment Split */}

@@ -20,11 +20,13 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
   const finalAC = data.acOverride !== null ? data.acOverride : calculatedAC;
   
   // HP Calc supports multiclass
-  const maxHP = calculateMaxHP(data.classes, data.abilities.CON, data.hpMaxOverride);
+  const maxHP = calculateMaxHP(data.classes, data.abilities.CON, data.hpMaxOverride, data.hpMaxBonus || 0);
   const totalLevel = getTotalLevel(data.classes);
   
-  const initiative = data.initiativeOverride !== null ? data.initiativeOverride : dexMod;
+  const initiative = data.initiativeOverride !== null ? data.initiativeOverride : dexMod + (data.initiativeBonus || 0);
   const initiativeDisplay = initiative >= 0 ? `+${initiative}` : `${initiative}`;
+  const speedValue = Number(data.speed) || 0;
+  const speedDisplay = String(speedValue + (data.speedBonus || 0));
 
   const updateDeathSave = (type: 'success' | 'failures', index: number) => {
     const arr = [...data.deathSaves[type]];
@@ -95,12 +97,16 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
         {/* Speed */}
         <div className="border-2 border-gray-400 bg-white rounded p-2 flex flex-col items-center justify-start h-24 relative shadow-sm">
           <div className="text-[10px] font-bold text-gray-500 uppercase">{t('vitals.speed')}</div>
-          <input 
-             type="text"
-             className="text-3xl font-bold font-serif mt-2 text-center w-full outline-none bg-transparent"
-             value={data.speed}
-             onChange={(e) => onChange('speed', e.target.value)}
-          />
+          <span className="text-3xl font-bold font-serif mt-2 text-center w-full">{speedDisplay}</span>
+          {isTouchMode && (
+            <input
+              type="text"
+              className="absolute bottom-1 w-12 text-center text-xs border border-gray-300 rounded bg-white"
+              value={data.speed}
+              onChange={(e) => onChange('speed', e.target.value)}
+              title={t('vitals.speed')}
+            />
+          )}
         </div>
       </div>
 
