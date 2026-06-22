@@ -111,6 +111,8 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const [abilityScoreImprovementChoice, setAbilityScoreImprovementChoice] = useState<AutoBuilderAbilityScoreImprovementChoice>({ mode: 'plus2', plus2: 'STR' });
   const [classFeatureChoices, setClassFeatureChoices] = useState<AutoBuilderClassFeatureChoice>({});
   const [subclassId, setSubclassId] = useState('');
+  const [spellReplaceRemoveId, setSpellReplaceRemoveId] = useState<string | null>(null);
+  const [spellReplaceAddId, setSpellReplaceAddId] = useState<string | null>(null);
   const isLevelUpMode = data.automation.active;
 
   useEffect(() => {
@@ -307,6 +309,19 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const fixedLeveledSpellIds = new Set(fixedLeveledSpellGroups.flatMap(group => group.options.map(spell => spell.id)));
   const selectedFixedLeveledSpellIds = spellChoices.leveled.filter(id => fixedLeveledSpellIds.has(id));
   const selectedRegularLeveledSpellIds = spellChoices.leveled.filter(id => !fixedLeveledSpellIds.has(id));
+  // Spell replacement on level-up for known-spell casters
+  const isKnownCaster = isLevelUpMode && selectedClass
+    && selectedClass.preparedSpellsChange !== 'restLong'
+    && !!(selectedClass.spellsKnownProgression?.length
+      || selectedClass.spellsKnownProgressionFixedByLevel
+      || selectedClass.spellsKnownProgressionFixedAllowLowerLevel
+      || selectedClass.preparedSpellsProgression?.length);
+  const canReplaceSpell = isKnownCaster
+    && (existingSpellProfile?.spells.filter(s => s.level > 0).length || 0) > 0;
+  const existingReplaceableSpells = existingSpellProfile?.spells.filter(s => s.level > 0) || [];
+  const replacementSpellOptions = spellChoiceState?.leveled.filter(spell => !existingSpellIds.has(spell.id) && spell.id !== spellReplaceRemoveId) || [];
+  const isValidSpellReplacement = !spellReplaceRemoveId || !spellReplaceAddId
+    || (existingReplaceableSpells.some(s => s.id === spellReplaceRemoveId) && replacementSpellOptions.some(s => s.id === spellReplaceAddId));
   const invocationChoiceState = content
     ? getInvocationChoiceState(
         content,
@@ -324,19 +339,21 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     ? getManeuverChoiceState(content, selectedSubclass, data, targetClassLevel, fightingStyleManeuverCount, ruleSystem)
     : { isManeuverSubclass: false, needed: 0, options: [] };
 
-  useEffect(() => {
-    setSkillChoices([]);
-    setSpellChoices({ cantrips: [], leveled: [] });
-    setInvocationChoices({ invocationIds: [] });
-    setOriginFeatChoice({});
-    setRaceChoices({});
-    setClassToolChoices({});
-    setBackgroundToolChoices({});
-    setBackgroundLanguageChoices({});
-    setAbilityScoreImprovementChoice({ mode: 'plus2', plus2: 'STR' });
-    setClassFeatureChoices({});
-    setSubclassId('');
-  }, [className, ruleSystem, raceKey, subraceKey, backgroundKey, isOriginDecoupled]);
+	  useEffect(() => {
+	    setSkillChoices([]);
+	    setSpellChoices({ cantrips: [], leveled: [] });
+	    setInvocationChoices({ invocationIds: [] });
+	    setOriginFeatChoice({});
+	    setRaceChoices({});
+	    setClassToolChoices({});
+	    setBackgroundToolChoices({});
+	    setBackgroundLanguageChoices({});
+	    setAbilityScoreImprovementChoice({ mode: 'plus2', plus2: 'STR' });
+	    setClassFeatureChoices({});
+	    setSubclassId('');
+	    setSpellReplaceRemoveId(null);
+	    setSpellReplaceAddId(null);
+	  }, [className, ruleSystem, raceKey, subraceKey, backgroundKey, isOriginDecoupled, isOpen]);
 
   useEffect(() => {
     if (ruleSystem !== '5r') setDecoupleOriginFromBackground(false);
@@ -374,10 +391,12 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     setSubraceKey('');
   }, [raceKey]);
 
-  useEffect(() => {
-    setSpellChoices({ cantrips: [], leveled: [] });
-    setInvocationChoices({ invocationIds: [] });
-  }, [subclassId]);
+	  useEffect(() => {
+	    setSpellChoices({ cantrips: [], leveled: [] });
+	    setInvocationChoices({ invocationIds: [] });
+	    setSpellReplaceRemoveId(null);
+	    setSpellReplaceAddId(null);
+	  }, [subclassId]);
 
   if (!isOpen) return null;
 
@@ -613,10 +632,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const updateAbilityScoreImprovementChoice = (patch: Partial<AutoBuilderAbilityScoreImprovementChoice>) => {
     setAbilityScoreImprovementChoice(prev => ({ ...prev, ...patch }));
   };
-  const areChoiceGroupsComplete = (
-    choices: Array<{ id: string; count: number }>,
-    values: Record<string, string[]> | undefined,
-  ): boolean => choices.every(choice => (values?.[choice.id] || []).length === choice.count);
+	  const areChoiceGroupsComplete = (
+	    choices: Array<{ id: string; from?: string[]; count: number }>,
+	    values: Record<string, string[]> | undefined,
+	  ): boolean => choices.every(choice => (values?.[choice.id] || []).length === Math.min(choice.count, choice.from ? choice.from.length : choice.count));
 
   const getSelectedFeatSpellBlock = (
     state: ReturnType<typeof getFeatSpellChoiceState>,
@@ -767,42 +786,42 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       && backgroundAbilityChoice.plus1
       && backgroundAbilityChoice.plus2 !== backgroundAbilityChoice.plus1,
     );
-  const isOriginFeatChoiceComplete = isLevelUpMode
-    || !originFeatChoiceState
-    || (
-      Boolean(originFeatChoice.featId)
-      && (originFeatAbilityOptions.length === 0 || Boolean(originFeatChoice.featAbility))
-      && areChoiceGroupsComplete(originFeatSkillChoiceOptions, originFeatChoice.featSkillChoices)
-      && areChoiceGroupsComplete(originFeatToolChoiceOptions, originFeatChoice.featToolChoices)
-      && areChoiceGroupsComplete(originFeatExpertiseChoiceOptions, originFeatChoice.featExpertiseChoices)
-      && areChoiceGroupsComplete(originFeatLanguageChoiceOptions, originFeatChoice.featLanguageChoices)
-      && areChoiceGroupsComplete(originFeatSavingThrowChoiceOptions, originFeatChoice.featSavingThrowChoices)
-      && isFeatSpellChoiceComplete(originFeatSpellChoiceState, originFeatChoice)
+	  const isOriginFeatChoiceComplete = isLevelUpMode
+	    || !originFeatChoiceState
+	    || (
+	      Boolean(originFeatChoice.featId ?? originFeatChoiceState.from[0] ? `${originFeatChoiceState.from[0].key}|${originFeatChoiceState.from[0].source}` : undefined)
+	      && (originFeatAbilityOptions.length === 0 || Boolean(originFeatChoice.featAbility))
+	      && areChoiceGroupsComplete(originFeatSkillChoiceOptions, originFeatChoice.featSkillChoices)
+	      && areChoiceGroupsComplete(originFeatToolChoiceOptions, originFeatChoice.featToolChoices)
+	      && areChoiceGroupsComplete(originFeatExpertiseChoiceOptions, originFeatChoice.featExpertiseChoices)
+	      && areChoiceGroupsComplete(originFeatLanguageChoiceOptions, originFeatChoice.featLanguageChoices)
+	      && areChoiceGroupsComplete(originFeatSavingThrowChoiceOptions, originFeatChoice.featSavingThrowChoices)
+	      && isFeatSpellChoiceComplete(originFeatSpellChoiceState, originFeatChoice)
+	    );
+	  const isRaceChoiceComplete = isLevelUpMode
+	    || (
+	      (raceResistanceOptions.length === 0 || Boolean(raceChoices.resistance ?? raceResistanceOptions[0]))
+	      && (raceSizeOptions.length === 0 || Boolean(raceChoices.size ?? raceSizeOptions[0]?.value))
+	      && (!raceAbilityChoiceState || (raceChoices.abilities || []).length === raceAbilityChoiceState.count)
+	      && (!raceSkillChoiceState || (raceChoices.skills || []).length === raceSkillChoiceState.count)
+	      && (!raceFeatChoiceState || (
+	        Boolean(raceChoices.featId ?? raceFeatChoiceState.from[0] ? `${raceFeatChoiceState.from[0].key}|${raceFeatChoiceState.from[0].source}` : undefined)
+	        && (raceFeatAbilityOptions.length === 0 || Boolean(raceChoices.featAbility))
+	        && areChoiceGroupsComplete(raceFeatSkillChoiceOptions, raceChoices.featSkillChoices)
+	        && areChoiceGroupsComplete(raceFeatToolChoiceOptions, raceChoices.featToolChoices)
+	        && areChoiceGroupsComplete(raceFeatExpertiseChoiceOptions, raceChoices.featExpertiseChoices)
+	        && areChoiceGroupsComplete(raceFeatLanguageChoiceOptions, raceChoices.featLanguageChoices)
+	        && areChoiceGroupsComplete(raceFeatSavingThrowChoiceOptions, raceChoices.featSavingThrowChoices)
+	        && isFeatSpellChoiceComplete(raceFeatSpellChoiceState, raceChoices)
+	      ))
+      && raceToolChoiceOptions.every(choice => (raceChoices.toolChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
+      && raceLanguageChoiceOptions.every(choice => (raceChoices.languageChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
     );
-  const isRaceChoiceComplete = isLevelUpMode
-    || (
-      (raceResistanceOptions.length === 0 || Boolean(raceChoices.resistance))
-      && (raceSizeOptions.length === 0 || Boolean(raceChoices.size))
-      && (!raceAbilityChoiceState || (raceChoices.abilities || []).length === raceAbilityChoiceState.count)
-      && (!raceSkillChoiceState || (raceChoices.skills || []).length === raceSkillChoiceState.count)
-      && (!raceFeatChoiceState || (
-        Boolean(raceChoices.featId)
-        && (raceFeatAbilityOptions.length === 0 || Boolean(raceChoices.featAbility))
-        && areChoiceGroupsComplete(raceFeatSkillChoiceOptions, raceChoices.featSkillChoices)
-        && areChoiceGroupsComplete(raceFeatToolChoiceOptions, raceChoices.featToolChoices)
-        && areChoiceGroupsComplete(raceFeatExpertiseChoiceOptions, raceChoices.featExpertiseChoices)
-        && areChoiceGroupsComplete(raceFeatLanguageChoiceOptions, raceChoices.featLanguageChoices)
-        && areChoiceGroupsComplete(raceFeatSavingThrowChoiceOptions, raceChoices.featSavingThrowChoices)
-        && isFeatSpellChoiceComplete(raceFeatSpellChoiceState, raceChoices)
-      ))
-      && raceToolChoiceOptions.every(choice => (raceChoices.toolChoices?.[choice.id] || []).length === choice.count)
-      && raceLanguageChoiceOptions.every(choice => (raceChoices.languageChoices?.[choice.id] || []).length === choice.count)
-    );
-  const isBackgroundToolChoiceComplete = isLevelUpMode
-    || backgroundToolChoiceOptions.every(choice => (backgroundToolChoices[choice.id] || []).length === choice.count);
-  const isBackgroundLanguageChoiceComplete = isLevelUpMode
-    || backgroundLanguageChoiceOptions.every(choice => (backgroundLanguageChoices[choice.id] || []).length === choice.count);
-  const isClassToolChoiceComplete = classToolChoiceOptions.every(choice => (classToolChoices[choice.id] || []).length === choice.count);
+	  const isBackgroundToolChoiceComplete = isLevelUpMode
+	    || backgroundToolChoiceOptions.every(choice => (backgroundToolChoices[choice.id] || []).length === Math.min(choice.count, choice.from.length));
+	  const isBackgroundLanguageChoiceComplete = isLevelUpMode
+	    || backgroundLanguageChoiceOptions.every(choice => (backgroundLanguageChoices[choice.id] || []).length === Math.min(choice.count, choice.from.length));
+  const isClassToolChoiceComplete = classToolChoiceOptions.every(choice => (classToolChoices[choice.id] || []).length === Math.min(choice.count, choice.from.length));
   const isFightingStyleFeatChoiceComplete = !fightingStyleChoiceState
     || (
       Boolean(classFeatureChoices.fightingStyle?.featId)
@@ -889,17 +908,21 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       maneuvers: validManeuverChoices,
     };
 
-    if (isLevelUpMode) {
-      onApply(buildLevelUpCharacter(data, content, selectedClass, {
-        ruleSystem,
-        spellChoices,
-        invocationChoices: validInvocationChoicePayload,
-        skillChoices,
-        toolChoices: classToolChoices,
-        abilityScoreImprovementChoice: needsAbilityScoreImprovementChoice ? validAbilityScoreImprovementChoice : undefined,
-        classFeatureChoices: validClassFeatureChoices,
-        subclass: needsSubclassChoice ? selectedSubclass : undefined,
-      }));
+	    if (isLevelUpMode) {
+	      const spellReplace = (canReplaceSpell && spellReplaceRemoveId && spellReplaceAddId)
+	        ? { removeId: spellReplaceRemoveId, addId: spellReplaceAddId }
+	        : undefined;
+	      onApply(buildLevelUpCharacter(data, content, selectedClass, {
+	        ruleSystem,
+	        spellChoices,
+	        invocationChoices: validInvocationChoicePayload,
+	        skillChoices,
+	        toolChoices: classToolChoices,
+	        abilityScoreImprovementChoice: needsAbilityScoreImprovementChoice ? validAbilityScoreImprovementChoice : undefined,
+	        classFeatureChoices: validClassFeatureChoices,
+	        subclass: needsSubclassChoice ? selectedSubclass : undefined,
+	        replaceSpell: spellReplace,
+	      }));
       onClose();
       return;
     }
@@ -2173,6 +2196,45 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                   </div>
                 );
               })}
+              {canReplaceSpell && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <h4 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.spellReplacement')}</h4>
+                  <p className="text-[10px] text-gray-400 mb-2">{t('auto.spellReplacementHint')}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-500 font-bold block mb-1">{t('auto.replaceRemove')}</label>
+                      <select
+                        value={spellReplaceRemoveId || ''}
+                        onChange={(e) => {
+                          setSpellReplaceRemoveId(e.target.value || null);
+                          setSpellReplaceAddId(null);
+                        }}
+                        className="w-full text-xs border border-gray-300 rounded p-1"
+                      >
+                        <option value="">{t('auto.replaceNone')}</option>
+                        {existingReplaceableSpells.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {spellReplaceRemoveId && (
+                      <div>
+                        <label className="text-[10px] text-gray-500 font-bold block mb-1">{t('auto.replaceAdd')}</label>
+                        <select
+                          value={spellReplaceAddId || ''}
+                          onChange={(e) => setSpellReplaceAddId(e.target.value || null)}
+                          className="w-full text-xs border border-gray-300 rounded p-1"
+                        >
+                          <option value="">{t('auto.replaceChooseNew')}</option>
+                          {replacementSpellOptions.map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.level})</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

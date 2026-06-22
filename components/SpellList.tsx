@@ -59,21 +59,22 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
     updateSpellcasting('spells', spells);
   };
 
-  const addSpell = () => {
-    const newSpell: Spell = {
-        id: Date.now().toString(),
-        level: 0,
-        name: "",
-        prepared: false,
-        time: "",
-        range: "",
-        components: "",
-        duration: "",
-        concentration: false,
-        ritual: false
-    };
-    updateSpellcasting('spells', [...spellcasting.spells, newSpell]);
-  };
+	  const addSpell = () => {
+	    const newSpell: Spell = {
+	        id: Date.now().toString(),
+	        level: 0,
+	        name: "",
+	        prepared: false,
+	        time: "",
+	        range: "",
+	        components: "",
+	        material: "",
+	        duration: "",
+	        concentration: false,
+	        ritual: false
+	    };
+	    updateSpellcasting('spells', [...spellcasting.spells, newSpell]);
+	  };
 
   const deleteSpell = (id: string) => {
     updateSpellcasting('spells', spellcasting.spells.filter(s => s.id !== id));
@@ -205,6 +206,7 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                         <th className="p-2 text-[10px] uppercase font-bold text-gray-500 w-24">{t('spells.time')}</th>
                         <th className="p-2 text-[10px] uppercase font-bold text-gray-500 w-24">{t('spells.range')}</th>
                         <th className="p-2 text-[10px] uppercase font-bold text-gray-500 w-16 text-center">{t('spells.comp')}</th>
+                        <th className="p-2 text-[10px] uppercase font-bold text-gray-500 w-24">{t('spells.material')}</th>
                         <th className="p-2 text-[10px] uppercase font-bold text-gray-500 w-24">{t('spells.duration')}</th>
                         <th className="p-2 text-[10px] uppercase font-bold text-gray-500 w-8 text-center" title="Concentration">{t('spells.concentration')}</th>
                         <th className="p-2 text-[10px] uppercase font-bold text-gray-500 w-8 text-center" title="Ritual">{t('spells.ritual')}</th>
@@ -266,6 +268,15 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                                     placeholder=""
                                     value={spell.components}
                                     onChange={(e) => updateSpell(spell.id, 'components', e.target.value)}
+                                />
+                            </td>
+                            <td className="p-2">
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-transparent outline-none text-xs"
+                                    placeholder=""
+                                    value={spell.material}
+                                    onChange={(e) => updateSpell(spell.id, 'material', e.target.value)}
                                 />
                             </td>
                             <td className="p-2">

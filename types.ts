@@ -35,17 +35,18 @@ export interface Currency {
 }
 
 export interface Spell {
-  id: string;
-  level: number;
-  name: string;
-  prepared: boolean;
-  time: string;
-  range: string;
-  components: string; // V, S, M
-  duration: string;
-  concentration: boolean;
-  ritual: boolean;
-}
+	  id: string;
+	  level: number;
+	  name: string;
+	  prepared: boolean;
+	  time: string;
+	  range: string;
+	  components: string; // V, S, M
+	  material: string; // material components description
+	  duration: string;
+	  concentration: boolean;
+	  ritual: boolean;
+	}
 
 export interface SpellSlot {
   total: string;

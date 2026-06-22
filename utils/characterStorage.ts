@@ -82,7 +82,7 @@ const normalizeSpellcastingProfile = (
   saveDCOverride: raw.saveDCOverride || '',
   attackBonusOverride: raw.attackBonusOverride || '',
   slots: { ...createEmptySpellSlots(), ...raw.slots },
-  spells: Array.isArray(raw.spells) ? raw.spells.map(spell => ({ ...spell })) : [],
+	  spells: Array.isArray(raw.spells) ? raw.spells.map(spell => ({ ...spell, material: (spell as any).material || '' })) : [],
 });
 
 const normalizeSpellcastingProfiles = (raw: Partial<CharacterData>): SpellcastingProfile[] => {

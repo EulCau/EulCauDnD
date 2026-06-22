@@ -699,12 +699,12 @@ export const getBackgroundFeats = (
 };
 
 const expandToolChoiceKey = (key: string): string[] => {
-  const normalized = normalizeKey(key);
-  if (normalized === 'anyartisanstool') return ARTISAN_TOOLS;
-  if (normalized === 'anymusicalinstrument') return MUSICAL_INSTRUMENTS;
-  if (normalized === 'anygamingset') return GAMING_SETS;
-  return [normalized];
-};
+	  const normalized = normalizeKey(key).toLowerCase();
+	  if (normalized === 'anyartisanstool') return ARTISAN_TOOLS;
+	  if (normalized === 'anymusicalinstrument') return MUSICAL_INSTRUMENTS;
+	  if (normalized === 'anygamingset') return GAMING_SETS;
+	  return [normalizeKey(key)];
+	};
 
 const uniqueStrings = (values: string[]): string[] => Array.from(new Set(values));
 
@@ -1798,11 +1798,27 @@ const getSpellOptionsForClassLevel = (
 };
 
 const isPreparedAllClass = (cls: AutoBuilderClass): boolean => (
-  cls.preparedSpellsChange === 'restLong'
-  && !cls.spellsKnownProgressionFixed?.length
-  && !cls.spellsKnownProgressionFixedByLevel
-  && !cls.spellsKnownProgression?.length
-);
+	  cls.preparedSpellsChange === 'restLong'
+	  && !cls.spellsKnownProgressionFixed?.length
+	  && !cls.spellsKnownProgressionFixedByLevel
+	  && !cls.spellsKnownProgression?.length
+	);
+
+	/**
+	 * Known casters (Bard, Sorcerer, Warlock, Ranger) know a limited set of spells
+	 * and have them always prepared. In 5e data they use `spellsKnownProgression*`;
+	 * in 5r they use `preparedSpellsProgression` with `preparedSpellsChange='level'`.
+	 * Wizard has `spellsKnownProgressionFixed` (spellbook) but is NOT a known caster.
+	 */
+	const isKnownCasterClass = (cls: AutoBuilderClass): boolean => {
+	  if (cls.preparedSpellsChange === 'restLong') return false;
+	  return !!(
+	    cls.spellsKnownProgression?.length
+	    || cls.spellsKnownProgressionFixedByLevel
+	    || cls.spellsKnownProgressionFixedAllowLowerLevel
+	    || cls.preparedSpellsProgression?.length
+	  );
+	};
 
 const getCumulativeFixedKnownSpellCount = (cls: AutoBuilderClass, level: number): number => {
   if (!cls.spellsKnownProgressionFixedByLevel) return 0;
@@ -2368,28 +2384,29 @@ const formatComponents = (components: AutoBuilderSpell['components']): string =>
   return parts.join(', ');
 };
 
-const formatDuration = (duration: AutoBuilderSpell['duration']): string => {
-  const first = duration?.[0];
-  if (!first) return '';
-  if (first.type === 'instant') return '立即';
-  if (first.type === 'permanent') return '永久';
-  const timed = first as { duration?: { type?: string; amount?: number }; concentration?: boolean };
-  const value = timed.duration ? `${timed.duration.amount || 1} ${formatUnit(timed.duration.type)}` : String(first.type || '');
-  return timed.concentration ? `专注, ${value}` : value;
-};
+	const formatDuration = (duration: AutoBuilderSpell['duration']): string => {
+	  const first = duration?.[0];
+	  if (!first) return '';
+	  if (first.type === 'instant') return '立即';
+	  if (first.type === 'permanent') return '永久';
+	  const timed = first as { duration?: { type?: string; amount?: number }; concentration?: boolean };
+	  const value = timed.duration ? `${timed.duration.amount || 1} ${formatUnit(timed.duration.type)}` : String(first.type || '');
+	  return value;
+	};
 
 const toCharacterSpell = (spell: AutoBuilderSpell, prepared: boolean): Spell => ({
-  id: spell.id,
-  level: spell.level,
-  name: spell.name,
-  prepared,
-  time: formatTime(spell.time),
-  range: formatRange(spell.range),
-  components: formatComponents(spell.components),
-  duration: formatDuration(spell.duration),
-  concentration: spell.duration?.some(entry => Boolean(entry.concentration)) || false,
-  ritual: Boolean(spell.meta?.ritual),
-});
+	  id: spell.id,
+	  level: spell.level,
+	  name: spell.name,
+	  prepared,
+	  time: formatTime(spell.time),
+	  range: formatRange(spell.range),
+	  components: formatComponents(spell.components),
+	  material: typeof spell.components?.m === 'string' ? spell.components.m : '',
+	  duration: formatDuration(spell.duration),
+	  concentration: spell.duration?.some(entry => Boolean(entry.concentration)) || false,
+	  ritual: Boolean(spell.meta?.ritual),
+	});
 
 const uniqueSpells = (spells: AutoBuilderSpell[]): AutoBuilderSpell[] => {
   const seen = new Set<string>();
@@ -2468,7 +2485,7 @@ const createSpellcastingProfile = (
     saveDCOverride: '',
     attackBonusOverride: '',
     slots: getSlotsForClassLevel(cls, level),
-    spells: selectedSpells.map(spell => toCharacterSpell(spell, isPreparedAll || additionalIds.has(spell.id) || spell.level === 0)),
+	    spells: selectedSpells.map(spell => toCharacterSpell(spell, isKnownCasterClass(cls) || additionalIds.has(spell.id) || spell.level === 0)),
   };
 };
 
@@ -3605,90 +3622,107 @@ const getSpellcastingProfileForClass = (
 };
 
 const updateSpellcastingForLevel = (
-  character: CharacterData,
-  content: AutoBuilderContent,
-  cls: AutoBuilderClass,
-  newLevel: number,
-  choices: AutoBuilderSpellChoice,
-  subclass?: AutoBuilderSubclass,
-  classId?: string,
-): { profiles: SpellcastingProfile[]; legacy: CharacterData['spellcasting'] } => {
-  const existingProfile = getSpellcastingProfileForClass(character, cls, classId);
-  const createdProfile = createSpellcastingProfile(content, cls, choices, newLevel, subclass, classId);
-  if (!createdProfile) {
-    return { profiles: character.spellcastingProfiles, legacy: character.spellcasting };
-  }
-
-  const isPreparedAll = createdProfile.preparationMode === 'preparedAll';
-  const existingSpellIds = new Set(existingProfile?.spells.map(spell => spell.id) || []);
-  const selectedIds = new Set([...choices.cantrips, ...choices.leveled]);
-  const selectedCantripIds = new Set(choices.cantrips);
-  const spellOptions = getSpellOptionsForClassLevel(content, cls, newLevel, subclass);
-  const additionalPrepared = getAdditionalPreparedSpells(content, cls, newLevel, subclass);
-  const additionalIds = new Set(additionalPrepared.map(spell => spell.id));
-  const addedSpells = isPreparedAll
-    ? uniqueSpells([
-        ...spellOptions.filter(spell => spell.level > 0),
-        ...additionalPrepared,
-      ])
-        .map(spell => toCharacterSpell(spell, true))
-    : uniqueSpells([
-        ...spellOptions.filter(spell => selectedIds.has(spell.id)),
-        ...additionalPrepared,
-      ])
-        .filter(spell => !existingSpellIds.has(spell.id))
-        .map(spell => toCharacterSpell(spell, additionalIds.has(spell.id) || spell.level === 0));
-  const selectedNewCantrips = spellOptions
-    .filter(spell => spell.level === 0 && selectedCantripIds.has(spell.id) && !existingSpellIds.has(spell.id))
-    .map(spell => toCharacterSpell(spell, true));
-  const knownCantrips = [
-    ...(existingProfile?.spells.filter(spell => spell.level === 0) || []),
-    ...selectedNewCantrips,
-  ];
-
-  const nextProfile: SpellcastingProfile = existingProfile
-    ? {
-        ...existingProfile,
-        ability: createdProfile.ability,
-        preparationMode: createdProfile.preparationMode,
-        slots: createdProfile.slots,
-        spells: isPreparedAll
-          ? uniqueCharacterSpells([...knownCantrips, ...addedSpells])
-          : [...existingProfile.spells, ...addedSpells],
-      }
-    : createdProfile;
-
-  const profiles = existingProfile
-    ? character.spellcastingProfiles.map(profile => profile.id === existingProfile.id ? nextProfile : profile)
-    : [...character.spellcastingProfiles, nextProfile];
-
-  return {
-    profiles,
-    legacy: {
-      class: nextProfile.className,
-      ability: nextProfile.ability,
-      saveDCOverride: nextProfile.saveDCOverride,
-      attackBonusOverride: nextProfile.attackBonusOverride,
-      slots: nextProfile.slots,
-      spells: nextProfile.spells,
+	  character: CharacterData,
+	  content: AutoBuilderContent,
+	  cls: AutoBuilderClass,
+	  newLevel: number,
+	  choices: AutoBuilderSpellChoice,
+	  subclass?: AutoBuilderSubclass,
+	  classId?: string,
+	  replaceSpell?: { removeId: string; addId: string } | null,
+	): { profiles: SpellcastingProfile[]; legacy: CharacterData['spellcasting'] } => {
+	  const existingProfile = getSpellcastingProfileForClass(character, cls, classId);
+	  const createdProfile = createSpellcastingProfile(content, cls, choices, newLevel, subclass, classId);
+	  if (!createdProfile) {
+	    return { profiles: character.spellcastingProfiles, legacy: character.spellcasting };
+	  }
+	
+	  const isPreparedAll = createdProfile.preparationMode === 'preparedAll';
+	  const isKnownCaster = isKnownCasterClass(cls);
+	  const existingSpellIds = new Set(existingProfile?.spells.map(spell => spell.id) || []);
+	  const selectedIds = new Set([...choices.cantrips, ...choices.leveled]);
+	  const selectedCantripIds = new Set(choices.cantrips);
+	  const spellOptions = getSpellOptionsForClassLevel(content, cls, newLevel, subclass);
+	  const additionalPrepared = getAdditionalPreparedSpells(content, cls, newLevel, subclass);
+	  const additionalIds = new Set(additionalPrepared.map(spell => spell.id));
+		  const addedSpells = isPreparedAll
+		    ? uniqueSpells([
+		        ...spellOptions.filter(spell => spell.level > 0),
+		        ...additionalPrepared,
+		      ])
+		        .map(spell => toCharacterSpell(spell, additionalIds.has(spell.id)))
+		    : uniqueSpells([
+		        ...spellOptions.filter(spell => selectedIds.has(spell.id)),
+		        ...additionalPrepared,
+		      ])
+		        .filter(spell => !existingSpellIds.has(spell.id))
+		        .map(spell => toCharacterSpell(spell, isKnownCaster || additionalIds.has(spell.id) || spell.level === 0));
+		  const selectedNewCantrips = spellOptions
+		    .filter(spell => spell.level === 0 && selectedCantripIds.has(spell.id) && !existingSpellIds.has(spell.id))
+		    .map(spell => toCharacterSpell(spell, true));
+		  const knownCantrips = [
+		    ...(existingProfile?.spells.filter(spell => spell.level === 0) || []),
+		    ...selectedNewCantrips,
+		  ];
+		
+		  // Handle spell replacement on level-up (known-spell casters only)
+		  let existingLeveledSpells = existingProfile?.spells.filter(spell => spell.level > 0) || [];
+		  if (replaceSpell && replaceSpell.removeId && replaceSpell.addId) {
+		    existingLeveledSpells = existingLeveledSpells
+		      .filter(spell => spell.id !== replaceSpell.removeId);
+		    const replacementSpell = spellOptions.find(spell => spell.id === replaceSpell.addId);
+		    if (replacementSpell) {
+		      existingLeveledSpells = [
+		        ...existingLeveledSpells,
+		        toCharacterSpell(replacementSpell, isKnownCaster || additionalIds.has(replacementSpell.id) || replacementSpell.level === 0),
+		      ];
+		    }
+		  }
+	
+	  const nextProfile: SpellcastingProfile = existingProfile
+	    ? {
+	        ...existingProfile,
+	        ability: createdProfile.ability,
+	        preparationMode: createdProfile.preparationMode,
+	        slots: createdProfile.slots,
+	        spells: isPreparedAll
+	          ? uniqueCharacterSpells([...knownCantrips, ...addedSpells])
+	          : [...knownCantrips, ...existingLeveledSpells, ...addedSpells],
+	      }
+	    : createdProfile;
+	
+	  const profiles = existingProfile
+	    ? character.spellcastingProfiles.map(profile => profile.id === existingProfile.id ? nextProfile : profile)
+	    : [...character.spellcastingProfiles, nextProfile];
+	
+	  return {
+	    profiles,
+	    legacy: {
+	      class: nextProfile.className,
+	      ability: nextProfile.ability,
+	      saveDCOverride: nextProfile.saveDCOverride,
+	      attackBonusOverride: nextProfile.attackBonusOverride,
+	      slots: nextProfile.slots,
+	      spells: nextProfile.spells,
     },
   };
 };
 
 export const buildLevelUpCharacter = (
-  character: CharacterData,
-  content: AutoBuilderContent,
-  cls: AutoBuilderClass,
-  options: {
-    ruleSystem: RuleSystem;
-    spellChoices: AutoBuilderSpellChoice;
-    skillChoices?: string[];
-    toolChoices?: AutoBuilderToolChoiceSelection;
-    abilityScoreImprovementChoice?: AutoBuilderAbilityScoreImprovementChoice;
-    classFeatureChoices?: AutoBuilderClassFeatureChoice;
-    subclass?: AutoBuilderSubclass;
-    invocationChoices?: AutoBuilderInvocationChoice;
-  },
+	  character: CharacterData,
+	  content: AutoBuilderContent,
+	  cls: AutoBuilderClass,
+	  options: {
+	    ruleSystem: RuleSystem;
+	    spellChoices: AutoBuilderSpellChoice;
+	    skillChoices?: string[];
+	    toolChoices?: AutoBuilderToolChoiceSelection;
+	    abilityScoreImprovementChoice?: AutoBuilderAbilityScoreImprovementChoice;
+	    classFeatureChoices?: AutoBuilderClassFeatureChoice;
+	    subclass?: AutoBuilderSubclass;
+	    invocationChoices?: AutoBuilderInvocationChoice;
+	    replaceSpell?: { removeId: string; addId: string } | null;
+	  },
 ): CharacterData => {
   const currentLevel = getClassLevel(character, cls);
   const newLevel = currentLevel + 1;
@@ -3706,8 +3740,8 @@ export const buildLevelUpCharacter = (
         item.id === existingClass.id ? { ...item, name: cls.key, level: newLevel, subclass: item.subclass || options.subclass?.name || '', source: cls.source } : item
       ))
     : [...character.classes, { id: newClassId, name: cls.key, level: 1, subclass: options.subclass?.name || '', source: cls.source }];
-  const spellcasting = addClassFeatureSpellsToSpellcasting(
-    updateSpellcastingForLevel(character, content, cls, newLevel, options.spellChoices, selectedSubclass, newClassId),
+	  const spellcasting = addClassFeatureSpellsToSpellcasting(
+	    updateSpellcastingForLevel(character, content, cls, newLevel, options.spellChoices, selectedSubclass, newClassId, options.replaceSpell),
     content,
     newClassId,
     options.classFeatureChoices,

@@ -127,21 +127,22 @@ export const SpellSheet: React.FC<SpellSheetProps> = ({ data, onChange, profBonu
     updateSpellcasting('spells', spells);
   };
 
-  const handleAddSpell = (level: number) => {
-      const newSpell: Spell = {
-        id: Date.now().toString() + Math.random().toString().slice(2),
-        level,
-        name: "",
-        prepared: false,
-        time: "",
-        range: "",
-        components: "",
-        duration: "",
-        concentration: false,
-        ritual: false
-      };
-      updateSpellcasting('spells', [...spellcasting.spells, newSpell]);
-  };
+	  const handleAddSpell = (level: number) => {
+	      const newSpell: Spell = {
+	        id: Date.now().toString() + Math.random().toString().slice(2),
+	        level,
+	        name: "",
+	        prepared: false,
+	        time: "",
+	        range: "",
+	        components: "",
+	        material: "",
+	        duration: "",
+	        concentration: false,
+	        ritual: false
+	      };
+	      updateSpellcasting('spells', [...spellcasting.spells, newSpell]);
+	  };
 
   const handleDeleteSpell = (id: string) => {
       updateSpellcasting('spells', spellcasting.spells.filter(s => s.id !== id));
