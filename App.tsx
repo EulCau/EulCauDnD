@@ -11,6 +11,7 @@ import { SpellList } from './components/SpellList';
 import { BackstoryGenerator } from './components/BackstoryGenerator';
 import { AuthScreen } from './components/AuthScreen';
 import { AutoCharacterBuilder } from './components/AutoCharacterBuilder';
+import SearchPanel from './components/SearchPanel';
 import { CharacterData, INITIAL_CHARACTER, AbilityName } from './types';
 import { calculatePassivePerception, calculateProficiencyBonus, getTotalLevel } from './utils/dndCalculations';
 import { ABILITIES } from './constants';
@@ -19,6 +20,7 @@ import { useAuth } from './contexts/AuthContext';
 import { normalizeCharacter, parseCharacterJson, serializeCharacter } from './utils/characterStorage';
 import { removeCharacterAdjustments } from './utils/characterAdjustments';
 import { loadAutoBuilderContent, type AutoBuilderContent } from './utils/autoBuilderRules';
+import { loadMagicItems, type MagicItemData, type MagicItemsContent } from './utils/magicItems';
 import { refreshAutomaticArmorClass, refreshAutomaticStyleAttacks, refreshCharacterAutomation } from './utils/equipmentRules';
 
 export default function App() {
@@ -26,6 +28,8 @@ export default function App() {
   const [isTouchMode, setIsTouchMode] = useState(() => localStorage.getItem('dnd_touch_mode') === 'true');
   const [isAutoBuilderOpen, setIsAutoBuilderOpen] = useState(false);
   const [autoBuilderContent, setAutoBuilderContent] = useState<AutoBuilderContent | null>(null);
+  const [magicItems, setMagicItems] = useState<MagicItemData[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
 
@@ -38,6 +42,7 @@ export default function App() {
 
   useEffect(() => {
     loadAutoBuilderContent().then(setAutoBuilderContent).catch(() => setAutoBuilderContent(null));
+    loadMagicItems().then(data => setMagicItems(data.items)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -278,14 +283,41 @@ export default function App() {
       
       {/* Bottom Sections: Features, Resources, Adjustments — then Spells */}
       <div className="mt-4 flex flex-col gap-4">
-        <FeaturesBox
-          data={character}
-          onChange={(val) => updateField('features', val)}
-          onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
-          onUpdateResource={updateResource}
-        />
-        <SpellList data={character} onChange={updateField} profBonus={profBonus} />
+        <div className="flex items-center justify-between">
+          <FeaturesBox
+            data={character}
+            onChange={(val) => updateField('features', val)}
+            onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
+            onUpdateResource={updateResource}
+          />
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="absolute right-2 top-2 z-10 text-[10px] font-bold uppercase px-2 py-1 rounded border border-gray-300 text-gray-500 hover:text-dnd-red hover:border-dnd-red transition-colors bg-white/80"
+          >
+            🔍 {t('search.open')}
+          </button>
+          <SpellList data={character} onChange={updateField} profBonus={profBonus} />
+        </div>
       </div>
+
+      <SearchPanel
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        spells={autoBuilderContent?.spells || []}
+        features={character.featureEntries.map(f => ({ id: f.id, sourceId: f.sourceId, name: f.name, sourceName: f.sourceName, description: f.description }))}
+        magicItems={magicItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          englishName: item.englishName,
+          typeLabel: item.typeLabel,
+          rarity: item.rarity,
+          category: item.category,
+          description: item.description,
+          source: item.source,
+        }))}
+      />
 
       <footer className="mt-12 text-center text-gray-400 text-xs pb-4">
         <p>&copy; {new Date().getFullYear()} {t('footer.text')}</p>

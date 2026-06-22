@@ -234,7 +234,21 @@ export const TRANSLATIONS = {
 	    "spells.shared": "Shared",
 	    "spells.pact": "Pact",
 
-    // Footer
+	    // Search
+	    "search.open": "Search",
+	    "search.placeholder": "Search spells, features, magic items...",
+	    "search.hint": "Type to search through spells, features, and magic items.",
+	    "search.noResults": "No results found.",
+	    "search.chooseSource": "Choose source:",
+	    "search.source": "Source",
+	    "search.rarity": "Rarity",
+	    "search.multiSource": "Multi-source",
+	    "search.tabAll": "All",
+	    "search.tabSpells": "Spells",
+	    "search.tabFeatures": "Features",
+	    "search.tabItems": "Items",
+
+	    // Footer
     "footer.text": "EulCau D&D 5e auto card. Not affiliated with Wizards of the Coast.",
 
     // Skills
@@ -513,9 +527,23 @@ export const TRANSLATIONS = {
 	    "spells.slotPact": "契约魔法",
 	    "spells.slotClass": "职业法术位",
 	    "spells.shared": "共享",
-	    "spells.pact": "契约",
+		    "spells.pact": "契约",
 
-    // Footer
+		    // Search
+		    "search.open": "搜索",
+		    "search.placeholder": "搜索法术、特性、魔法物品...",
+		    "search.hint": "输入关键词搜索法术、特性和魔法物品。",
+		    "search.noResults": "未找到结果。",
+		    "search.chooseSource": "选择来源：",
+		    "search.source": "来源",
+		    "search.rarity": "稀有度",
+		    "search.multiSource": "多来源",
+		    "search.tabAll": "全部",
+		    "search.tabSpells": "法术",
+		    "search.tabFeatures": "特性",
+		    "search.tabItems": "物品",
+
+	    // Footer
     "footer.text": "EulCau D&D 5e auto card。与威世智无关。",
 
     // Skills
