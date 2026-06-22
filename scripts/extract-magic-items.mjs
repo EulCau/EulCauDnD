@@ -13,7 +13,6 @@ const ROOT = process.cwd();
 const DATA_ROOT = path.join(ROOT, 'third_party/5etools-cn/data');
 const OUT_DIR = path.join(ROOT, 'public/data');
 const OUT_FILE = path.join(OUT_DIR, 'magic-items.json');
-const PUBLIC_OUT_FILE = path.join(OUT_DIR, 'magic-items.json');
 
 // Types that represent weapons (WD = Weapon, $A = Ammunition, etc.)
 const WEAPON_TYPES = new Set([
@@ -222,6 +221,9 @@ const normalizeItem = (item) => {
 const getItemCategory = (type, item) => {
 	  if (WEAPON_TYPES.has(type)) return 'weapon';
 	  if (ARMOR_TYPES.has(type)) return 'armor';
+	  // Items with weapon bonus but no type code are still weapons (e.g. generic +X weapon descriptions)
+	  if (item.bonusWeapon && (!type || type === 'M' || type === '')) return 'weapon';
+	  if (item.bonusAc && (!type || type === '')) return 'armor';
 	  if (type.startsWith('SC')) return 'scroll';
 	  if (POTION_TYPES.has(type)) return 'potion';
 	  if (RING_TYPES.has(type)) return 'ring';
@@ -271,13 +273,8 @@ const output = {
   items: magicItems,
 };
 
-// Write full data
-fs.mkdirSync(OUT_DIR, { recursive: true });
-fs.writeFileSync(OUT_FILE, JSON.stringify(output, null, 2), 'utf8');
-
-// Write public version (compressed)
-fs.mkdirSync(PUBLIC_DIR, { recursive: true });
-fs.writeFileSync(PUBLIC_OUT_FILE, JSON.stringify(output), 'utf8');
-
-console.log(`\nWritten to ${OUT_FILE}`);
-console.log(`Public version at ${PUBLIC_OUT_FILE}`);
+	// Write minified JSON (used by the frontend)
+	fs.mkdirSync(OUT_DIR, { recursive: true });
+	fs.writeFileSync(OUT_FILE, JSON.stringify(output), 'utf8');
+	
+	console.log(`\nWritten to ${OUT_FILE}`);
