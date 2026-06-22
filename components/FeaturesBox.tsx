@@ -14,7 +14,7 @@ export const FeaturesBox: React.FC<FeaturesBoxProps> = ({ data, onChange, onRemo
   const { t } = useLanguage();
 
   return (
-	    <div className="bg-white border border-gray-300 rounded p-3 flex flex-col overflow-hidden min-h-[200px]">
+	    <div className="bg-white border border-gray-300 rounded p-3 flex flex-col overflow-hidden">
       {data.appliedAdjustments.length > 0 && (
         <div className="mb-3 border-b border-gray-200 pb-2">
           <h3 className="text-[10px] text-gray-500 uppercase font-bold text-center mb-2">

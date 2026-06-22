@@ -277,13 +277,15 @@ export default function App() {
       </div>
       
       {/* Bottom Sections: Features, Resources, Adjustments — then Spells */}
-      <FeaturesBox
-        data={character}
-        onChange={(val) => updateField('features', val)}
-        onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
-        onUpdateResource={updateResource}
-      />
-      <SpellList data={character} onChange={updateField} profBonus={profBonus} />
+      <div className="mt-4 flex flex-col gap-4">
+        <FeaturesBox
+          data={character}
+          onChange={(val) => updateField('features', val)}
+          onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
+          onUpdateResource={updateResource}
+        />
+        <SpellList data={character} onChange={updateField} profBonus={profBonus} />
+      </div>
 
       <footer className="mt-12 text-center text-gray-400 text-xs pb-4">
         <p>&copy; {new Date().getFullYear()} {t('footer.text')}</p>
