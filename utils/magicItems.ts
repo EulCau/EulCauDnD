@@ -46,7 +46,7 @@ let cachePromise: Promise<MagicItemsContent> | null = null;
 export const loadMagicItems = async (): Promise<MagicItemsContent> => {
   if (cachePromise) return cachePromise;
   cachePromise = (async () => {
-    const response = await fetch('./character-content/magic-items.json');
+	    const response = await fetch('./data/magic-items.json');
     if (!response.ok) throw new Error(`Failed to load magic items: ${response.status}`);
     return response.json();
   })();

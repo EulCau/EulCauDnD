@@ -603,7 +603,7 @@ export const loadAutoBuilderContent = async (): Promise<AutoBuilderContent> => {
   if (autoBuilderContentPromise) return autoBuilderContentPromise;
 
   autoBuilderContentPromise = (async () => {
-    const response = await fetch('./character-content/auto-builder-core.json');
+	    const response = await fetch('./data/auto-builder-core.json');
     if (!response.ok) {
       throw new Error(`Failed to load auto-builder data: ${response.status}`);
     }

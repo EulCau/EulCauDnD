@@ -11,10 +11,9 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const DATA_ROOT = path.join(ROOT, 'third_party/5etools-cn/data');
-const OUT_DIR = path.join(ROOT, 'data/character-content');
+const OUT_DIR = path.join(ROOT, 'public/data');
 const OUT_FILE = path.join(OUT_DIR, 'magic-items.json');
-const PUBLIC_DIR = path.join(ROOT, 'public/character-content');
-const PUBLIC_OUT_FILE = path.join(PUBLIC_DIR, 'magic-items.json');
+const PUBLIC_OUT_FILE = path.join(OUT_DIR, 'magic-items.json');
 
 // Types that represent weapons (WD = Weapon, $A = Ammunition, etc.)
 const WEAPON_TYPES = new Set([

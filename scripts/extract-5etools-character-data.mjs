@@ -3,9 +3,9 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const DATA_ROOT = path.join(ROOT, 'third_party/5etools-cn/data');
-const OUT_DIR = path.join(ROOT, 'data/character-content');
+const OUT_DIR = path.join(ROOT, 'public/data');
 const OUT_FILE = path.join(OUT_DIR, 'core.json');
-const PUBLIC_OUT_DIR = path.join(ROOT, 'public/character-content');
+const PUBLIC_OUT_DIR = path.join(ROOT, 'public/data');
 const AUTO_BUILDER_OUT_FILE = path.join(PUBLIC_OUT_DIR, 'auto-builder-core.json');
 const CORE_SPELL_SOURCES = ['PHB', 'XPHB'];
 const OFFICIAL_EXTENSION_SPELL_SOURCES = [
