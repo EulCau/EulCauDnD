@@ -243,16 +243,140 @@ const rawItems = items.item || [];
 
 console.log(`Total items in source: ${rawItems.length}`);
 
-const magicItems = rawItems
-  .filter(item => {
-    // Keep items that have a defined rarity
-    const r = item.rarity || 'none';
-    return r !== 'none' && r !== 'unknown';
-  })
+// Deduplicate source magic items by name (keep first occurrence, preferring DMG over XDMG)
+const seenSource = new Set();
+const uniqueMagicItems = [];
+const sourcePriority = ['DMG', 'XDMG', 'PHB', 'XPHB'];
+const getSourceRank = (s) => sourcePriority.indexOf(s) >= 0 ? sourcePriority.indexOf(s) : 99;
+
+for (const item of rawItems.filter(item => {
+  const r = item.rarity || 'none';
+  return r !== 'none' && r !== 'unknown';
+})) {
+  const key = item.name;
+  if (!seenSource.has(key)) {
+    seenSource.add(key);
+    uniqueMagicItems.push(item);
+  } else {
+    // If we already have this item, keep the one with higher-priority source
+    const existingIdx = uniqueMagicItems.findIndex(i => i.name === key);
+    if (existingIdx >= 0 && getSourceRank(item.source) < getSourceRank(uniqueMagicItems[existingIdx].source)) {
+      uniqueMagicItems[existingIdx] = item;
+    }
+  }
+}
+
+const magicItems = uniqueMagicItems
   .map(normalizeItem)
   .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 
-console.log(`Magic items extracted: ${magicItems.length}`);
+console.log(`Magic items extracted (deduplicated): ${magicItems.length}`);
+
+// --- Generate generic +X weapon/armor/shield variants ---
+const baseItems = readJson('items-base.json');
+const rawBaseItems = baseItems.baseitem || [];
+
+// Types that can be enchanted as +X
+const ENCHANTABLE_WEAPON_TYPES = new Set(['M', 'M|XPHB', 'R', 'R|XPHB']);
+const ENCHANTABLE_AMMO_TYPES = new Set(['$A', '$A|XPHB']);
+const ENCHANTABLE_ARMOR_TYPES = new Set(['LA', 'LA|XPHB', 'MA', 'MA|XPHB', 'HA', 'HA|XPHB']);
+const ENCHANTABLE_SHIELD_TYPES = new Set(['S', 'S|XPHB']);
+
+// Track which base items already have named magic variants (via baseItem field)
+const hasNamedVariant = new Set();
+for (const item of rawItems) {
+  const baseRef = item.baseItem;
+  if (baseRef) {
+    const baseName = baseRef.split('|')[0];
+    hasNamedVariant.add(baseName);
+  }
+}
+
+// Deduplicate base items by name (some appear in both PHB and XPHB)
+const seenBase = new Set();
+const uniqueBases = [];
+for (const base of rawBaseItems) {
+  if (!seenBase.has(base.name)) {
+    seenBase.add(base.name);
+    uniqueBases.push(base);
+  }
+}
+
+const BONUS_CONFIGS = [
+  { bonus: 1, rarity: 'uncommon', tier: 1 },
+  { bonus: 2, rarity: 'rare', tier: 2 },
+  { bonus: 3, rarity: 'very rare', tier: 3 },
+];
+
+let generatedCount = 0;
+for (const base of uniqueBases) {
+  const type = base.type || '';
+  const name = base.name;
+  const enName = base.ENG_name || name;
+  const source = base.source || 'DMG';
+
+  // Determine which enchantment types apply
+  const isWeapon = ENCHANTABLE_WEAPON_TYPES.has(type);
+  const isAmmo = ENCHANTABLE_AMMO_TYPES.has(type);
+  const isArmor = ENCHANTABLE_ARMOR_TYPES.has(type);
+  const isShield = ENCHANTABLE_SHIELD_TYPES.has(type);
+
+  if (!isWeapon && !isAmmo && !isArmor && !isShield) continue;
+
+  for (const cfg of BONUS_CONFIGS) {
+    const itemCategory = isWeapon || isAmmo ? 'weapon' : 'armor';
+    const typeLabel = isWeapon ? '武器' : isAmmo ? '弹药' : isArmor ? '护甲' : '盾牌';
+
+    const newName = `${name} +${cfg.bonus}`;
+    const newEnName = `${enName} +${cfg.bonus}`;
+
+    // Skip if a named magic item with this exact name already exists
+    if (magicItems.some(m => m.name === newName)) continue;
+
+    const newItem = {
+      id: `${newName}|DMG`,
+      name: newName,
+      englishName: newEnName,
+      source: 'DMG',
+      type: base.type || '',
+      typeLabel: `${typeLabel} +${cfg.bonus}`,
+      rarity: cfg.rarity,
+      tier: cfg.tier,
+      attunement: null,
+      isWeapon: isWeapon || isAmmo || false,
+      isArmor: isArmor || isShield || false,
+      isFocus: false,
+      isPotion: false,
+      isRing: false,
+      isWondrous: false,
+      isScroll: false,
+      weaponCategory: base.weaponCategory,
+      dmg1: base.dmg1,
+      dmg2: base.dmg2,
+      dmgType: base.dmgType,
+      property: base.property,
+      range: base.range,
+      ac: base.ac,
+      armor: base.armor,
+      stealth: base.stealth,
+      strength: base.strength,
+      bonusWeapon: isWeapon || isAmmo ? `+${cfg.bonus}` : undefined,
+      bonusAc: isArmor || isShield ? `+${cfg.bonus}` : undefined,
+      bonusSpellAttack: undefined,
+      bonusSpellSaveDc: undefined,
+      weight: base.weight,
+      value: undefined,
+      description: `此${typeLabel}在攻击和伤害掷骰上获得 +${cfg.bonus} 加值。`,
+      category: itemCategory,
+    };
+    magicItems.push(newItem);
+    generatedCount++;
+  }
+}
+
+magicItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+console.log(`Generic +X variants generated: ${generatedCount}`);
+console.log(`Total magic items: ${magicItems.length}`);
 
 // Stats
 const byRarity = {};
