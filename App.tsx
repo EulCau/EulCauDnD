@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { AbilityScoreRow } from './components/AbilityScore';
 import { Vitals } from './components/Vitals';
@@ -30,6 +30,50 @@ export default function App() {
   const [autoBuilderContent, setAutoBuilderContent] = useState<AutoBuilderContent | null>(null);
   const [magicItems, setMagicItems] = useState<MagicItemData[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // All class and subclass features for search
+  const allFeatures = useMemo(() => {
+    if (!autoBuilderContent) return [];
+    const result: Array<{ id: string; sourceId: string; name: string; sourceName: string; description: string }> = [];
+    for (const cls of autoBuilderContent.classes) {
+      for (const f of cls.levelOneFeatures || []) {
+        if (f.name && f.description) {
+          result.push({
+            id: `${cls.key}-${cls.source}-${f.name}`,
+            sourceId: `class:${cls.key}`,
+            name: f.name,
+            sourceName: `${cls.name} (${cls.source})`,
+            description: f.description,
+          });
+        }
+      }
+      for (const f of cls.levelFeatures || []) {
+        if (f.name && f.description) {
+          result.push({
+            id: `${cls.key}-${cls.source}-L${f.level}-${f.name}`,
+            sourceId: `class:${cls.key}`,
+            name: f.name,
+            sourceName: `${cls.name} L${f.level} (${cls.source})`,
+            description: f.description,
+          });
+        }
+      }
+    }
+    for (const sub of autoBuilderContent.subclasses) {
+      for (const f of sub.features || []) {
+        if (f.name && f.description) {
+          result.push({
+            id: `subclass-${sub.id}-L${f.level}-${f.name}`,
+            sourceId: `subclass:${sub.id}`,
+            name: f.name,
+            sourceName: `${sub.name} (${sub.className} · ${sub.source})`,
+            description: f.description,
+          });
+        }
+      }
+    }
+    return result;
+  }, [autoBuilderContent]);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
 
@@ -306,7 +350,7 @@ export default function App() {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         spells={autoBuilderContent?.spells || []}
-        features={character.featureEntries.map(f => ({ id: f.id, sourceId: f.sourceId, name: f.name, sourceName: f.sourceName, description: f.description }))}
+        features={[...allFeatures, ...character.featureEntries.map(f => ({ id: f.id, sourceId: f.sourceId, name: f.name, sourceName: f.sourceName, description: f.description }))]}
         magicItems={magicItems.map(item => ({
           id: item.id,
           name: item.name,
