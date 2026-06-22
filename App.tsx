@@ -32,48 +32,48 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // All class and subclass features for search
-  const allFeatures = useMemo(() => {
-    if (!autoBuilderContent) return [];
-    const result: Array<{ id: string; sourceId: string; name: string; sourceName: string; description: string }> = [];
-    for (const cls of autoBuilderContent.classes) {
-      for (const f of cls.levelOneFeatures || []) {
-        if (f.name && f.description) {
-          result.push({
-            id: `${cls.key}-${cls.source}-${f.name}`,
-            sourceId: `class:${cls.key}`,
-            name: f.name,
-            sourceName: `${cls.name} (${cls.source})`,
-            description: f.description,
-          });
-        }
-      }
-      for (const f of cls.levelFeatures || []) {
-        if (f.name && f.description) {
-          result.push({
-            id: `${cls.key}-${cls.source}-L${f.level}-${f.name}`,
-            sourceId: `class:${cls.key}`,
-            name: f.name,
-            sourceName: `${cls.name} L${f.level} (${cls.source})`,
-            description: f.description,
-          });
-        }
-      }
-    }
-    for (const sub of autoBuilderContent.subclasses) {
-      for (const f of sub.features || []) {
-        if (f.name && f.description) {
-          result.push({
-            id: `subclass-${sub.id}-L${f.level}-${f.name}`,
-            sourceId: `subclass:${sub.id}`,
-            name: f.name,
-            sourceName: `${sub.name} (${sub.className} · ${sub.source})`,
-            description: f.description,
-          });
-        }
-      }
-    }
-    return result;
-  }, [autoBuilderContent]);
+	  const allFeatures = useMemo(() => {
+	    if (!autoBuilderContent) return [];
+	    const result: Array<{ id: string; sourceId: string; name: string; sourceName: string; description: string }> = [];
+	    for (const cls of autoBuilderContent.classes) {
+	      for (const f of cls.levelOneFeatures || []) {
+	        if (f.name && f.description) {
+	          result.push({
+	            id: `${cls.key}-${cls.source}-${f.name}`,
+	            sourceId: `class:${cls.key}:${f.source}`,
+	            name: f.name,
+	            sourceName: `${cls.name} (${f.source})`,
+	            description: f.description,
+	          });
+	        }
+	      }
+	      for (const f of cls.levelFeatures || []) {
+	        if (f.name && f.description) {
+	          result.push({
+	            id: `${cls.key}-${cls.source}-L${f.level}-${f.name}`,
+	            sourceId: `class:${cls.key}:${f.source}`,
+	            name: f.name,
+	            sourceName: `${cls.name} L${f.level} (${f.source})`,
+	            description: f.description,
+	          });
+	        }
+	      }
+	    }
+	    for (const sub of autoBuilderContent.subclasses) {
+	      for (const f of sub.features || []) {
+	        if (f.name && f.description) {
+	          result.push({
+	            id: `subclass-${sub.id}-L${f.level}-${f.name}`,
+	            sourceId: `subclass:${sub.id}:${f.source}`,
+	            name: f.name,
+	            sourceName: `${sub.name} (${sub.className} · ${f.source})`,
+	            description: f.description,
+	          });
+	        }
+	      }
+	    }
+	    return result;
+	  }, [autoBuilderContent]);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
 
