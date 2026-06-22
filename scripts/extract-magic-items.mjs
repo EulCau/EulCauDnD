@@ -282,16 +282,6 @@ const ENCHANTABLE_AMMO_TYPES = new Set(['$A', '$A|XPHB']);
 const ENCHANTABLE_ARMOR_TYPES = new Set(['LA', 'LA|XPHB', 'MA', 'MA|XPHB', 'HA', 'HA|XPHB']);
 const ENCHANTABLE_SHIELD_TYPES = new Set(['S', 'S|XPHB']);
 
-// Track which base items already have named magic variants (via baseItem field)
-const hasNamedVariant = new Set();
-for (const item of rawItems) {
-  const baseRef = item.baseItem;
-  if (baseRef) {
-    const baseName = baseRef.split('|')[0];
-    hasNamedVariant.add(baseName);
-  }
-}
-
 // Deduplicate base items by name (some appear in both PHB and XPHB)
 const seenBase = new Set();
 const uniqueBases = [];
@@ -376,6 +366,111 @@ for (const base of uniqueBases) {
 
 magicItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 console.log(`Generic +X variants generated: ${generatedCount}`);
+
+// --- Generate generic magic item templates (Vicious, Dragon's Wrath, etc.) ---
+const GENERIC_TEMPLATES = [
+  {
+    name: '恶毒武器',
+    englishName: 'Vicious Weapon',
+    rarity: 'common',
+    category: 'weapon',
+    typeLabel: '武器（恶毒）',
+    bonusWeapon: null,
+    bonusAc: null,
+    description: '当你用一个该魔法武器命中目标时，目标额外受到 2d6 伤害。',
+    source: 'DMG',
+  },
+  {
+    name: '沉睡龙怒武器',
+    englishName: "Slumbering Dragon's Wrath Weapon",
+    rarity: 'uncommon',
+    category: 'weapon',
+    typeLabel: '武器（龙怒·沉睡）',
+    bonusWeapon: '+1',
+    bonusAc: null,
+    description: '此魔法武器在攻击和伤害掷骰上获得 +1 加值。当你用此武器命中一条龙时，龙额外受到 1d6 力场伤害。用此武器攻击时，你可以在 60 英尺范围内说龙语。',
+    source: 'FTD',
+  },
+  {
+    name: '激活龙怒武器',
+    englishName: "Stirring Dragon's Wrath Weapon",
+    rarity: 'rare',
+    category: 'weapon',
+    typeLabel: '武器（龙怒·激活）',
+    bonusWeapon: '+2',
+    bonusAc: null,
+    description: '此魔法武器在攻击和伤害掷骰上获得 +2 加值。当你用此武器命中一条龙时，龙额外受到 2d6 力场伤害。用此武器攻击时，你可以用动作喷出 30 英尺锥形的能量（DC 15 敏捷豁免，半伤），造成 6d6 你选择的龙息伤害类型（酸、冰、火、闪电、毒）。使用后直到第二天黎明才能再次使用。',
+    source: 'FTD',
+  },
+  {
+    name: '觉醒龙怒武器',
+    englishName: "Wakened Dragon's Wrath Weapon",
+    rarity: 'very rare',
+    category: 'weapon',
+    typeLabel: '武器（龙怒·觉醒）',
+    bonusWeapon: '+2',
+    bonusAc: null,
+    description: '此魔法武器在攻击和伤害掷骰上获得 +2 加值。当你用此武器命中一条龙时，龙额外受到 4d6 力场伤害。用此武器攻击时，你可以用动作喷出 60 英尺锥形的能量（DC 17 敏捷豁免，半伤），造成 10d6 你选择的龙息伤害类型。使用后直到第二天黎明才能再次使用。你在进行豁免检定时获得等同于你魅力调整值的加值。',
+    source: 'FTD',
+  },
+  {
+    name: '神化龙怒武器',
+    englishName: "Ascendant Dragon's Wrath Weapon",
+    rarity: 'legendary',
+    category: 'weapon',
+    typeLabel: '武器（龙怒·神化）',
+    bonusWeapon: '+3',
+    bonusAc: null,
+    description: '此魔法武器在攻击和伤害掷骰上获得 +3 加值。当你用此武器命中一条龙时，龙额外受到 4d6 力场伤害。用此武器攻击时，你可以用动作喷出 90 英尺锥形的能量（DC 21 敏捷豁免，半伤），造成 12d6 你选择的龙息伤害类型。使用后直到第二天黎明才能再次使用。你获得 60 英尺盲视，免疫麻痹和恐慌状态。',
+    source: 'FTD',
+  },
+];
+
+let templateCount = 0;
+for (const tmpl of GENERIC_TEMPLATES) {
+  // Skip if an item with the same name already exists
+  if (magicItems.some(m => m.name === tmpl.name)) continue;
+  magicItems.push({
+    id: `${tmpl.name}|${tmpl.source}`,
+    name: tmpl.name,
+    englishName: tmpl.englishName,
+    source: tmpl.source,
+    type: '',
+    typeLabel: tmpl.typeLabel,
+    rarity: tmpl.rarity,
+    tier: undefined,
+    attunement: null,
+    isWeapon: true,
+    isArmor: false,
+    isFocus: false,
+    isPotion: false,
+    isRing: false,
+    isWondrous: false,
+    isScroll: false,
+    weaponCategory: undefined,
+    dmg1: undefined,
+    dmg2: undefined,
+    dmgType: undefined,
+    property: undefined,
+    range: undefined,
+    ac: undefined,
+    armor: undefined,
+    stealth: undefined,
+    strength: undefined,
+    bonusWeapon: tmpl.bonusWeapon,
+    bonusAc: tmpl.bonusAc,
+    bonusSpellAttack: undefined,
+    bonusSpellSaveDc: undefined,
+    weight: undefined,
+    value: undefined,
+    description: tmpl.description,
+    category: tmpl.category,
+  });
+  templateCount++;
+}
+
+magicItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+console.log(`Generic templates added: ${templateCount}`);
 console.log(`Total magic items: ${magicItems.length}`);
 
 // Stats
