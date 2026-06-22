@@ -97,9 +97,10 @@ type AutoBuilderSpell = {
   };
   damageInflict?: string[];
   spellAttack?: string[];
-  classKeys: string[];
-  subclassIds?: string[];
-};
+	  classKeys: string[];
+	  subclassIds?: string[];
+	  description?: string;
+	};
 
 export type AutoBuilderFixedSpellChoiceGroup = {
   classLevel: number;

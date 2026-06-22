@@ -808,10 +808,11 @@ const autoBuilderSpells = autoBuilderSpellList
     classKeys: Array.from(new Set(autoBuilderClasses
       .filter(cls => isSpellForClass(spell, cls))
       .map(cls => cls.key))),
-    subclassIds: Array.from(new Set(autoBuilderSubclasses
-      .filter(subclass => isSpellForSubclass(spell, subclass))
-      .map(subclass => subclass.id))),
-  }));
+	    subclassIds: Array.from(new Set(autoBuilderSubclasses
+	      .filter(subclass => isSpellForSubclass(spell, subclass))
+	      .map(subclass => subclass.id))),
+	    description: summarizeEntries(spell.entries || []),
+	  }));
 
 const autoBuilderData = {
   generatedAt: coreData.generatedAt,

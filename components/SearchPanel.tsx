@@ -197,6 +197,11 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ isOpen, onClose, spells, feat
                     {t('spells.class')}: {(data as SearchableSpell).classKeys!.join(', ')}
                   </div>
                 ) : null}
+                {(data as SearchableSpell).description && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-xs">{(data as SearchableSpell).description}</p>
+                  </div>
+                )}
               </div>
             )}
             {type === 'feature' && (
