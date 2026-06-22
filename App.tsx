@@ -40,9 +40,9 @@ export default function App() {
 	        if (f.name && f.description) {
 	          result.push({
 	            id: `${cls.key}-${cls.source}-${f.name}`,
-	            sourceId: `class:${cls.key}:${f.source}`,
+	            sourceId: `class:${cls.key}:${f.source}:L${f.level}`,
 	            name: f.name,
-	            sourceName: `${cls.name} (${f.source})`,
+	            sourceName: `${cls.name} (${f.source}) L${f.level}`,
 	            description: f.description,
 	          });
 	        }
@@ -51,7 +51,7 @@ export default function App() {
 	        if (f.name && f.description) {
 	          result.push({
 	            id: `${cls.key}-${cls.source}-L${f.level}-${f.name}`,
-	            sourceId: `class:${cls.key}:${f.source}`,
+	            sourceId: `class:${cls.key}:${f.source}:L${f.level}`,
 	            name: f.name,
 	            sourceName: `${cls.name} L${f.level} (${f.source})`,
 	            description: f.description,
@@ -64,9 +64,9 @@ export default function App() {
 	        if (f.name && f.description) {
 	          result.push({
 	            id: `subclass-${sub.id}-L${f.level}-${f.name}`,
-	            sourceId: `subclass:${sub.id}:${f.source}`,
+	            sourceId: `subclass:${sub.id}:${f.source}:L${f.level}`,
 	            name: f.name,
-	            sourceName: `${sub.name} (${sub.className} · ${f.source})`,
+	            sourceName: `${sub.name} (${sub.className} · ${f.source}) L${f.level}`,
 	            description: f.description,
 	          });
 	        }
