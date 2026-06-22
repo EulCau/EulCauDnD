@@ -29,7 +29,6 @@ export default function App() {
   const [isAutoBuilderOpen, setIsAutoBuilderOpen] = useState(false);
   const [autoBuilderContent, setAutoBuilderContent] = useState<AutoBuilderContent | null>(null);
   const [magicItems, setMagicItems] = useState<MagicItemData[]>([]);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // All class and subclass features for search
 	  const allFeatures = useMemo(() => {
@@ -325,43 +324,30 @@ export default function App() {
         </div>
       </div>
       
-      {/* Bottom Sections: Features, Resources, Adjustments — then Spells */}
-      <div className="mt-4 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <FeaturesBox
-            data={character}
-            onChange={(val) => updateField('features', val)}
-            onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
-            onUpdateResource={updateResource}
-          />
-        </div>
-        <div className="relative">
-          <button
-            onClick={() => setIsSearchOpen(true)}
-            className="absolute right-2 top-2 z-10 text-[10px] font-bold uppercase px-2 py-1 rounded border border-gray-300 text-gray-500 hover:text-dnd-red hover:border-dnd-red transition-colors bg-white/80"
-          >
-            🔍 {t('search.open')}
-          </button>
-          <SpellList data={character} onChange={updateField} profBonus={profBonus} />
-        </div>
-      </div>
-
-      <SearchPanel
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        spells={autoBuilderContent?.spells || []}
-        features={[...allFeatures, ...character.featureEntries.map(f => ({ id: f.id, sourceId: f.sourceId, name: f.name, sourceName: f.sourceName, description: f.description }))]}
-        magicItems={magicItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          englishName: item.englishName,
-          typeLabel: item.typeLabel,
-          rarity: item.rarity,
-          category: item.category,
-          description: item.description,
-          source: item.source,
-        }))}
-      />
+	      {/* Bottom Sections: Features, Resources, Adjustments — then Spells */}
+	      <div className="mt-4 flex flex-col gap-4">
+	        <FeaturesBox
+	          data={character}
+	          onChange={(val) => updateField('features', val)}
+	          onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
+	          onUpdateResource={updateResource}
+	        />
+	        <SpellList data={character} onChange={updateField} profBonus={profBonus} />
+	        <SearchPanel
+	          spells={autoBuilderContent?.spells || []}
+	          features={[...allFeatures, ...character.featureEntries.map(f => ({ id: f.id, sourceId: f.sourceId, name: f.name, sourceName: f.sourceName, description: f.description }))]}
+	          magicItems={magicItems.map(item => ({
+	            id: item.id,
+	            name: item.name,
+	            englishName: item.englishName,
+	            typeLabel: item.typeLabel,
+	            rarity: item.rarity,
+	            category: item.category,
+	            description: item.description,
+	            source: item.source,
+	          }))}
+	        />
+	      </div>
 
       <footer className="mt-12 text-center text-gray-400 text-xs pb-4">
         <p>&copy; {new Date().getFullYear()} {t('footer.text')}</p>
