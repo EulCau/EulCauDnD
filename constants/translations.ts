@@ -99,6 +99,10 @@ export const TRANSLATIONS = {
 	    "auto.replaceAdd": "With:",
 	    "auto.replaceNone": "Don't replace any spell",
 	    "auto.replaceChooseNew": "Choose new spell...",
+	    "auto.magicalSecrets": "Magical Secrets",
+	    "auto.magicalSecretsHint": "Choose 2 spells from the Bard, Cleric, Druid, or Wizard spell lists.",
+	    "auto.magicalSecretsReplace": "Replace Magical Secret",
+	    "auto.magicalSecretsReplaceHint": "You may replace one of your existing Magical Secrets spells with another.",
 
     // Header
     "header.characterName": "Character Name",
@@ -376,6 +380,10 @@ export const TRANSLATIONS = {
 	    "auto.replaceAdd": "改为:",
 	    "auto.replaceNone": "不替换法术",
 	    "auto.replaceChooseNew": "选择新法术...",
+	    "auto.magicalSecrets": "魔法奥秘",
+	    "auto.magicalSecretsHint": "从吟游诗人、牧师、德鲁伊和法师的法术列表中选择 2 个法术。",
+	    "auto.magicalSecretsReplace": "替换魔法奥秘法术",
+	    "auto.magicalSecretsReplaceHint": "你可以将已拥有的一个魔法奥秘法术替换为另一个法术。",
 
     // Header
     "header.characterName": "角色名称",

@@ -1797,6 +1797,42 @@ const getSpellOptionsForClassLevel = (
   ]);
 };
 
+/** Classes whose spells are eligible for Bard Magical Secrets */
+const MAGICAL_SECRETS_CLASS_KEYS = ['Bard', 'Cleric', 'Druid', 'Wizard'];
+
+/** Returns the levels at which a Bard gains Magical Secrets (2 spells each) */
+export const getMagicalSecretLevels = (cls: AutoBuilderClass): number[] => {
+  if (cls.englishName !== 'Bard') return [];
+  if (cls.source === 'PHB') return [10, 14, 18];
+  if (cls.source === 'XPHB') return [10];
+  return [];
+};
+
+/** Returns spells from Bard/Cleric/Druid/Wizard lists up to the given max spell level */
+export const getMagicalSecretSpellOptions = (
+  content: AutoBuilderContent,
+  cls: AutoBuilderClass,
+  maxSpellLevel: number,
+): AutoBuilderSpell[] => {
+  const ruleSystem: RuleSystem = cls.source === 'XPHB' ? '5r' : '5e';
+  const priority = OFFICIAL_SPELL_SOURCE_PRIORITY[ruleSystem];
+  const allowedSources = new Set(priority);
+  const byName = new Map<string, AutoBuilderSpell>();
+  content.spells
+    .filter(spell => allowedSources.has(spell.source)
+      && spell.classKeys?.some(key => MAGICAL_SECRETS_CLASS_KEYS.includes(key))
+      && spell.level <= maxSpellLevel)
+    .forEach(spell => {
+      const key = spell.englishName || spell.name;
+      const existing = byName.get(key);
+      if (!existing || priority.indexOf(spell.source) < priority.indexOf(existing.source)) {
+        byName.set(key, spell);
+      }
+    });
+  return Array.from(byName.values())
+    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name, 'zh-Hans-CN'));
+};
+
 const isPreparedAllClass = (cls: AutoBuilderClass): boolean => (
 	  cls.preparedSpellsChange === 'restLong'
 	  && !cls.spellsKnownProgressionFixed?.length
@@ -2186,7 +2222,7 @@ export const getFeatMetamagicChoiceState = (
   return options.length ? { needed: feat.metamagicCount, options } : null;
 };
 
-const getMaxSpellLevel = (cls: AutoBuilderClass, level: number): number => {
+export const getMaxSpellLevel = (cls: AutoBuilderClass, level: number): number => {
   if (!cls.spellcastingAbility || !cls.casterProgression) return -1;
   let fixedMaxLevel = -1;
   for (const [classLevel, spellLevels] of Object.entries(cls.spellsKnownProgressionFixedByLevel || {})) {
@@ -3722,6 +3758,7 @@ export const buildLevelUpCharacter = (
 	    subclass?: AutoBuilderSubclass;
 	    invocationChoices?: AutoBuilderInvocationChoice;
 	    replaceSpell?: { removeId: string; addId: string } | null;
+	    magicalSecretChoices?: string[];
 	  },
 ): CharacterData => {
   const currentLevel = getClassLevel(character, cls);
@@ -3746,9 +3783,27 @@ export const buildLevelUpCharacter = (
     newClassId,
     options.classFeatureChoices,
   );
-  const spellcastingProfiles = applySharedSpellSlotsToProfiles(content, classes, spellcasting.profiles);
-  const legacySpellcasting = getPrimaryLegacySpellcasting(spellcastingProfiles, spellcasting.legacy);
-  const operations = createClassFeatureOperations(cls, options.ruleSystem, newLevel);
+	  const spellcastingProfiles = applySharedSpellSlotsToProfiles(content, classes, spellcasting.profiles);
+	  const legacySpellcasting = getPrimaryLegacySpellcasting(spellcastingProfiles, spellcasting.legacy);
+
+	  // Magical Secrets: add selected spells to Bard's profile
+	  const magicalSecretOperations: AdjustmentOperation[] = [];
+	  const msProfileId = `auto-${cls.key.toLowerCase()}-${cls.source.toLowerCase()}-spellcasting`;
+	  if (options.magicalSecretChoices?.length) {
+	    const maxLevel = getMaxSpellLevel(cls, newLevel);
+	    const pool = getMagicalSecretSpellOptions(content, cls, maxLevel);
+	    for (const spellId of options.magicalSecretChoices) {
+	      const spell = pool.find(s => s.id === spellId);
+	      if (spell) {
+	        magicalSecretOperations.push({
+	          type: 'addSpell',
+	          profileId: msProfileId,
+	          spell: toCharacterSpell(spell, true),
+	        });
+	      }
+	    }
+	  }
+	  const operations = createClassFeatureOperations(cls, options.ruleSystem, newLevel);
   const classFeatureChoiceOperations = createChosenFeatOperations(
     content,
     character,
@@ -3841,22 +3896,23 @@ export const buildLevelUpCharacter = (
       id: `auto-${cls.key}-${cls.source}-level-${newLevel}`,
       sourceId: `auto-${cls.key}-${cls.source}-level-${newLevel}`,
       sourceName: `${cls.name} ${newLevel}`,
-      operations: [
-        ...snapshotOperations,
-        ...operations,
-        ...classFeatureChoiceOperations,
-        ...fightingStyleFeatureOperations,
-        ...metamagicOperations,
-        ...maneuverOperations,
-        ...classExpertiseChoiceOperations,
-        ...classWeaponMasteryOperations,
-        ...abilityScoreImprovementOperations,
-        ...classResourceOperations,
-        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),
-        ...createSubclassFeatureOperations(selectedSubclass, options.ruleSystem, newLevel),
-        ...createInvocationOperations(content, options.invocationChoices, { ruleSystem: options.ruleSystem, level: newLevel }),
-      ],
-    },
-  );
-  return refreshCharacterAutomation(leveledCharacter, content);
+	      operations: [
+	        ...snapshotOperations,
+	        ...operations,
+	        ...classFeatureChoiceOperations,
+	        ...fightingStyleFeatureOperations,
+	        ...metamagicOperations,
+	        ...maneuverOperations,
+	        ...classExpertiseChoiceOperations,
+	        ...classWeaponMasteryOperations,
+	        ...abilityScoreImprovementOperations,
+	        ...classResourceOperations,
+	        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),
+	        ...createSubclassFeatureOperations(selectedSubclass, options.ruleSystem, newLevel),
+	        ...createInvocationOperations(content, options.invocationChoices, { ruleSystem: options.ruleSystem, level: newLevel }),
+	        ...magicalSecretOperations,
+	      ],
+	    },
+	  );
+	return refreshCharacterAutomation(leveledCharacter, content);
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AbilityName, CharacterData, RuleSystem } from '../types';
+import { AbilityName, CharacterData, RuleSystem, Spell } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
   AutoBuilderContent,
@@ -63,8 +63,11 @@ import {
   getSkillChoiceOptions,
   getWeaponMasteryChoiceState,
   isAbilityScoreImprovementLevel,
-  loadAutoBuilderContent,
-} from '../utils/autoBuilderRules';
+	  loadAutoBuilderContent,
+	  getMagicalSecretLevels,
+	  getMagicalSecretSpellOptions,
+	  getMaxSpellLevel,
+	} from '../utils/autoBuilderRules';
 import { formatWeaponMasteryNames } from '../utils/equipmentRules';
 
 const ALL_ABILITIES: AbilityName[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
@@ -113,6 +116,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const [subclassId, setSubclassId] = useState('');
   const [spellReplaceRemoveId, setSpellReplaceRemoveId] = useState<string | null>(null);
   const [spellReplaceAddId, setSpellReplaceAddId] = useState<string | null>(null);
+  const [magicalSecretChoices, setMagicalSecretChoices] = useState<string[]>([]);
+  const [magicalSecretReplaceId, setMagicalSecretReplaceId] = useState<string | null>(null);
+  const [magicalSecretReplaceAddId, setMagicalSecretReplaceAddId] = useState<string | null>(null);
   const isLevelUpMode = data.automation.active;
 
   useEffect(() => {
@@ -335,9 +341,22 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const metamagicChoiceState = content && selectedClass
     ? getMetamagicChoiceState(content, selectedClass, data, targetClassLevel)
     : { isMetamagicClass: false, needed: 0, options: [] };
-  const maneuverChoiceState = content
-    ? getManeuverChoiceState(content, selectedSubclass, data, targetClassLevel, fightingStyleManeuverCount, ruleSystem)
-    : { isManeuverSubclass: false, needed: 0, options: [] };
+	  const maneuverChoiceState = content
+	    ? getManeuverChoiceState(content, selectedSubclass, data, targetClassLevel, fightingStyleManeuverCount, ruleSystem)
+	    : { isManeuverSubclass: false, needed: 0, options: [] };
+
+	  // Magical Secrets
+	  const magicalSecretLevels = selectedClass
+	    ? getMagicalSecretLevels(selectedClass)
+	    : [];
+	  const isMagicalSecretLevel = isLevelUpMode && magicalSecretLevels.includes(targetClassLevel);
+	  const msPool = (content && selectedClass && isMagicalSecretLevel)
+	    ? getMagicalSecretSpellOptions(content, selectedClass, getMaxSpellLevel(selectedClass, targetClassLevel))
+	    : [];
+	  const msProfileId = selectedClass ? `auto-${selectedClass.key.toLowerCase()}-${selectedClass.source.toLowerCase()}-spellcasting` : '';
+	  const existingMsSpells = msProfileId
+	    ? data.spellcastingProfiles.find(p => p.id === msProfileId)?.spells.filter(s => s.level > 0 && msPool.some(p => p.id === s.id)) || []
+	    : [];
 
 	  useEffect(() => {
 	    setSkillChoices([]);
@@ -353,6 +372,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	    setSubclassId('');
 	    setSpellReplaceRemoveId(null);
 	    setSpellReplaceAddId(null);
+	    setMagicalSecretChoices([]);
+	    setMagicalSecretReplaceId(null);
+	    setMagicalSecretReplaceAddId(null);
 	  }, [className, ruleSystem, raceKey, subraceKey, backgroundKey, isOriginDecoupled, isOpen]);
 
   useEffect(() => {
@@ -396,6 +418,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	    setInvocationChoices({ invocationIds: [] });
 	    setSpellReplaceRemoveId(null);
 	    setSpellReplaceAddId(null);
+	    setMagicalSecretChoices([]);
+	    setMagicalSecretReplaceId(null);
+	    setMagicalSecretReplaceAddId(null);
 	  }, [subclassId]);
 
   if (!isOpen) return null;
@@ -862,6 +887,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     || validMetamagicChoices.length === metamagicChoiceState.needed;
   const isManeuverChoiceComplete = !maneuverChoiceState.isManeuverSubclass
     || validManeuverChoices.length === maneuverChoiceState.needed;
+  const isMagicalSecretComplete = !isMagicalSecretLevel || magicalSecretChoices.length === 2;
   const isAbilityScoreImprovementComplete = !needsAbilityScoreImprovementChoice
     || (
       (abilityScoreImprovementChoice.mode === 'plus2' && Boolean(abilityScoreImprovementChoice.plus2))
@@ -912,17 +938,18 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	      const spellReplace = (canReplaceSpell && spellReplaceRemoveId && spellReplaceAddId)
 	        ? { removeId: spellReplaceRemoveId, addId: spellReplaceAddId }
 	        : undefined;
-	      onApply(buildLevelUpCharacter(data, content, selectedClass, {
-	        ruleSystem,
-	        spellChoices,
-	        invocationChoices: validInvocationChoicePayload,
-	        skillChoices,
-	        toolChoices: classToolChoices,
-	        abilityScoreImprovementChoice: needsAbilityScoreImprovementChoice ? validAbilityScoreImprovementChoice : undefined,
-	        classFeatureChoices: validClassFeatureChoices,
-	        subclass: needsSubclassChoice ? selectedSubclass : undefined,
-	        replaceSpell: spellReplace,
-	      }));
+		      onApply(buildLevelUpCharacter(data, content, selectedClass, {
+		        ruleSystem,
+		        spellChoices,
+		        invocationChoices: validInvocationChoicePayload,
+		        skillChoices,
+		        toolChoices: classToolChoices,
+		        abilityScoreImprovementChoice: needsAbilityScoreImprovementChoice ? validAbilityScoreImprovementChoice : undefined,
+		        classFeatureChoices: validClassFeatureChoices,
+		        subclass: needsSubclassChoice ? selectedSubclass : undefined,
+		        replaceSpell: spellReplace,
+		        magicalSecretChoices: isMagicalSecretLevel ? magicalSecretChoices : undefined,
+		      }));
       onClose();
       return;
     }
@@ -2235,6 +2262,67 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                   </div>
                 </div>
               )}
+              {isMagicalSecretLevel && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <h4 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.magicalSecrets')}</h4>
+                  <p className="text-[10px] text-gray-400 mb-2">{t('auto.magicalSecretsHint')}</p>
+                  <div className="text-xs font-bold text-gray-700 mb-1">
+                    {t('auto.chooseSpells')} {magicalSecretChoices.length}/2
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto mb-3">
+                    {msPool.map(spell => (
+                      <label key={spell.id} className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={magicalSecretChoices.includes(spell.id)}
+                          onChange={() => setMagicalSecretChoices(prev =>
+                            prev.includes(spell.id)
+                              ? prev.filter(id => id !== spell.id)
+                              : prev.length < 2 ? [...prev, spell.id] : prev
+                          )}
+                          disabled={!magicalSecretChoices.includes(spell.id) && magicalSecretChoices.length >= 2}
+                          className="accent-dnd-red"
+                        />
+                        {spell.name} <span className="text-gray-400">{spell.level}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {existingMsSpells.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <h5 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.magicalSecretsReplace')}</h5>
+                      <p className="text-[10px] text-gray-400 mb-2">{t('auto.magicalSecretsReplaceHint')}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <select
+                            value={magicalSecretReplaceId || ''}
+                            onChange={(e) => { setMagicalSecretReplaceId(e.target.value || null); setMagicalSecretReplaceAddId(null); }}
+                            className="w-full text-xs border border-gray-300 rounded p-1"
+                          >
+                            <option value="">{t('auto.replaceNone')}</option>
+                            {existingMsSpells.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {magicalSecretReplaceId && (
+                          <div>
+                            <select
+                              value={magicalSecretReplaceAddId || ''}
+                              onChange={(e) => setMagicalSecretReplaceAddId(e.target.value || null)}
+                              className="w-full text-xs border border-gray-300 rounded p-1"
+                            >
+                              <option value="">{t('auto.replaceChooseNew')}</option>
+                              {msPool.filter(s => !existingMsSpells.some(e => e.id === s.id)).map(s => (
+                                <option key={s.id} value={s.id}>{s.name} ({s.level})</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -2247,7 +2335,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </button>
             <button
               onClick={applyBuild}
-              disabled={!content || !selectedClass || (!isLevelUpMode && (!selectedRace || !selectedBackground)) || !isSkillSelectionComplete || !isSpellSelectionComplete || !isInvocationSelectionComplete || !isMetamagicChoiceComplete || !isManeuverChoiceComplete || !isBackgroundAbilityComplete || !isOriginFeatChoiceComplete || !isRaceChoiceComplete || !isBackgroundToolChoiceComplete || !isBackgroundLanguageChoiceComplete || !isClassToolChoiceComplete || !isClassFeatureChoiceComplete || !isClassExpertiseChoiceComplete || !isWeaponMasteryChoiceComplete || !isAbilityScoreImprovementComplete || !isSubclassSelectionComplete}
+              disabled={!content || !selectedClass || (!isLevelUpMode && (!selectedRace || !selectedBackground)) || !isSkillSelectionComplete || !isSpellSelectionComplete || !isInvocationSelectionComplete || !isMetamagicChoiceComplete || !isManeuverChoiceComplete || !isBackgroundAbilityComplete || !isOriginFeatChoiceComplete || !isRaceChoiceComplete || !isBackgroundToolChoiceComplete || !isBackgroundLanguageChoiceComplete || !isClassToolChoiceComplete || !isClassFeatureChoiceComplete || !isClassExpertiseChoiceComplete || !isWeaponMasteryChoiceComplete || !isAbilityScoreImprovementComplete || !isSubclassSelectionComplete || !isMagicalSecretComplete}
               className="px-3 py-2 text-xs font-bold uppercase bg-dnd-red text-white rounded hover:bg-red-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {isLevelUpMode ? t('auto.applyLevelUp') : t('auto.applyLevelOne')}
