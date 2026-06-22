@@ -14,9 +14,9 @@ export const FeaturesBox: React.FC<FeaturesBoxProps> = ({ data, onChange, onRemo
   const { t } = useLanguage();
 
   return (
-	    <div className="bg-white border border-gray-300 rounded p-3 flex flex-col overflow-hidden">
+		<div className="bg-white border border-gray-300 rounded p-3 space-y-3">
       {data.appliedAdjustments.length > 0 && (
-        <div className="mb-3 border-b border-gray-200 pb-2">
+        <div>
           <h3 className="text-[10px] text-gray-500 uppercase font-bold text-center mb-2">
             {t('adjustments.title')}
           </h3>
@@ -35,7 +35,7 @@ export const FeaturesBox: React.FC<FeaturesBoxProps> = ({ data, onChange, onRemo
         </div>
       )}
       {data.resources.length > 0 && (
-        <div className="mb-3 border-b border-gray-200 pb-2">
+        <div className="border-b border-gray-200 pb-2">
           <h3 className="text-[10px] text-gray-500 uppercase font-bold text-center mb-2">
             {t('resources.title')}
           </h3>
@@ -68,7 +68,7 @@ export const FeaturesBox: React.FC<FeaturesBoxProps> = ({ data, onChange, onRemo
         </div>
       )}
       {data.featureEntries.length > 0 && (
-        <div className="mb-3 max-h-48 overflow-y-auto border-b border-gray-200 pb-2">
+        <div className="border-b border-gray-200 pb-2">
           <h3 className="text-[10px] text-gray-500 uppercase font-bold text-center mb-2">
             {t('features.automatic')}
           </h3>
@@ -85,16 +85,13 @@ export const FeaturesBox: React.FC<FeaturesBoxProps> = ({ data, onChange, onRemo
           </div>
         </div>
       )}
-      <div className="flex-1 min-h-0">
-        <EditableMarkdown
-          title={t('features.title')}
-          value={data.features}
-          placeholder={t('features.placeholder')}
-          onChange={onChange}
-          className="h-full flex flex-col overflow-hidden"
-          textSizeClassName="text-xs"
-        />
-      </div>
+      <EditableMarkdown
+        title={t('features.title')}
+        value={data.features}
+        placeholder={t('features.placeholder')}
+        onChange={onChange}
+        textSizeClassName="text-xs"
+      />
     </div>
   );
 };
