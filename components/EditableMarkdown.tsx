@@ -26,8 +26,8 @@ export const EditableMarkdown: React.FC<EditableMarkdownProps> = ({
 	  const [isEditing, setIsEditing] = useState(false);
 
 	  return (
-	    <div className={`${className}`}>
-	      <div className="flex justify-between items-center mb-3 border-b border-gray-200 pb-2">
+	    <div className={`${className} flex flex-col`}>
+	      <div className="flex justify-between items-center mb-3 border-b border-gray-200 pb-2 flex-none">
 	        <h3 className="text-[10px] text-gray-500 uppercase font-bold flex-1 text-center">{title}</h3>
 	        <button
 	          type="button"
@@ -47,7 +47,7 @@ export const EditableMarkdown: React.FC<EditableMarkdownProps> = ({
 	          onChange={(event) => onChange(event.target.value)}
 	        />
 	      ) : (
-	        <div className={`w-full p-2 prose prose-sm prose-slate max-w-none font-serif leading-relaxed prose-headings:font-bold prose-p:my-2 prose-ul:my-2 prose-ol:my-2 ${textSizeClassName}`}>
+	        <div className={`w-full p-2 overflow-y-auto prose prose-sm prose-slate max-w-none font-serif leading-relaxed prose-headings:font-bold prose-p:my-2 prose-ul:my-2 prose-ol:my-2 ${textSizeClassName}`}>
 	          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
 	            {value || placeholder}
 	          </ReactMarkdown>

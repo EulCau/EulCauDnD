@@ -194,7 +194,7 @@ export default function App() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         
         {/* LEFT COLUMN (3/12) */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
+        <div className="lg:col-span-3 flex flex-col gap-4 h-full">
              {/* Inspiration & Passive */}
              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between bg-white border border-gray-300 rounded-full px-3 py-1 shadow-sm">
@@ -239,8 +239,8 @@ export default function App() {
 
 
         {/* CENTER COLUMN (5/12) */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
-            
+        <div className="lg:col-span-5 flex flex-col gap-4 h-full">
+
             <Vitals 
                 data={character} 
                 onChange={updateField} 
@@ -248,7 +248,7 @@ export default function App() {
                 isTouchMode={isTouchMode}
             />
 
-            <div className="flex-1 min-h-[300px]">
+            <div className="flex-1 min-h-[200px] resize-y overflow-hidden">
                 <Attacks 
                     attacks={character.attacks} 
                     onUpdate={(atks) => updateField('attacks', atks)}
@@ -262,12 +262,12 @@ export default function App() {
 
 
         {/* RIGHT COLUMN (4/12) */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
+        <div className="lg:col-span-4 flex flex-col gap-4 h-full">
              <div className="flex-none">
                  <Personality data={character} onChange={updateField} />
              </div>
 
-             <div className="flex-1 flex flex-col min-h-[300px]">
+             <div className="flex-1 flex flex-col min-h-0">
                  <BackstoryGenerator 
                     data={character}
                     onUpdate={(story) => updateField('backstory', story)}

@@ -25,9 +25,9 @@ export const Attacks: React.FC<AttacksProps> = ({ attacks, onUpdate }) => {
   };
 
   return (
-    <div className="bg-white border border-gray-300 p-3 rounded-lg h-full flex flex-col">
-      <div className="overflow-x-auto flex-1">
-        <table className="w-full text-left text-sm">
+	    <div className="bg-white border border-gray-300 p-3 rounded-lg h-full flex flex-col">
+	      <div className="overflow-y-auto flex-1">
+	        <table className="w-full text-left text-sm">
             <thead className="text-[10px] text-gray-500 uppercase border-b border-gray-300">
                 <tr>
                     <th className="font-bold py-1 w-1/4">{t('attacks.name')}</th>

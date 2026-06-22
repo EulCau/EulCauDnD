@@ -17,7 +17,7 @@ export const BackstoryGenerator: React.FC<BackstoryProps> = ({ data, onUpdate })
       value={data.backstory}
       placeholder={t('backstory.placeholder')}
       onChange={onUpdate}
-      className="bg-white rounded-lg border border-gray-300 p-4"
+      className="bg-white rounded-lg border border-gray-300 p-4 h-full"
       textSizeClassName="text-sm"
     />
   );
