@@ -1783,19 +1783,24 @@ const getSubclassSpellOptions = (
 };
 
 const getSpellOptionsForClassLevel = (
-  content: AutoBuilderContent,
-  cls: AutoBuilderClass,
-  level: number,
-  subclass?: AutoBuilderSubclass,
-): AutoBuilderSpell[] => {
-  const maxSpellLevel = getMaxSpellLevel(cls, level);
-  if (maxSpellLevel < 0) return [];
-  return uniqueSpells([
-    ...getClassSpellOptions(content, cls, maxSpellLevel),
-    ...getSubclassSpellOptions(content, subclass, maxSpellLevel),
-    ...getExpandedSpellOptions(content, cls, level, subclass),
-  ]);
-};
+	  content: AutoBuilderContent,
+	  cls: AutoBuilderClass,
+	  level: number,
+	  subclass?: AutoBuilderSubclass,
+	): AutoBuilderSpell[] => {
+	  const maxSpellLevel = getMaxSpellLevel(cls, level);
+	  if (maxSpellLevel < 0) return [];
+	  // XPHB Bard: at level 10+, Magical Secrets expands the spell pool to include Cleric/Druid/Wizard spells
+	  const magicalSecretExpansion = (cls.englishName === 'Bard' && cls.source === 'XPHB' && level >= 10)
+	    ? getMagicalSecretSpellOptions(content, cls, maxSpellLevel)
+	    : [];
+	  return uniqueSpells([
+	    ...getClassSpellOptions(content, cls, maxSpellLevel),
+	    ...getSubclassSpellOptions(content, subclass, maxSpellLevel),
+	    ...getExpandedSpellOptions(content, cls, level, subclass),
+	    ...magicalSecretExpansion,
+	  ]);
+	};
 
 /** Classes whose spells are eligible for Bard Magical Secrets */
 const MAGICAL_SECRETS_CLASS_KEYS = ['Bard', 'Cleric', 'Druid', 'Wizard'];

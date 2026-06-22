@@ -345,18 +345,16 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	    ? getManeuverChoiceState(content, selectedSubclass, data, targetClassLevel, fightingStyleManeuverCount, ruleSystem)
 	    : { isManeuverSubclass: false, needed: 0, options: [] };
 
-	  // Magical Secrets
-	  const magicalSecretLevels = selectedClass
-	    ? getMagicalSecretLevels(selectedClass)
-	    : [];
-	  const isMagicalSecretLevel = isLevelUpMode && magicalSecretLevels.includes(targetClassLevel);
+	  // Magical Secrets — only 5e (PHB) Bard uses a special selection panel
+	  const isMagicalSecretLevel = isLevelUpMode
+	    && selectedClass?.englishName === 'Bard'
+	    && selectedClass?.source === 'PHB'
+	    && [10, 14, 18].includes(targetClassLevel);
 	  const msPool = (content && selectedClass && isMagicalSecretLevel)
 	    ? getMagicalSecretSpellOptions(content, selectedClass, getMaxSpellLevel(selectedClass, targetClassLevel))
 	    : [];
-	  const msProfileId = selectedClass ? `auto-${selectedClass.key.toLowerCase()}-${selectedClass.source.toLowerCase()}-spellcasting` : '';
-	  const existingMsSpells = msProfileId
-	    ? data.spellcastingProfiles.find(p => p.id === msProfileId)?.spells.filter(s => s.level > 0 && msPool.some(p => p.id === s.id)) || []
-	    : [];
+	  // 5r (XPHB) Bard gets the expanded pool from the engine (getSpellOptionsForClassLevel)
+	  // so no special UI needed; normal spell selection just shows more options.
 
 	  useEffect(() => {
 	    setSkillChoices([]);
@@ -782,12 +780,13 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const currentInvocationIds = new Set(invocationChoiceState.options.map(invocation => invocation.id));
   const validInvocationChoices = invocationChoices.invocationIds.filter(id => currentInvocationIds.has(id));
   const validInvocationChoicePayload: AutoBuilderInvocationChoice = { invocationIds: validInvocationChoices };
-  const isSpellSelectionComplete = !spellChoiceState?.isSpellcaster
-    || (
-      validCantripChoices.length === neededSpellChoices.cantrips
-      && areFixedLeveledSpellGroupsComplete
-      && (spellChoiceState.isPreparedAll || validRegularLeveledSpellChoices.length === neededSpellChoices.leveled)
-    );
+	  const isSpellSelectionComplete = !spellChoiceState?.isSpellcaster
+	    || isMagicalSecretLevel
+	    || (
+	      validCantripChoices.length === neededSpellChoices.cantrips
+	      && areFixedLeveledSpellGroupsComplete
+	      && (spellChoiceState.isPreparedAll || validRegularLeveledSpellChoices.length === neededSpellChoices.leveled)
+	    );
   const isInvocationSelectionComplete = !invocationChoiceState.isInvocationClass
     || validInvocationChoices.length === invocationChoiceState.needed;
   const isBackgroundAbilityComplete = isLevelUpMode
@@ -2146,7 +2145,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {spellChoiceState?.isSpellcaster && (!spellChoiceState.isPreparedAll || neededSpellChoices.cantrips > 0) && (
+	          {spellChoiceState?.isSpellcaster && !isMagicalSecretLevel && (!spellChoiceState.isPreparedAll || neededSpellChoices.cantrips > 0) && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
               <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.spells')}</h3>
               {neededSpellChoices.cantrips > 0 && (
@@ -2287,40 +2286,6 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                       </label>
                     ))}
                   </div>
-                  {existingMsSpells.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <h5 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.magicalSecretsReplace')}</h5>
-                      <p className="text-[10px] text-gray-400 mb-2">{t('auto.magicalSecretsReplaceHint')}</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <select
-                            value={magicalSecretReplaceId || ''}
-                            onChange={(e) => { setMagicalSecretReplaceId(e.target.value || null); setMagicalSecretReplaceAddId(null); }}
-                            className="w-full text-xs border border-gray-300 rounded p-1"
-                          >
-                            <option value="">{t('auto.replaceNone')}</option>
-                            {existingMsSpells.map(s => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        {magicalSecretReplaceId && (
-                          <div>
-                            <select
-                              value={magicalSecretReplaceAddId || ''}
-                              onChange={(e) => setMagicalSecretReplaceAddId(e.target.value || null)}
-                              className="w-full text-xs border border-gray-300 rounded p-1"
-                            >
-                              <option value="">{t('auto.replaceChooseNew')}</option>
-                              {msPool.filter(s => !existingMsSpells.some(e => e.id === s.id)).map(s => (
-                                <option key={s.id} value={s.id}>{s.name} ({s.level})</option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
