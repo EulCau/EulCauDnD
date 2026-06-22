@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { AbilityScoreRow } from './components/AbilityScore';
 import { Vitals } from './components/Vitals';
@@ -26,40 +26,8 @@ export default function App() {
   const [isTouchMode, setIsTouchMode] = useState(() => localStorage.getItem('dnd_touch_mode') === 'true');
   const [isAutoBuilderOpen, setIsAutoBuilderOpen] = useState(false);
   const [autoBuilderContent, setAutoBuilderContent] = useState<AutoBuilderContent | null>(null);
-  const [featuresRatio, setFeaturesRatio] = useState(0.5);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    
-    const startY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    const startRatio = featuresRatio;
-    
-    const handleDrag = (moveEvent: MouseEvent | TouchEvent) => {
-      if (!containerRef.current) return;
-      const currentY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
-      const deltaY = currentY - startY;
-      const containerHeight = containerRef.current.clientHeight;
-      
-      let newRatio = startRatio + (deltaY / containerHeight);
-      newRatio = Math.max(0.1, Math.min(0.9, newRatio));
-      setFeaturesRatio(newRatio);
-    };
-    
-    const handleDragEnd = () => {
-      document.removeEventListener('mousemove', handleDrag);
-      document.removeEventListener('mouseup', handleDragEnd);
-      document.removeEventListener('touchmove', handleDrag);
-      document.removeEventListener('touchend', handleDragEnd);
-    };
-    
-    document.addEventListener('mousemove', handleDrag);
-    document.addEventListener('mouseup', handleDragEnd);
-    document.addEventListener('touchmove', handleDrag);
-    document.addEventListener('touchend', handleDragEnd);
-  };
 
   useEffect(() => {
     document.body.classList.toggle('touch-mode', isTouchMode);
@@ -294,43 +262,27 @@ export default function App() {
 
 
         {/* RIGHT COLUMN (4/12) */}
-        {/* Use h-full to stretch to match the tallest column (likely left/center), and min-h-screen to ensure it's big enough on start */}
-        <div className="lg:col-span-4 flex flex-col gap-4 h-full min-h-[80vh]">
+        <div className="lg:col-span-4 flex flex-col gap-4">
              <div className="flex-none">
                  <Personality data={character} onChange={updateField} />
              </div>
 
-             {/* Resizable Container for Features & Backstory */}
-             <div ref={containerRef} className="flex-1 flex flex-col min-h-[400px]">
-                 <div style={{ flex: featuresRatio, minHeight: 0 }} className="flex flex-col">
-                     <FeaturesBox
-                        data={character}
-                        onChange={(val) => updateField('features', val)}
-                        onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
-                        onUpdateResource={updateResource}
-                     />
-                 </div>
-
-                 {/* Draggable Divider */}
-                 <div 
-                    className="h-4 my-1 cursor-row-resize flex items-center justify-center group"
-                    onMouseDown={handleDragStart}
-                    onTouchStart={handleDragStart}
-                 >
-                    <div className="w-16 h-1 bg-gray-300 rounded-full group-hover:bg-dnd-red transition-colors" />
-                 </div>
-
-                 <div style={{ flex: 1 - featuresRatio, minHeight: 0 }} className="flex flex-col">
-                     <BackstoryGenerator 
-                        data={character}
-                        onUpdate={(story) => updateField('backstory', story)}
-                     />
-                 </div>
+             <div className="flex-1 flex flex-col min-h-[300px]">
+                 <BackstoryGenerator 
+                    data={character}
+                    onUpdate={(story) => updateField('backstory', story)}
+                 />
              </div>
         </div>
       </div>
       
-      {/* Bottom Section: Spells Table */}
+      {/* Bottom Sections: Features, Resources, Adjustments — then Spells */}
+      <FeaturesBox
+        data={character}
+        onChange={(val) => updateField('features', val)}
+        onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
+        onUpdateResource={updateResource}
+      />
       <SpellList data={character} onChange={updateField} profBonus={profBonus} />
 
       <footer className="mt-12 text-center text-gray-400 text-xs pb-4">
