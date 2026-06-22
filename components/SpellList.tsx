@@ -27,11 +27,11 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
   }, [data.spellcasting, data.spellcastingProfiles]);
   const [activeProfileId, setActiveProfileId] = useState(profiles[0]?.id || 'legacy-spellcasting');
   const spellcasting = profiles.find(profile => profile.id === activeProfileId) || profiles[0];
-  const slotSourceLabel = spellcasting?.slotSource === 'shared'
-    ? '共享法术位'
-    : spellcasting?.slotSource === 'pact'
-      ? '契约魔法'
-      : '职业法术位';
+	  const slotSourceLabel = spellcasting?.slotSource === 'shared'
+	    ? t('spells.slotShared')
+	    : spellcasting?.slotSource === 'pact'
+	      ? t('spells.slotPact')
+	      : t('spells.slotClass');
 
   const updateSpellcasting = (field: keyof SpellcastingProfile, value: any) => {
     if (data.spellcastingProfiles.length) {
@@ -160,8 +160,8 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                 className={`px-3 py-1 rounded border text-xs font-bold flex items-center gap-2 ${profile.id === spellcasting.id ? 'bg-dnd-red text-white border-dnd-red' : 'bg-white text-gray-600 border-gray-300'}`}
               >
                 <span>{profile.className || t('spells.class')}</span>
-                {profile.slotSource === 'shared' && <span className="text-[10px] opacity-80">共享</span>}
-                {profile.slotSource === 'pact' && <span className="text-[10px] opacity-80">契约</span>}
+                {profile.slotSource === 'shared' && <span className="text-[10px] opacity-80">{t('spells.shared')}</span>}
+                {profile.slotSource === 'pact' && <span className="text-[10px] opacity-80">{t('spells.pact')}</span>}
               </button>
             ))}
           </div>
@@ -177,7 +177,7 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                         <input 
                             type="text" 
                             className="w-1/2 text-center text-sm font-bold border-r border-gray-200 outline-none"
-                            placeholder="T"
+                            placeholder={t('spells.slotsTotalShort')}
                             title={t('spells.slotsTotal')}
                             value={spellcasting.slots[lvl]?.total || ""}
                             onChange={(e) => updateSlot(lvl.toString(), 'total', e.target.value)}
@@ -185,7 +185,7 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
                          <input 
                             type="text" 
                             className="w-1/2 text-center text-sm text-gray-500 outline-none"
-                            placeholder="E"
+                            placeholder={t('spells.slotsExpendedShort')}
                             title={t('spells.slotsExpended')}
                             value={spellcasting.slots[lvl]?.expended || ""}
                             onChange={(e) => updateSlot(lvl.toString(), 'expended', e.target.value)}

@@ -1687,11 +1687,11 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {metamagicChoiceState.isMetamagicClass && metamagicChoiceState.needed > 0 && (
-            <div className="md:col-span-2 border border-gray-200 rounded p-3">
-              <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">
-                超魔法 {validMetamagicChoices.length}/{metamagicChoiceState.needed}
-              </h3>
+	          {metamagicChoiceState.isMetamagicClass && metamagicChoiceState.needed > 0 && (
+	            <div className="md:col-span-2 border border-gray-200 rounded p-3">
+	              <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">
+	                {t('auto.metamagic')} {validMetamagicChoices.length}/{metamagicChoiceState.needed}
+	              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {metamagicChoiceState.options.map(metamagic => (
                   <label key={metamagic.id} className="flex items-start gap-2 text-xs">
@@ -1715,11 +1715,11 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {maneuverChoiceState.isManeuverSubclass && maneuverChoiceState.needed > 0 && (
-            <div className="md:col-span-2 border border-gray-200 rounded p-3">
-              <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">
-                战技 {validManeuverChoices.length}/{maneuverChoiceState.needed}
-              </h3>
+	          {maneuverChoiceState.isManeuverSubclass && maneuverChoiceState.needed > 0 && (
+	            <div className="md:col-span-2 border border-gray-200 rounded p-3">
+	              <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">
+	                {t('auto.maneuver')} {validManeuverChoices.length}/{maneuverChoiceState.needed}
+	              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {maneuverChoiceState.options.map(maneuver => (
                   <label key={maneuver.id} className="flex items-start gap-2 text-xs">
@@ -1969,9 +1969,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                               {invocation.name}
                               <span className="text-gray-400"> {invocation.source}</span>
                             </span>
-                            {getInvocationPrerequisiteSummary(invocation) && (
-                              <span className="block text-gray-500 mt-0.5">先决条件: {getInvocationPrerequisiteSummary(invocation)}</span>
-                            )}
+	                            {getInvocationPrerequisiteSummary(invocation) && (
+	                              <span className="block text-gray-500 mt-0.5">{t('auto.prerequisite')} {getInvocationPrerequisiteSummary(invocation)}</span>
+	                            )}
                             <span className="block text-gray-500 mt-0.5">{invocation.description.split('\n')[0]}</span>
                           </span>
                         </label>
@@ -1979,11 +1979,11 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                     </div>
                   </div>
                 )}
-                {abilityScoreImprovementChoice.mode === 'feat' && abilityScoreImprovementFeatManeuverChoiceState && (
-                  <div className="sm:col-span-2 border border-gray-200 rounded p-3">
-                    <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">
-                      战技 {validAbilityScoreImprovementFeatManeuvers.length}/{abilityScoreImprovementFeatManeuverChoiceState.needed}
-                    </h3>
+	                {abilityScoreImprovementChoice.mode === 'feat' && abilityScoreImprovementFeatManeuverChoiceState && (
+	                  <div className="sm:col-span-2 border border-gray-200 rounded p-3">
+	                    <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">
+	                      {t('auto.maneuver')} {validAbilityScoreImprovementFeatManeuvers.length}/{abilityScoreImprovementFeatManeuverChoiceState.needed}
+	                    </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {abilityScoreImprovementFeatManeuverChoiceState.options.map(maneuver => (
                         <label key={maneuver.id} className="flex items-start gap-2 text-xs">
@@ -2012,11 +2012,11 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                     </div>
                   </div>
                 )}
-                {abilityScoreImprovementChoice.mode === 'feat' && abilityScoreImprovementFeatMetamagicChoiceState && (
-                  <div className="sm:col-span-2 border border-gray-200 rounded p-3">
-                    <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">
-                      超魔法 {validAbilityScoreImprovementFeatMetamagics.length}/{abilityScoreImprovementFeatMetamagicChoiceState.needed}
-                    </h3>
+	                {abilityScoreImprovementChoice.mode === 'feat' && abilityScoreImprovementFeatMetamagicChoiceState && (
+	                  <div className="sm:col-span-2 border border-gray-200 rounded p-3">
+	                    <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">
+	                      {t('auto.metamagic')} {validAbilityScoreImprovementFeatMetamagics.length}/{abilityScoreImprovementFeatMetamagicChoiceState.needed}
+	                    </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {abilityScoreImprovementFeatMetamagicChoiceState.options.map(metamagic => (
                         <label key={metamagic.id} className="flex items-start gap-2 text-xs">

@@ -2,6 +2,7 @@ import React from 'react';
 import { CharacterData, Spell } from '../types';
 import { ABILITIES } from '../constants';
 import { calculateSpellSaveDC, calculateSpellAttackBonus, formatModifier } from '../utils/dndCalculations';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface SpellSheetProps {
   data: CharacterData;
@@ -30,6 +31,7 @@ const SpellBlock: React.FC<SpellBlockProps> = ({
     onAddSpell,
     onDeleteSpell
 }) => {
+    const { t } = useLanguage();
     const isCantrip = level === 0;
     
     return (
@@ -41,13 +43,13 @@ const SpellBlock: React.FC<SpellBlockProps> = ({
                      {level}
                  </div>
                  <span className="text-[10px] uppercase font-bold text-gray-500">
-                     {isCantrip ? "Cantrips" : "Spell Level"}
+                     {isCantrip ? t('spells.cantrips') : t('spells.spellLevel')}
                  </span>
             </div>
             {!isCantrip && (
                 <div className="flex gap-2 text-xs">
                     <div className="flex flex-col items-center bg-white border border-gray-300 rounded px-2 py-0.5">
-                        <span className="text-[8px] uppercase text-gray-400">Slots Total</span>
+                        <span className="text-[8px] uppercase text-gray-400">{t('spells.slotsTotal')}</span>
                         <input 
                             type="text" 
                             className="w-8 text-center font-bold outline-none"
@@ -56,7 +58,7 @@ const SpellBlock: React.FC<SpellBlockProps> = ({
                         />
                     </div>
                     <div className="flex flex-col items-center bg-white border border-gray-300 rounded px-2 py-0.5">
-                         <span className="text-[8px] uppercase text-gray-400">Expended</span>
+                         <span className="text-[8px] uppercase text-gray-400">{t('spells.slotsExpended')}</span>
                         <input 
                             type="text" 
                             className="w-8 text-center font-bold outline-none"
@@ -78,13 +80,13 @@ const SpellBlock: React.FC<SpellBlockProps> = ({
                             className="w-4 h-4 rounded-full border-gray-300 accent-dnd-red"
                             checked={spell.prepared}
                             onChange={(e) => onUpdateSpell(spell.id, 'prepared', e.target.checked)}
-                            title="Prepared"
+                            title={t('spells.prepared')}
                         />
                     )}
                     <input 
                         type="text"
                         className="flex-1 bg-transparent outline-none text-sm font-serif"
-                        placeholder="Spell Name"
+                        placeholder={t('spells.name')}
                         value={spell.name}
                         onChange={(e) => onUpdateSpell(spell.id, 'name', e.target.value)}
                     />
@@ -101,7 +103,7 @@ const SpellBlock: React.FC<SpellBlockProps> = ({
                 onClick={() => onAddSpell(level)}
                 className="w-full text-left text-[10px] text-gray-400 hover:text-dnd-gold uppercase font-bold py-1"
             >
-                + Add Spell
+                {t('spells.add')}
             </button>
         </div>
       </div>
@@ -109,6 +111,7 @@ const SpellBlock: React.FC<SpellBlockProps> = ({
 };
 
 export const SpellSheet: React.FC<SpellSheetProps> = ({ data, onChange, profBonus }) => {
+  const { t } = useLanguage();
   const { spellcasting } = data;
 
   const updateSpellcasting = (field: keyof typeof spellcasting, value: any) => {
@@ -181,7 +184,7 @@ export const SpellSheet: React.FC<SpellSheetProps> = ({ data, onChange, profBonu
       <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm">
          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
              <div className="flex flex-col">
-                 <label className="text-[10px] uppercase font-bold text-gray-500">Spellcasting Class</label>
+                 <label className="text-[10px] uppercase font-bold text-gray-500">{t('spells.class')}</label>
                  <input 
                     type="text" 
                     className="border-b border-gray-300 py-1 font-serif text-lg outline-none"
@@ -192,7 +195,7 @@ export const SpellSheet: React.FC<SpellSheetProps> = ({ data, onChange, profBonu
              </div>
              
              <div className="flex flex-col">
-                 <label className="text-[10px] uppercase font-bold text-gray-500">Spellcasting Ability</label>
+                 <label className="text-[10px] uppercase font-bold text-gray-500">{t('spells.ability')}</label>
                  <select 
                     className="border-b border-gray-300 py-1 font-serif text-lg outline-none bg-transparent"
                     value={data.spellcasting.ability}
@@ -203,13 +206,13 @@ export const SpellSheet: React.FC<SpellSheetProps> = ({ data, onChange, profBonu
              </div>
 
              <div className="flex flex-col items-center border border-gray-300 rounded p-1 bg-gray-50">
-                 <label className="text-[10px] uppercase font-bold text-gray-500">Spell Save DC</label>
+                 <label className="text-[10px] uppercase font-bold text-gray-500">{t('spells.saveDC')}</label>
                  <div className="flex items-center gap-2">
                     <span className="text-2xl font-bold font-serif">{displayDC}</span>
                     <input 
                         type="text" 
                         className="w-10 text-center text-xs border-b border-gray-300 bg-transparent outline-none" 
-                        placeholder="Ovr"
+                        placeholder={t('vitals.overrideShort')}
                         value={data.spellcasting.saveDCOverride}
                         onChange={(e) => updateSpellcasting('saveDCOverride', e.target.value)}
                     />
@@ -217,13 +220,13 @@ export const SpellSheet: React.FC<SpellSheetProps> = ({ data, onChange, profBonu
              </div>
 
              <div className="flex flex-col items-center border border-gray-300 rounded p-1 bg-gray-50">
-                 <label className="text-[10px] uppercase font-bold text-gray-500">Spell Attack Bonus</label>
+                 <label className="text-[10px] uppercase font-bold text-gray-500">{t('spells.attackBonus')}</label>
                   <div className="flex items-center gap-2">
                     <span className="text-2xl font-bold font-serif">{displayAtk}</span>
                     <input 
                         type="text" 
                         className="w-10 text-center text-xs border-b border-gray-300 bg-transparent outline-none" 
-                        placeholder="Ovr"
+                        placeholder={t('vitals.overrideShort')}
                         value={data.spellcasting.attackBonusOverride}
                         onChange={(e) => updateSpellcasting('attackBonusOverride', e.target.value)}
                     />
