@@ -247,6 +247,9 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ isOpen, onClose, spells, feat
   };
 
   const totalCount = filteredSpells.length + filteredFeatures.length + filteredItems.length;
+  const totalFeaturesCount = features.length;
+  const totalSpellsCount = spells.length;
+  const totalItemsCount = magicItems.length;
 
   return (
     <>
@@ -286,7 +289,10 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ isOpen, onClose, spells, feat
                     : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                 }`}
               >
-                {t(`search.tab${tab.charAt(0).toUpperCase() + tab.slice(1)}` as any)}
+                {tab === 'all' && t('search.tabAll')}
+                {tab === 'spells' && `${t('search.tabSpells')} (${totalSpellsCount})`}
+                {tab === 'features' && `${t('search.tabFeatures')} (${totalFeaturesCount})`}
+                {tab === 'items' && `${t('search.tabItems')} (${totalItemsCount})`}
               </button>
             ))}
           </div>
