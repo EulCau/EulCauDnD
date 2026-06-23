@@ -41,6 +41,7 @@ interface SearchPanelProps {
   spells: SearchableSpell[];
   features: SearchableFeature[];
   magicItems: SearchableMagicItem[];
+  onPurchaseItem?: (name: string, source: string) => void;
 }
 
 interface DetailView {
@@ -54,7 +55,7 @@ const TYPE_ICONS: Record<string, string> = {
   item: '◆',
 };
 
-const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems }) => {
+const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems, onPurchaseItem }) => {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [selectedSources, setSelectedSources] = useState<Record<string, string>>({});
@@ -312,6 +313,14 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems 
                       {result.type === 'item' && `${result.data.rarity} · ${result.data.source}`}
                     </div>
                   </div>
+                  {result.type === 'item' && onPurchaseItem && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onPurchaseItem(result.data.name, result.data.source); }}
+                      className="ml-1 shrink-0 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border border-green-300 text-green-700 hover:bg-green-50"
+                    >
+                      购买
+                    </button>
+                  )}
                 </button>
                 {/* Inline detail */}
                 {isExpanded && renderDetailContent()}

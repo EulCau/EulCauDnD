@@ -18,7 +18,7 @@ import { ABILITIES } from './constants';
 import { useLanguage } from './contexts/LanguageContext';
 import { useAuth } from './contexts/AuthContext';
 import { normalizeCharacter, parseCharacterJson, serializeCharacter } from './utils/characterStorage';
-import { removeCharacterAdjustments } from './utils/characterAdjustments';
+import { applyCharacterAdjustments, removeCharacterAdjustments } from './utils/characterAdjustments';
 import { loadAutoBuilderContent, type AutoBuilderContent } from './utils/autoBuilderRules';
 import { loadMagicItems, type MagicItemData, type MagicItemsContent } from './utils/magicItems';
 import { refreshAutomaticArmorClass, refreshAutomaticStyleAttacks, refreshCharacterAutomation } from './utils/equipmentRules';
@@ -165,6 +165,30 @@ export default function App() {
           : resource
       )),
     }));
+  };
+
+  // Purchase magic item from search → add to inventory
+  const handlePurchaseItem = (itemName: string, itemSource: string) => {
+    setCharacter(prev => {
+      const existing = prev.inventory.find(i => i.name === itemName && i.source === itemSource);
+      if (existing) {
+        return applyCharacterAdjustments(prev, {
+          id: `inv-${itemName}|${itemSource}`,
+          sourceId: `inv-${itemName}|${itemSource}`,
+          sourceName: itemName,
+          operations: [{ type: 'addItem', item: { ...existing, count: existing.count + 1 } }],
+        });
+      }
+      return applyCharacterAdjustments(prev, {
+        id: `inv-${itemName}|${itemSource}`,
+        sourceId: `inv-${itemName}|${itemSource}`,
+        sourceName: itemName,
+        operations: [{
+          type: 'addItem',
+          item: { id: `${itemName}|${itemSource}`, name: itemName, source: itemSource, count: 1 },
+        }],
+      });
+    });
   };
 
   // Header Actions
@@ -333,21 +357,22 @@ export default function App() {
 	          onUpdateResource={updateResource}
 	        />
 	        <SpellList data={character} onChange={updateField} profBonus={profBonus} />
-	        <SearchPanel
-	          spells={autoBuilderContent?.spells || []}
-	          features={[...allFeatures, ...character.featureEntries.map(f => ({ id: f.id, sourceId: f.sourceId, name: f.name, sourceName: f.sourceName, description: f.description }))]}
-	          magicItems={magicItems.map(item => ({
-	            id: item.id,
-	            name: item.name,
-	            englishName: item.englishName,
-	            typeLabel: item.typeLabel,
-	            rarity: item.rarity,
-	            category: item.category,
-	            description: item.description,
-	            source: item.source,
-	          }))}
-	        />
-	      </div>
+		        <SearchPanel
+		          spells={autoBuilderContent?.spells || []}
+		          features={[...allFeatures, ...character.featureEntries.map(f => ({ id: f.id, sourceId: f.sourceId, name: f.name, sourceName: f.sourceName, description: f.description }))]}
+		          magicItems={magicItems.map(item => ({
+		            id: item.id,
+		            name: item.name,
+		            englishName: item.englishName,
+		            typeLabel: item.typeLabel,
+		            rarity: item.rarity,
+		            category: item.category,
+		            description: item.description,
+		            source: item.source,
+		          }))}
+		          onPurchaseItem={handlePurchaseItem}
+		        />
+		      </div>
 
       <footer className="mt-12 text-center text-gray-400 text-xs pb-4">
         <p>&copy; {new Date().getFullYear()} {t('footer.text')}</p>

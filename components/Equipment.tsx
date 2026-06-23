@@ -181,6 +181,30 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                     {selectedWeapon.dmg1} {selectedWeapon.dmgType || ''} {formatWeaponPropertyNames(selectedWeapon) ? `| ${formatWeaponPropertyNames(selectedWeapon)}` : ''} {selectedWeapon.range ? `| ${selectedWeapon.range}` : ''} {formatWeaponMasteryNames(selectedWeapon) ? `| ${formatWeaponMasteryNames(selectedWeapon)}` : ''}
                 </div>
             )}
+            {/* Off-hand weapon slot */}
+            <div className="flex gap-2 items-center mt-2 pt-2 border-t border-gray-200">
+                <span className="text-[9px] text-gray-500 uppercase font-bold shrink-0">副手</span>
+                <select
+                    className="flex-1 border border-gray-300 rounded px-1 py-0.5 text-[10px] bg-white"
+                    value={selectedOffHand?.id || ''}
+                    onChange={(e) => setOffHandWeaponId(e.target.value)}
+                    disabled={!weaponOptions.length}
+                >
+                    {weaponOptions.map(w => (
+                        <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                </select>
+                <button
+                    onClick={toggleOffHand}
+                    disabled={!selectedOffHand}
+                    className="px-1.5 py-0.5 text-[9px] uppercase font-bold rounded border border-gray-300 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                >
+                    {offHandEquipped ? t('equipment.unequip') : t('equipment.equip')}
+                </button>
+            </div>
+            {selectedOffHand && offHandEquipped && (
+                <div className="text-[10px] text-gray-500">副手: {selectedOffHand.dmg1} {selectedOffHand.dmgType || ''}</div>
+            )}
          </div>
 
          <div className="border border-gray-200 rounded p-2 bg-white">
@@ -252,15 +276,29 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                  ))}
             </div>
             
-            {/* Equipment Text */}
-            <div className="flex-1 flex flex-col border border-gray-200 rounded p-2 min-h-[160px]">
-                <h4 className="text-[10px] text-gray-500 uppercase font-bold text-center border-b pb-1 mb-1">{t('equipment.title')}</h4>
-                <textarea 
-                    className="flex-1 w-full text-xs resize-none outline-none bg-transparent leading-relaxed"
-                    placeholder="..."
-                    value={data.status.other} // Reusing 'other' status for Equipment for now
-                    onChange={(e) => updateStatus('other', e.target.value)}
-                />
+            {/* Backpack / Inventory */}
+            <div className="border border-gray-200 rounded p-2 bg-white">
+                <h4 className="text-[10px] text-gray-500 uppercase font-bold text-center border-b pb-1 mb-1">背包</h4>
+                {data.inventory.length === 0 ? (
+                    <p className="text-[10px] text-gray-400 text-center py-2">从右侧搜索面板购买魔法物品以添加到背包</p>
+                ) : (
+                    <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                        {data.inventory.map(item => (
+                            <div key={item.id} className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5">
+                                <span className="text-[10px] text-gray-800 truncate max-w-[100px]">{item.name}</span>
+                                <span className="text-[9px] text-gray-400">×{item.count}</span>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeItemFromInventory(item);
+                                    }}
+                                    className="text-gray-300 hover:text-red-500 text-xs leading-none"
+                                    title="Remove"
+                                >&times;</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
          </div>
     </div>
