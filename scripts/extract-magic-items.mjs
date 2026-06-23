@@ -272,160 +272,70 @@ const magicItems = uniqueMagicItems
 
 console.log(`Magic items extracted (deduplicated): ${magicItems.length}`);
 
-// --- Generate generic +X templates (Weapon +1, Armor +1, etc.) ---
-const GENERIC_PLUS_X_TEMPLATES = [
-  { name: '+1 武器', englishName: '+1 Weapon', rarity: 'uncommon', category: 'weapon', typeLabel: '+1 武器', bonus: 1, bonusField: 'bonusWeapon' },
-  { name: '+2 武器', englishName: '+2 Weapon', rarity: 'rare', category: 'weapon', typeLabel: '+2 武器', bonus: 2, bonusField: 'bonusWeapon' },
-  { name: '+3 武器', englishName: '+3 Weapon', rarity: 'very rare', category: 'weapon', typeLabel: '+3 武器', bonus: 3, bonusField: 'bonusWeapon' },
-  { name: '+1 护甲', englishName: '+1 Armor', rarity: 'rare', category: 'armor', typeLabel: '+1 护甲', bonus: 1, bonusField: 'bonusAc' },
-  { name: '+2 护甲', englishName: '+2 Armor', rarity: 'very rare', category: 'armor', typeLabel: '+2 护甲', bonus: 2, bonusField: 'bonusAc' },
-  { name: '+3 护甲', englishName: '+3 Armor', rarity: 'legendary', category: 'armor', typeLabel: '+3 护甲', bonus: 3, bonusField: 'bonusAc' },
-  { name: '+1 盾牌', englishName: '+1 Shield', rarity: 'uncommon', category: 'armor', typeLabel: '+1 盾牌', bonus: 1, bonusField: 'bonusAc' },
-  { name: '+2 盾牌', englishName: '+2 Shield', rarity: 'rare', category: 'armor', typeLabel: '+2 盾牌', bonus: 2, bonusField: 'bonusAc' },
-  { name: '+3 盾牌', englishName: '+3 Shield', rarity: 'very rare', category: 'armor', typeLabel: '+3 盾牌', bonus: 3, bonusField: 'bonusAc' },
-  { name: '+1 弹药', englishName: '+1 Ammunition', rarity: 'uncommon', category: 'weapon', typeLabel: '+1 弹药', bonus: 1, bonusField: 'bonusWeapon' },
-  { name: '+2 弹药', englishName: '+2 Ammunition', rarity: 'rare', category: 'weapon', typeLabel: '+2 弹药', bonus: 2, bonusField: 'bonusWeapon' },
-  { name: '+3 弹药', englishName: '+3 Ammunition', rarity: 'very rare', category: 'weapon', typeLabel: '+3 弹药', bonus: 3, bonusField: 'bonusWeapon' },
-];
+// --- Extract generic magic item templates from magicvariants.json ---
+const magicVariantsData = readJson('magicvariants.json');
+const rawVariants = magicVariantsData.magicvariant || [];
 
-let generatedCount = 0;
-for (const tmpl of GENERIC_PLUS_X_TEMPLATES) {
-  if (magicItems.some(m => m.name === tmpl.name)) continue;
-  const bonusStr = `+${tmpl.bonus}`;
+// Deduplicate by name: prefer first occurrence (5e, then 5r)
+const seenVariant = new Set();
+const uniqueVariants = [];
+for (const v of rawVariants) {
+  const key = v.name;
+  if (!seenVariant.has(key)) {
+    seenVariant.add(key);
+    uniqueVariants.push(v);
+  }
+}
+
+const requiresToCategory = (requires) => {
+  if (!Array.isArray(requires)) return 'other';
+  const reqStr = JSON.stringify(requires);
+  if (reqStr.includes('armor') || /"type":"LA"|"type":"MA"|"type":"HA"|"type":"S"/.test(reqStr)) return 'armor';
+  if (reqStr.includes('weapon') || /"type":"M"|"type":"R"/.test(reqStr) || reqStr.includes('sword') || reqStr.includes('axe') || reqStr.includes('bow') || reqStr.includes('weaponCategory')) return 'weapon';
+  if (reqStr.includes('"type":"A"')) return 'weapon';
+  return 'other';
+};
+
+let variantCount = 0;
+for (const v of uniqueVariants) {
+  const inherits = v.inherits || {};
+  const itemName = v.name;
+  // Skip if a concrete magic item with this name already exists
+  if (magicItems.some(m => m.name === itemName)) continue;
+
+  const category = requiresToCategory(v.requires);
+  const source = v.type?.includes('XDMG') ? 'XDMG' : v.type?.includes('DMG') ? 'DMG' : 'DMG';
+
   const item = {
-    id: `${tmpl.name}|DMG`,
-    name: tmpl.name,
-    englishName: tmpl.englishName,
-    source: 'DMG',
-    type: '',
-    typeLabel: tmpl.typeLabel,
-    rarity: tmpl.rarity,
-    tier: undefined,
-    attunement: null,
-    isWeapon: tmpl.category === 'weapon',
-    isArmor: tmpl.category === 'armor',
-    isFocus: false, isPotion: false, isRing: false, isWondrous: false, isScroll: false,
+    id: `${itemName}|${source}`,
+    name: itemName,
+    englishName: v.ENG_name || undefined,
+    source,
+    type: v.type || '',
+    typeLabel: v.ENG_name || itemName,
+    rarity: inherits.rarity || 'unknown',
+    tier: inherits.tier || undefined,
+    attunement: inherits.reqAttune ? { required: true, ...(typeof inherits.reqAttune === 'string' ? { condition: inherits.reqAttune } : {}) } : null,
+    isWeapon: category === 'weapon',
+    isArmor: category === 'armor',
+    isFocus: false, isPotion: false, isRing: false, isWondrous: category === 'other', isScroll: false,
     weaponCategory: undefined, dmg1: undefined, dmg2: undefined, dmgType: undefined,
     property: undefined, range: undefined, ac: undefined, armor: undefined,
     stealth: undefined, strength: undefined,
-    bonusWeapon: tmpl.bonusField === 'bonusWeapon' ? bonusStr : undefined,
-    bonusAc: tmpl.bonusField === 'bonusAc' ? bonusStr : undefined,
-    bonusSpellAttack: undefined, bonusSpellSaveDc: undefined,
+    bonusWeapon: inherits.bonusWeapon || undefined,
+    bonusAc: inherits.bonusAc || undefined,
+    bonusSpellAttack: inherits.bonusSpellAttack || undefined,
+    bonusSpellSaveDc: inherits.bonusSpellSaveDc || undefined,
     weight: undefined, value: undefined,
-    description: `此${tmpl.typeLabel.includes('武器') || tmpl.typeLabel.includes('弹药') ? '武器' : '防具'}在攻击和伤害掷骰${tmpl.category === 'weapon' ? '' : '(或AC)'}上获得 ${bonusStr} 加值。`,
-    category: tmpl.category,
+    description: summarizeEntries(inherits.entries || []),
+    category,
   };
   magicItems.push(item);
-  generatedCount++;
+  variantCount++;
 }
 
 magicItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-console.log(`Generic +X variants generated: ${generatedCount}`);
-
-// --- Generate generic magic item templates (Vicious, Dragon's Wrath, etc.) ---
-const GENERIC_TEMPLATES = [
-  {
-    name: '恶毒武器',
-    englishName: 'Vicious Weapon',
-    rarity: 'common',
-    category: 'weapon',
-    typeLabel: '武器（恶毒）',
-    bonusWeapon: null,
-    bonusAc: null,
-    description: '当你用一个该魔法武器命中目标时，目标额外受到 2d6 伤害。',
-    source: 'DMG',
-  },
-  {
-    name: '沉睡龙怒武器',
-    englishName: "Slumbering Dragon's Wrath Weapon",
-    rarity: 'uncommon',
-    category: 'weapon',
-    typeLabel: '武器（龙怒·沉睡）',
-    bonusWeapon: '+1',
-    bonusAc: null,
-    description: '此魔法武器在攻击和伤害掷骰上获得 +1 加值。当你用此武器命中一条龙时，龙额外受到 1d6 力场伤害。用此武器攻击时，你可以在 60 英尺范围内说龙语。',
-    source: 'FTD',
-  },
-  {
-    name: '激活龙怒武器',
-    englishName: "Stirring Dragon's Wrath Weapon",
-    rarity: 'rare',
-    category: 'weapon',
-    typeLabel: '武器（龙怒·激活）',
-    bonusWeapon: '+2',
-    bonusAc: null,
-    description: '此魔法武器在攻击和伤害掷骰上获得 +2 加值。当你用此武器命中一条龙时，龙额外受到 2d6 力场伤害。用此武器攻击时，你可以用动作喷出 30 英尺锥形的能量（DC 15 敏捷豁免，半伤），造成 6d6 你选择的龙息伤害类型（酸、冰、火、闪电、毒）。使用后直到第二天黎明才能再次使用。',
-    source: 'FTD',
-  },
-  {
-    name: '觉醒龙怒武器',
-    englishName: "Wakened Dragon's Wrath Weapon",
-    rarity: 'very rare',
-    category: 'weapon',
-    typeLabel: '武器（龙怒·觉醒）',
-    bonusWeapon: '+2',
-    bonusAc: null,
-    description: '此魔法武器在攻击和伤害掷骰上获得 +2 加值。当你用此武器命中一条龙时，龙额外受到 4d6 力场伤害。用此武器攻击时，你可以用动作喷出 60 英尺锥形的能量（DC 17 敏捷豁免，半伤），造成 10d6 你选择的龙息伤害类型。使用后直到第二天黎明才能再次使用。你在进行豁免检定时获得等同于你魅力调整值的加值。',
-    source: 'FTD',
-  },
-  {
-    name: '神化龙怒武器',
-    englishName: "Ascendant Dragon's Wrath Weapon",
-    rarity: 'legendary',
-    category: 'weapon',
-    typeLabel: '武器（龙怒·神化）',
-    bonusWeapon: '+3',
-    bonusAc: null,
-    description: '此魔法武器在攻击和伤害掷骰上获得 +3 加值。当你用此武器命中一条龙时，龙额外受到 4d6 力场伤害。用此武器攻击时，你可以用动作喷出 90 英尺锥形的能量（DC 21 敏捷豁免，半伤），造成 12d6 你选择的龙息伤害类型。使用后直到第二天黎明才能再次使用。你获得 60 英尺盲视，免疫麻痹和恐慌状态。',
-    source: 'FTD',
-  },
-];
-
-let templateCount = 0;
-for (const tmpl of GENERIC_TEMPLATES) {
-  // Skip if an item with the same name already exists
-  if (magicItems.some(m => m.name === tmpl.name)) continue;
-  magicItems.push({
-    id: `${tmpl.name}|${tmpl.source}`,
-    name: tmpl.name,
-    englishName: tmpl.englishName,
-    source: tmpl.source,
-    type: '',
-    typeLabel: tmpl.typeLabel,
-    rarity: tmpl.rarity,
-    tier: undefined,
-    attunement: null,
-    isWeapon: true,
-    isArmor: false,
-    isFocus: false,
-    isPotion: false,
-    isRing: false,
-    isWondrous: false,
-    isScroll: false,
-    weaponCategory: undefined,
-    dmg1: undefined,
-    dmg2: undefined,
-    dmgType: undefined,
-    property: undefined,
-    range: undefined,
-    ac: undefined,
-    armor: undefined,
-    stealth: undefined,
-    strength: undefined,
-    bonusWeapon: tmpl.bonusWeapon,
-    bonusAc: tmpl.bonusAc,
-    bonusSpellAttack: undefined,
-    bonusSpellSaveDc: undefined,
-    weight: undefined,
-    value: undefined,
-    description: tmpl.description,
-    category: tmpl.category,
-  });
-  templateCount++;
-}
-
-magicItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-console.log(`Generic templates added: ${templateCount}`);
+console.log(`Generic magic variants extracted: ${variantCount}`);
 console.log(`Total magic items: ${magicItems.length}`);
 
 // Stats
