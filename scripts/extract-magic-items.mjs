@@ -274,18 +274,18 @@ console.log(`Magic items extracted (deduplicated): ${magicItems.length}`);
 
 // --- Generate generic +X templates (Weapon +1, Armor +1, etc.) ---
 const GENERIC_PLUS_X_TEMPLATES = [
-  { name: '武器 +1', englishName: 'Weapon +1', rarity: 'uncommon', category: 'weapon', typeLabel: '武器 +1', bonus: 1, bonusField: 'bonusWeapon' },
-  { name: '武器 +2', englishName: 'Weapon +2', rarity: 'rare', category: 'weapon', typeLabel: '武器 +2', bonus: 2, bonusField: 'bonusWeapon' },
-  { name: '武器 +3', englishName: 'Weapon +3', rarity: 'very rare', category: 'weapon', typeLabel: '武器 +3', bonus: 3, bonusField: 'bonusWeapon' },
-  { name: '护甲 +1', englishName: 'Armor +1', rarity: 'rare', category: 'armor', typeLabel: '护甲 +1', bonus: 1, bonusField: 'bonusAc' },
-  { name: '护甲 +2', englishName: 'Armor +2', rarity: 'very rare', category: 'armor', typeLabel: '护甲 +2', bonus: 2, bonusField: 'bonusAc' },
-  { name: '护甲 +3', englishName: 'Armor +3', rarity: 'legendary', category: 'armor', typeLabel: '护甲 +3', bonus: 3, bonusField: 'bonusAc' },
-  { name: '盾牌 +1', englishName: 'Shield +1', rarity: 'uncommon', category: 'armor', typeLabel: '盾牌 +1', bonus: 1, bonusField: 'bonusAc' },
-  { name: '盾牌 +2', englishName: 'Shield +2', rarity: 'rare', category: 'armor', typeLabel: '盾牌 +2', bonus: 2, bonusField: 'bonusAc' },
-  { name: '盾牌 +3', englishName: 'Shield +3', rarity: 'very rare', category: 'armor', typeLabel: '盾牌 +3', bonus: 3, bonusField: 'bonusAc' },
-  { name: '弹药 +1', englishName: 'Ammunition +1', rarity: 'uncommon', category: 'weapon', typeLabel: '弹药 +1', bonus: 1, bonusField: 'bonusWeapon' },
-  { name: '弹药 +2', englishName: 'Ammunition +2', rarity: 'rare', category: 'weapon', typeLabel: '弹药 +2', bonus: 2, bonusField: 'bonusWeapon' },
-  { name: '弹药 +3', englishName: 'Ammunition +3', rarity: 'very rare', category: 'weapon', typeLabel: '弹药 +3', bonus: 3, bonusField: 'bonusWeapon' },
+  { name: '+1 武器', englishName: '+1 Weapon', rarity: 'uncommon', category: 'weapon', typeLabel: '+1 武器', bonus: 1, bonusField: 'bonusWeapon' },
+  { name: '+2 武器', englishName: '+2 Weapon', rarity: 'rare', category: 'weapon', typeLabel: '+2 武器', bonus: 2, bonusField: 'bonusWeapon' },
+  { name: '+3 武器', englishName: '+3 Weapon', rarity: 'very rare', category: 'weapon', typeLabel: '+3 武器', bonus: 3, bonusField: 'bonusWeapon' },
+  { name: '+1 护甲', englishName: '+1 Armor', rarity: 'rare', category: 'armor', typeLabel: '+1 护甲', bonus: 1, bonusField: 'bonusAc' },
+  { name: '+2 护甲', englishName: '+2 Armor', rarity: 'very rare', category: 'armor', typeLabel: '+2 护甲', bonus: 2, bonusField: 'bonusAc' },
+  { name: '+3 护甲', englishName: '+3 Armor', rarity: 'legendary', category: 'armor', typeLabel: '+3 护甲', bonus: 3, bonusField: 'bonusAc' },
+  { name: '+1 盾牌', englishName: '+1 Shield', rarity: 'uncommon', category: 'armor', typeLabel: '+1 盾牌', bonus: 1, bonusField: 'bonusAc' },
+  { name: '+2 盾牌', englishName: '+2 Shield', rarity: 'rare', category: 'armor', typeLabel: '+2 盾牌', bonus: 2, bonusField: 'bonusAc' },
+  { name: '+3 盾牌', englishName: '+3 Shield', rarity: 'very rare', category: 'armor', typeLabel: '+3 盾牌', bonus: 3, bonusField: 'bonusAc' },
+  { name: '+1 弹药', englishName: '+1 Ammunition', rarity: 'uncommon', category: 'weapon', typeLabel: '+1 弹药', bonus: 1, bonusField: 'bonusWeapon' },
+  { name: '+2 弹药', englishName: '+2 Ammunition', rarity: 'rare', category: 'weapon', typeLabel: '+2 弹药', bonus: 2, bonusField: 'bonusWeapon' },
+  { name: '+3 弹药', englishName: '+3 Ammunition', rarity: 'very rare', category: 'weapon', typeLabel: '+3 弹药', bonus: 3, bonusField: 'bonusWeapon' },
 ];
 
 let generatedCount = 0;
