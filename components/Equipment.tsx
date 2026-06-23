@@ -29,15 +29,18 @@ interface EquipmentProps {
   data: CharacterData;
   onChange: (field: keyof CharacterData, value: any) => void;
   onUpdateCharacter: (character: CharacterData) => void;
+  magicItems?: Array<{ id: string; name: string; source: string; bonusWeapon?: string; bonusAc?: string; requires?: any; namePrefix?: string; category: string; isWeapon?: boolean; isArmor?: boolean; }>;
+  autoBuilderContent?: AutoBuilderContent | null;
 }
 
-export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCharacter }) => {
+export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCharacter, magicItems = [], autoBuilderContent }) => {
     const { t } = useLanguage();
-    const [content, setContent] = useState<AutoBuilderContent | null>(null);
+    const [content, setContent] = useState<AutoBuilderContent | null>(autoBuilderContent || null);
     const [weaponId, setWeaponId] = useState('');
     const [offHandWeaponId, setOffHandWeaponId] = useState('');
     const [armorId, setArmorId] = useState('');
     const [shieldId, setShieldId] = useState('');
+    const [inventoryBaseChoices, setInventoryBaseChoices] = useState<Record<string, string>>({});
     const updateMoney = (key: keyof typeof data.currency, val: string) => {
         onChange('currency', { ...data.currency, [key]: val });
     };
@@ -127,6 +130,37 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                 sourceName: item.name,
                 operations: [{ type: 'addItem', item: { ...item, count: item.count - 1 } }],
             }));
+        }
+    };
+
+    // Get magic item details for an inventory item
+    const getMagicItemDetail = (invItem: InventoryItem) => {
+        return magicItems.find(m => m.name === invItem.name && m.source === invItem.source);
+    };
+
+    // Equip a magic item from backpack
+    const equipFromInventory = (invItem: InventoryItem) => {
+        if (!autoBuilderContent) return;
+        const detail = getMagicItemDetail(invItem);
+        if (!detail) return;
+
+        // For weapon items: find matching base weapon from auto-builder data
+        if (detail.isWeapon || detail.bonusWeapon) {
+            const baseName = inventoryBaseChoices[invItem.id];
+            const weaponData = autoBuilderContent.weapons.find(w => 
+                baseName ? w.name === baseName : true
+            ) || autoBuilderContent.weapons[0];
+            if (weaponData) {
+                // Create a modified weapon with magic bonus
+                const modifiedWeapon = { ...weaponData, bonusWeapon: detail.bonusWeapon || '' };
+                onUpdateCharacter(refreshCharacterAutomation(equipWeapon(data, modifiedWeapon), autoBuilderContent));
+            }
+        } else if (detail.isArmor || detail.bonusAc) {
+            // For armor: find a matching armor or use first light armor
+            const armorData = autoBuilderContent.armors.find(a => a.id?.includes('Leather') || a.id?.includes('皮甲'));
+            if (armorData) {
+                onUpdateCharacter(refreshCharacterAutomation(equipArmor(data, armorData), autoBuilderContent));
+            }
         }
     };
 
@@ -283,20 +317,43 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                     <p className="text-[10px] text-gray-400 text-center py-2">从右侧搜索面板购买魔法物品以添加到背包</p>
                 ) : (
                     <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                        {data.inventory.map(item => (
-                            <div key={item.id} className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5">
-                                <span className="text-[10px] text-gray-800 truncate max-w-[100px]">{item.name}</span>
-                                <span className="text-[9px] text-gray-400">×{item.count}</span>
+                        {data.inventory.map(item => {
+                            const detail = getMagicItemDetail(item);
+                            const isEquippable = detail && (detail.isWeapon || detail.isArmor || detail.bonusWeapon || detail.bonusAc);
+                            const hasRequires = detail?.requires && Array.isArray(detail.requires) && detail.requires.length > 0;
+                            const baseWeaponOptions = autoBuilderContent?.weapons || [];
+                            const chosenBase = inventoryBaseChoices[item.id] || baseWeaponOptions[0]?.name || '';
+
+                            return (
+                            <div key={item.id} className="w-full flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5">
+                                <span className="text-[10px] text-gray-800 truncate flex-1">{item.name}</span>
+                                <span className="text-[9px] text-gray-400 shrink-0">×{item.count}</span>
+                                {isEquippable && hasRequires && (
+                                    <select
+                                        value={chosenBase}
+                                        onChange={(e) => setInventoryBaseChoices(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                        className="text-[9px] border border-gray-200 rounded bg-white max-w-[80px]"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {baseWeaponOptions.map(w => (
+                                            <option key={w.id} value={w.name}>{w.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                                {isEquippable && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); equipFromInventory(item); }}
+                                        className="text-[9px] uppercase font-bold px-1 py-0.5 rounded border border-blue-300 text-blue-700 hover:bg-blue-50 shrink-0"
+                                    >装备</button>
+                                )}
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeItemFromInventory(item);
-                                    }}
-                                    className="text-gray-300 hover:text-red-500 text-xs leading-none"
+                                    onClick={(e) => { e.stopPropagation(); removeItemFromInventory(item); }}
+                                    className="text-gray-300 hover:text-red-500 text-xs leading-none shrink-0"
                                     title="Remove"
                                 >&times;</button>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

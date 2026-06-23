@@ -328,7 +328,7 @@ export default function App() {
             </div>
 
             <div className="flex-none">
-                <Equipment data={character} onChange={updateField} onUpdateCharacter={setCharacter} />
+                <Equipment data={character} onChange={updateField} onUpdateCharacter={setCharacter} magicItems={magicItems} autoBuilderContent={autoBuilderContent} />
             </div>
         </div>
 
