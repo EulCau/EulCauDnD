@@ -272,96 +272,51 @@ const magicItems = uniqueMagicItems
 
 console.log(`Magic items extracted (deduplicated): ${magicItems.length}`);
 
-// --- Generate generic +X weapon/armor/shield variants ---
-const baseItems = readJson('items-base.json');
-const rawBaseItems = baseItems.baseitem || [];
-
-// Types that can be enchanted as +X
-const ENCHANTABLE_WEAPON_TYPES = new Set(['M', 'M|XPHB', 'R', 'R|XPHB']);
-const ENCHANTABLE_AMMO_TYPES = new Set(['$A', '$A|XPHB']);
-const ENCHANTABLE_ARMOR_TYPES = new Set(['LA', 'LA|XPHB', 'MA', 'MA|XPHB', 'HA', 'HA|XPHB']);
-const ENCHANTABLE_SHIELD_TYPES = new Set(['S', 'S|XPHB']);
-
-// Deduplicate base items by name (some appear in both PHB and XPHB)
-const seenBase = new Set();
-const uniqueBases = [];
-for (const base of rawBaseItems) {
-  if (!seenBase.has(base.name)) {
-    seenBase.add(base.name);
-    uniqueBases.push(base);
-  }
-}
-
-const BONUS_CONFIGS = [
-  { bonus: 1, rarity: 'uncommon', tier: 1 },
-  { bonus: 2, rarity: 'rare', tier: 2 },
-  { bonus: 3, rarity: 'very rare', tier: 3 },
+// --- Generate generic +X templates (Weapon +1, Armor +1, etc.) ---
+const GENERIC_PLUS_X_TEMPLATES = [
+  { name: '武器 +1', englishName: 'Weapon +1', rarity: 'uncommon', category: 'weapon', typeLabel: '武器 +1', bonus: 1, bonusField: 'bonusWeapon' },
+  { name: '武器 +2', englishName: 'Weapon +2', rarity: 'rare', category: 'weapon', typeLabel: '武器 +2', bonus: 2, bonusField: 'bonusWeapon' },
+  { name: '武器 +3', englishName: 'Weapon +3', rarity: 'very rare', category: 'weapon', typeLabel: '武器 +3', bonus: 3, bonusField: 'bonusWeapon' },
+  { name: '护甲 +1', englishName: 'Armor +1', rarity: 'rare', category: 'armor', typeLabel: '护甲 +1', bonus: 1, bonusField: 'bonusAc' },
+  { name: '护甲 +2', englishName: 'Armor +2', rarity: 'very rare', category: 'armor', typeLabel: '护甲 +2', bonus: 2, bonusField: 'bonusAc' },
+  { name: '护甲 +3', englishName: 'Armor +3', rarity: 'legendary', category: 'armor', typeLabel: '护甲 +3', bonus: 3, bonusField: 'bonusAc' },
+  { name: '盾牌 +1', englishName: 'Shield +1', rarity: 'uncommon', category: 'armor', typeLabel: '盾牌 +1', bonus: 1, bonusField: 'bonusAc' },
+  { name: '盾牌 +2', englishName: 'Shield +2', rarity: 'rare', category: 'armor', typeLabel: '盾牌 +2', bonus: 2, bonusField: 'bonusAc' },
+  { name: '盾牌 +3', englishName: 'Shield +3', rarity: 'very rare', category: 'armor', typeLabel: '盾牌 +3', bonus: 3, bonusField: 'bonusAc' },
+  { name: '弹药 +1', englishName: 'Ammunition +1', rarity: 'uncommon', category: 'weapon', typeLabel: '弹药 +1', bonus: 1, bonusField: 'bonusWeapon' },
+  { name: '弹药 +2', englishName: 'Ammunition +2', rarity: 'rare', category: 'weapon', typeLabel: '弹药 +2', bonus: 2, bonusField: 'bonusWeapon' },
+  { name: '弹药 +3', englishName: 'Ammunition +3', rarity: 'very rare', category: 'weapon', typeLabel: '弹药 +3', bonus: 3, bonusField: 'bonusWeapon' },
 ];
 
 let generatedCount = 0;
-for (const base of uniqueBases) {
-  const type = base.type || '';
-  const name = base.name;
-  const enName = base.ENG_name || name;
-  const source = base.source || 'DMG';
-
-  // Determine which enchantment types apply
-  const isWeapon = ENCHANTABLE_WEAPON_TYPES.has(type);
-  const isAmmo = ENCHANTABLE_AMMO_TYPES.has(type);
-  const isArmor = ENCHANTABLE_ARMOR_TYPES.has(type);
-  const isShield = ENCHANTABLE_SHIELD_TYPES.has(type);
-
-  if (!isWeapon && !isAmmo && !isArmor && !isShield) continue;
-
-  for (const cfg of BONUS_CONFIGS) {
-    const itemCategory = isWeapon || isAmmo ? 'weapon' : 'armor';
-    const typeLabel = isWeapon ? '武器' : isAmmo ? '弹药' : isArmor ? '护甲' : '盾牌';
-
-    const newName = `${name} +${cfg.bonus}`;
-    const newEnName = `${enName} +${cfg.bonus}`;
-
-    // Skip if a named magic item with this exact name already exists
-    if (magicItems.some(m => m.name === newName)) continue;
-
-    const newItem = {
-      id: `${newName}|DMG`,
-      name: newName,
-      englishName: newEnName,
-      source: 'DMG',
-      type: base.type || '',
-      typeLabel: `${typeLabel} +${cfg.bonus}`,
-      rarity: cfg.rarity,
-      tier: cfg.tier,
-      attunement: null,
-      isWeapon: isWeapon || isAmmo || false,
-      isArmor: isArmor || isShield || false,
-      isFocus: false,
-      isPotion: false,
-      isRing: false,
-      isWondrous: false,
-      isScroll: false,
-      weaponCategory: base.weaponCategory,
-      dmg1: base.dmg1,
-      dmg2: base.dmg2,
-      dmgType: base.dmgType,
-      property: base.property,
-      range: base.range,
-      ac: base.ac,
-      armor: base.armor,
-      stealth: base.stealth,
-      strength: base.strength,
-      bonusWeapon: isWeapon || isAmmo ? `+${cfg.bonus}` : undefined,
-      bonusAc: isArmor || isShield ? `+${cfg.bonus}` : undefined,
-      bonusSpellAttack: undefined,
-      bonusSpellSaveDc: undefined,
-      weight: base.weight,
-      value: undefined,
-      description: `此${typeLabel}在攻击和伤害掷骰上获得 +${cfg.bonus} 加值。`,
-      category: itemCategory,
-    };
-    magicItems.push(newItem);
-    generatedCount++;
-  }
+for (const tmpl of GENERIC_PLUS_X_TEMPLATES) {
+  if (magicItems.some(m => m.name === tmpl.name)) continue;
+  const bonusStr = `+${tmpl.bonus}`;
+  const item = {
+    id: `${tmpl.name}|DMG`,
+    name: tmpl.name,
+    englishName: tmpl.englishName,
+    source: 'DMG',
+    type: '',
+    typeLabel: tmpl.typeLabel,
+    rarity: tmpl.rarity,
+    tier: undefined,
+    attunement: null,
+    isWeapon: tmpl.category === 'weapon',
+    isArmor: tmpl.category === 'armor',
+    isFocus: false, isPotion: false, isRing: false, isWondrous: false, isScroll: false,
+    weaponCategory: undefined, dmg1: undefined, dmg2: undefined, dmgType: undefined,
+    property: undefined, range: undefined, ac: undefined, armor: undefined,
+    stealth: undefined, strength: undefined,
+    bonusWeapon: tmpl.bonusField === 'bonusWeapon' ? bonusStr : undefined,
+    bonusAc: tmpl.bonusField === 'bonusAc' ? bonusStr : undefined,
+    bonusSpellAttack: undefined, bonusSpellSaveDc: undefined,
+    weight: undefined, value: undefined,
+    description: `此${tmpl.typeLabel.includes('武器') || tmpl.typeLabel.includes('弹药') ? '武器' : '防具'}在攻击和伤害掷骰${tmpl.category === 'weapon' ? '' : '(或AC)'}上获得 ${bonusStr} 加值。`,
+    category: tmpl.category,
+  };
+  magicItems.push(item);
+  generatedCount++;
 }
 
 magicItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
