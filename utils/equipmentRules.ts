@@ -64,7 +64,7 @@ const getPropertyLabel = (property: WeaponProperty): string => {
   return `${label} (${formatPropertyNote(property.note)})`;
 };
 
-const getItemType = (item: { type?: string }): string => item.type?.split('|')[0] || '';
+export const getItemType = (item: { type?: string }): string => item.type?.split('|')[0] || '';
 const getMasteryName = (mastery: string): string => mastery.split('|')[0];
 
 export const formatWeaponMasteryNames = (weapon: Pick<AutoBuilderWeapon, 'mastery'>): string => (
@@ -206,11 +206,11 @@ const getAttackAbility = (character: CharacterData, weapon: AutoBuilderWeapon): 
   return { label: '力量', modifier: str };
 };
 
-const getAttackAbilityMod = (character: CharacterData, weapon: AutoBuilderWeapon): number => {
+export const getAttackAbilityMod = (character: CharacterData, weapon: AutoBuilderWeapon): number => {
   return getAttackAbility(character, weapon).modifier;
 };
 
-const isWeaponProficient = (character: CharacterData, weapon: AutoBuilderWeapon): boolean => {
+export const isWeaponProficient = (character: CharacterData, weapon: AutoBuilderWeapon): boolean => {
   if (hasPactOfTheBlade(character) && !isRangedWeapon(weapon)) return true;
 
   const category = weapon.weaponCategory;
@@ -240,7 +240,7 @@ const formatWeaponRange = (weapon: AutoBuilderWeapon): string => {
   return `${hasProperty(weapon, 'T') ? '投掷射程' : '射程'} ${weapon.range}`;
 };
 
-const formatWeaponType = (weapon: AutoBuilderWeapon): string => {
+export const formatWeaponType = (weapon: AutoBuilderWeapon): string => {
   const category = weapon.weaponCategory === 'martial' ? '军用' : '简易';
   const kind = isRangedWeapon(weapon) ? '远程' : '近战';
   return `${category}${kind}武器`;

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CharacterData, InventoryItem } from '../types';
+import { Attack, CharacterData, InventoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { AutoBuilderContent } from '../utils/autoBuilderRules';
 import { applyCharacterAdjustments, removeCharacterAdjustments } from '../utils/characterAdjustments';
+import { formatModifier, calculateProficiencyBonus, getTotalLevel } from '../utils/dndCalculations';
 import {
     equipArmor,
     equipOffHandWeapon,
@@ -13,17 +14,36 @@ import {
     getWeaponOptions,
     formatWeaponMasteryNames,
     formatWeaponPropertyNames,
+    getAttackAbilityMod,
+    getItemType,
+    formatWeaponType,
     isArmorEquipped,
     isOffHandWeaponEquipped,
     isShieldEquipped,
     isWeaponEquipped,
+    isWeaponProficient,
+    refreshAutomaticArmorClass,
     refreshCharacterAutomation,
+    refreshEquippedArmor,
     unequipArmor,
     unequipOffHandWeapon,
     unequipShield,
     unequipWeapon,
 } from '../utils/equipmentRules';
 import { loadAutoBuilderContent } from '../utils/autoBuilderRules';
+
+const DAMAGE_TYPES: Record<string, string> = { B: '钝击', P: '穿刺', S: '挥砍', A: '强酸', C: '寒冷', F: '火焰', L: '闪电', N: '黯蚀', O: '力场', R: '光耀', T: '雷鸣' };
+
+/** Map a magic item's 'requires' field to an armor type code */
+const getArmorTypeFromRequires = (requires: any): string => {
+  const reqStr = JSON.stringify(requires || []);
+  if (reqStr.includes('"type":"HA')) return 'HA';
+  if (reqStr.includes('"type":"MA')) return 'MA';
+  if (reqStr.includes('"type":"LA')) return 'LA';
+  if (reqStr.includes('"type":"S"')) return 'S';
+  if (reqStr.includes('armor')) return 'LA'; // default to light armor
+  return 'LA';
+};
 
 interface EquipmentProps {
   data: CharacterData;
@@ -144,23 +164,64 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
         const detail = getMagicItemDetail(invItem);
         if (!detail) return;
 
-        // For weapon items: find matching base weapon from auto-builder data
         if (detail.isWeapon || detail.bonusWeapon) {
+            // Use selected base weapon (or first available)
             const baseName = inventoryBaseChoices[invItem.id];
-            const weaponData = autoBuilderContent.weapons.find(w => 
-                baseName ? w.name === baseName : true
-            ) || autoBuilderContent.weapons[0];
-            if (weaponData) {
-                // Create a modified weapon with magic bonus
-                const modifiedWeapon = { ...weaponData, bonusWeapon: detail.bonusWeapon || '' };
-                onUpdateCharacter(refreshCharacterAutomation(equipWeapon(data, modifiedWeapon), autoBuilderContent));
+            const weaponData = baseName
+                ? autoBuilderContent.weapons.find(w => w.name === baseName)
+                : autoBuilderContent.weapons[0];
+            if (!weaponData) return;
+
+            // Equip with baked-in magic bonus. Use a unique sourceId
+            // so refreshEquippedWeapons (which re-equips by base weapon ID) does NOT overwrite it.
+            const magicSourceId = `equip-magic-${invItem.id}`;
+            const profBonus = calculateProficiencyBonus(getTotalLevel(data.classes));
+            const abilityMod = getAttackAbilityMod(data, weaponData);
+            const magicBonus = Number(String(detail.bonusWeapon || '0').replace('+', '')) || 0;
+            const attackBonus = abilityMod + magicBonus + (isWeaponProficient(data, weaponData) ? profBonus : 0);
+            const attack: Attack = {
+                id: `${magicSourceId}-attack`,
+                sourceId: magicSourceId,
+                sourceName: `${detail.name} (${weaponData.name})`,
+                automatic: true,
+                name: `${detail.name} ${weaponData.name}`,
+                bonus: formatModifier(attackBonus),
+                damage: `${weaponData.dmg1 || ''}${magicBonus + abilityMod === 0 ? '' : formatModifier(magicBonus + abilityMod)} ${weaponData.dmgType ? (DAMAGE_TYPES[weaponData.dmgType] || weaponData.dmgType) : ''}`.trim(),
+                type: formatWeaponType(weaponData),
+                notes: `魔法武器 +${magicBonus}`,
+            };
+            // Unequip any existing main weapon first
+            const existingMain = data.appliedAdjustments.find(a => a.sourceId.startsWith('equip-weapon-') && !a.sourceId.startsWith('equip-weapon-offhand-') && !a.sourceId.startsWith('equip-magic-'));
+            let next = data;
+            if (existingMain) {
+                next = removeCharacterAdjustments(next, existingMain.sourceId);
             }
+            next = applyCharacterAdjustments(next, {
+                id: magicSourceId,
+                sourceId: magicSourceId,
+                sourceName: attack.sourceName,
+                operations: [{ type: 'addAttack', attack }],
+            });
+            // Still refresh armor (but not weapons, to preserve the magic attack)
+            const content = autoBuilderContent;
+            next = refreshAutomaticArmorClass(refreshEquippedArmor(next, content));
+            onUpdateCharacter(next);
         } else if (detail.isArmor || detail.bonusAc) {
-            // For armor: find a matching armor or use first light armor
-            const armorData = autoBuilderContent.armors.find(a => a.id?.includes('Leather') || a.id?.includes('皮甲'));
-            if (armorData) {
-                onUpdateCharacter(refreshCharacterAutomation(equipArmor(data, armorData), autoBuilderContent));
+            // Equip armor, then add bonusAc separately
+            const targetType = getArmorTypeFromRequires(detail.requires);
+            const armorData = autoBuilderContent.armors.find(a => getItemType(a) === targetType) || autoBuilderContent.armors[0];
+            if (!armorData) return;
+            let next = equipArmor(data, armorData);
+            const acBonus = Number(String(detail.bonusAc || '0').replace('+', '')) || 0;
+            if (acBonus > 0) {
+                next = applyCharacterAdjustments(next, {
+                    id: `magic-ac-${invItem.id}`,
+                    sourceId: `magic-ac-${invItem.id}`,
+                    sourceName: detail.name,
+                    operations: [{ type: 'addNumber', path: 'armorBonus', value: acBonus }],
+                });
             }
+            onUpdateCharacter(refreshCharacterAutomation(next, autoBuilderContent));
         }
     };
 
