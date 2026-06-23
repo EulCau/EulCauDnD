@@ -306,30 +306,33 @@ for (const v of uniqueVariants) {
   const category = requiresToCategory(v.requires);
   const source = v.type?.includes('XDMG') ? 'XDMG' : v.type?.includes('DMG') ? 'DMG' : 'DMG';
 
-  const item = {
-    id: `${itemName}|${source}`,
-    name: itemName,
-    englishName: v.ENG_name || undefined,
-    source,
-    type: v.type || '',
-    typeLabel: v.ENG_name || itemName,
-    rarity: inherits.rarity || 'unknown',
-    tier: inherits.tier || undefined,
-    attunement: inherits.reqAttune ? { required: true, ...(typeof inherits.reqAttune === 'string' ? { condition: inherits.reqAttune } : {}) } : null,
-    isWeapon: category === 'weapon',
-    isArmor: category === 'armor',
-    isFocus: false, isPotion: false, isRing: false, isWondrous: category === 'other', isScroll: false,
-    weaponCategory: undefined, dmg1: undefined, dmg2: undefined, dmgType: undefined,
-    property: undefined, range: undefined, ac: undefined, armor: undefined,
-    stealth: undefined, strength: undefined,
-    bonusWeapon: inherits.bonusWeapon || undefined,
-    bonusAc: inherits.bonusAc || undefined,
-    bonusSpellAttack: inherits.bonusSpellAttack || undefined,
-    bonusSpellSaveDc: inherits.bonusSpellSaveDc || undefined,
-    weight: undefined, value: undefined,
-    description: summarizeEntries(inherits.entries || []),
-    category,
-  };
+	  const item = {
+	    id: `${itemName}|${source}`,
+	    name: itemName,
+	    englishName: v.ENG_name || undefined,
+	    source,
+	    type: v.type || '',
+	    typeLabel: v.ENG_name || itemName,
+	    rarity: inherits.rarity || 'unknown',
+	    tier: inherits.tier || undefined,
+	    attunement: inherits.reqAttune ? { required: true, ...(typeof inherits.reqAttune === 'string' ? { condition: inherits.reqAttune } : {}) } : null,
+	    isWeapon: category === 'weapon',
+	    isArmor: category === 'armor',
+	    isFocus: false, isPotion: false, isRing: false, isWondrous: category === 'other', isScroll: false,
+	    weaponCategory: undefined, dmg1: undefined, dmg2: undefined, dmgType: undefined,
+	    property: undefined, range: undefined, ac: undefined, armor: undefined,
+	    stealth: undefined, strength: undefined,
+	    bonusWeapon: inherits.bonusWeapon || undefined,
+	    bonusAc: inherits.bonusAc || undefined,
+	    bonusSpellAttack: inherits.bonusSpellAttack || undefined,
+	    bonusSpellSaveDc: inherits.bonusSpellSaveDc || undefined,
+	    weight: undefined, value: undefined,
+	    description: summarizeEntries(inherits.entries || []),
+	    category,
+	    // Template metadata for frontend: what base items this can apply to
+	    requires: v.requires || undefined,
+	    namePrefix: inherits.namePrefix || undefined,
+	  };
   magicItems.push(item);
   variantCount++;
 }

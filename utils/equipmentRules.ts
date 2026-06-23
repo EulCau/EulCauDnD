@@ -75,7 +75,11 @@ export const formatWeaponPropertyNames = (weapon: Pick<AutoBuilderWeapon, 'prope
   weapon.property?.map(getPropertyLabel).filter(Boolean).join('/') || ''
 );
 
-const hasProperty = (weapon: AutoBuilderWeapon, code: string): boolean => (
+const hasMediumArmorMaster = (character: CharacterData): boolean => (
+	  hasFeature(character, ['中甲大师', 'Medium Armor Master'])
+	);
+
+	const hasProperty = (weapon: AutoBuilderWeapon, code: string): boolean => (
   weapon.property || []
 ).some(property => getPropertyCode(property) === code);
 
@@ -184,10 +188,10 @@ const getAttackActionCount = (character: CharacterData): number => {
 };
 
 const getDamageStyleBonus = (character: CharacterData, weapon: AutoBuilderWeapon): number => {
-  if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) return 2;
-  if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) return 2;
-  return 0;
-};
+	  if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H') && !getEquippedOffHandWeaponId(character)) return 2;
+	  if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) return 2;
+	  return 0;
+	};
 
 const getAttackAbility = (character: CharacterData, weapon: AutoBuilderWeapon): { label: string; modifier: number } => {
   const str = calculateModifier(character.abilities.STR);
@@ -316,10 +320,21 @@ export const getShieldOptions = (
   .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 
 export const isWeaponEquipped = (character: CharacterData, weapon: AutoBuilderWeapon): boolean => {
-  return character.appliedAdjustments.some(adjustment => adjustment.sourceId === `equip-weapon-${weapon.id}`);
-};
+	  return character.appliedAdjustments.some(adjustment => adjustment.sourceId === `equip-weapon-${weapon.id}`);
+	};
 
-export const isArmorEquipped = (character: CharacterData, armor: AutoBuilderArmor): boolean => {
+	export const isOffHandWeaponEquipped = (character: CharacterData, weapon: AutoBuilderWeapon): boolean => {
+	  return character.appliedAdjustments.some(adjustment => adjustment.sourceId === `equip-weapon-offhand-${weapon.id}`);
+	};
+
+	export const getEquippedOffHandWeaponId = (character: CharacterData): string | undefined => {
+	  return character.appliedAdjustments
+	    .map(adjustment => adjustment.sourceId)
+	    .find(sourceId => sourceId.startsWith('equip-weapon-offhand-'))
+	    ?.replace(/^equip-weapon-offhand-/, '');
+	};
+
+	export const isArmorEquipped = (character: CharacterData, armor: AutoBuilderArmor): boolean => {
   return character.appliedAdjustments.some(adjustment => adjustment.sourceId === `equip-armor-${armor.id}`);
 };
 
@@ -328,14 +343,14 @@ export const isShieldEquipped = (character: CharacterData, shield: AutoBuilderAr
 };
 
 const getArmorBase = (character: CharacterData, armor: AutoBuilderArmor): number => {
-  const dexMod = calculateModifier(character.abilities.DEX);
-  const base = Number(armor.ac) || 10;
-  const type = getItemType(armor);
+	  const dexMod = calculateModifier(character.abilities.DEX);
+	  const base = Number(armor.ac) || 10;
+	  const type = getItemType(armor);
 
-  if (type === 'LA') return base + dexMod;
-  if (type === 'MA') return base + Math.min(dexMod, 2);
-  return base;
-};
+	  if (type === 'LA') return base + dexMod;
+	  if (type === 'MA') return base + Math.min(dexMod, hasMediumArmorMaster(character) ? 3 : 2);
+	  return base;
+	};
 
 const formatArmorNotes = (armor: AutoBuilderArmor): string => {
   const notes = [ARMOR_TYPES[getItemType(armor)] || getItemType(armor)];
@@ -459,73 +474,163 @@ export const refreshAutomaticArmorClass = (
 };
 
 export const equipWeapon = (
-  character: CharacterData,
-  weapon: AutoBuilderWeapon,
-): CharacterData => {
-  const profBonus = calculateProficiencyBonus(getTotalLevel(character.classes));
-  const abilityMod = getAttackAbilityMod(character, weapon);
-  const magicBonus = getWeaponBonus(weapon);
-  const fightingStyleBonus = isRangedWeapon(weapon) && hasFeature(character, ['箭术', 'Archery']) ? 2 : 0;
-  const attackBonus = abilityMod + magicBonus + fightingStyleBonus + (isWeaponProficient(character, weapon) ? profBonus : 0);
-  const sourceId = `equip-weapon-${weapon.id}`;
-  const attack: Attack = {
-    id: `${sourceId}-attack`,
-    sourceId,
-    sourceName: weapon.name,
-    automatic: true,
-    name: weapon.name,
-    bonus: formatModifier(attackBonus),
-    damage: formatDamage(character, weapon),
-    type: formatWeaponType(weapon),
-    notes: formatWeaponNotes(character, weapon),
-  };
+	  character: CharacterData,
+	  weapon: AutoBuilderWeapon,
+	  content?: AutoBuilderContent,
+	): CharacterData => {
+	  // Conflict: two-handed weapon cannot be used with shield
+	  let next = character;
+	  if (hasProperty(weapon, '2H') && getEquippedShieldId(next)) {
+	    const shieldSrcId = next.appliedAdjustments
+	      .find(a => a.sourceId.startsWith('equip-shield-'))?.sourceId;
+	    if (shieldSrcId) next = removeCharacterAdjustments(next, shieldSrcId);
+	  }
+	  // Conflict: unequip off-hand if main weapon doesn't have Light property
+	  if (!hasProperty(weapon, 'L')) {
+	    const offId = getEquippedOffHandWeaponId(next);
+	    if (offId) {
+	      next = next.appliedAdjustments
+	        .filter(a => a.sourceId.startsWith('equip-weapon-offhand-'))
+	        .reduce((c, a) => removeCharacterAdjustments(c, a.sourceId), next);
+	    }
+	  }
 
-  return applyCharacterAdjustments(character, {
-    id: sourceId,
-    sourceId,
-    sourceName: weapon.name,
-    operations: [
-      { type: 'addAttack', attack },
-    ],
-  });
-};
+	  const profBonus = calculateProficiencyBonus(getTotalLevel(next.classes));
+	  const abilityMod = getAttackAbilityMod(next, weapon);
+	  const magicBonus = getWeaponBonus(weapon);
+	  const fightingStyleBonus = isRangedWeapon(weapon) && hasFeature(next, ['箭术', 'Archery']) ? 2 : 0;
+	  const attackBonus = abilityMod + magicBonus + fightingStyleBonus + (isWeaponProficient(next, weapon) ? profBonus : 0);
+	  const sourceId = `equip-weapon-${weapon.id}`;
+	  const attack: Attack = {
+	    id: `${sourceId}-attack`,
+	    sourceId,
+	    sourceName: weapon.name,
+	    automatic: true,
+	    name: weapon.name,
+	    bonus: formatModifier(attackBonus),
+	    damage: formatDamage(next, weapon),
+	    type: formatWeaponType(weapon),
+	    notes: formatWeaponNotes(next, weapon),
+	  };
 
-export const unequipWeapon = (
-  character: CharacterData,
-  weapon: AutoBuilderWeapon,
-): CharacterData => {
-  return removeCharacterAdjustments(character, `equip-weapon-${weapon.id}`);
-};
+	  return applyCharacterAdjustments(next, {
+	    id: sourceId,
+	    sourceId,
+	    sourceName: weapon.name,
+	    operations: [
+	      { type: 'addAttack', attack },
+	    ],
+	  });
+	};
+
+	export const unequipWeapon = (
+	  character: CharacterData,
+	  weapon: AutoBuilderWeapon,
+	): CharacterData => {
+	  return removeCharacterAdjustments(character, `equip-weapon-${weapon.id}`);
+	};
+
+	export const equipOffHandWeapon = (
+	  character: CharacterData,
+	  weapon: AutoBuilderWeapon,
+	  content: AutoBuilderContent,
+	): CharacterData => {
+	  // Unequip any existing off-hand weapon first
+	  let next = character;
+	  const existingOffId = getEquippedOffHandWeaponId(next);
+	  if (existingOffId) {
+	    const old = content.weapons.find(w => w.id === existingOffId);
+	    if (old) next = unequipOffHandWeapon(next, old);
+	  }
+
+	  const sourceId = `equip-weapon-offhand-${weapon.id}`;
+	  const abilityMod = getAttackAbilityMod(next, weapon);
+	  // Off-hand uses same dice but without ability mod (unless Two-Weapon Fighting style)
+	  const offHandMod = hasTwoWeaponStyle(next) ? abilityMod : 0;
+	  const magicBonus = getWeaponBonus(weapon);
+	  const profBonus = calculateProficiencyBonus(getTotalLevel(next.classes));
+	  const attackBonus = offHandMod + magicBonus + (isWeaponProficient(next, weapon) ? profBonus : 0);
+	  const damageStr = `${weapon.dmg1 || ''}${offHandMod + magicBonus === 0 ? '' : formatModifier(offHandMod + magicBonus)} ${weapon.dmgType ? (DAMAGE_TYPES[weapon.dmgType] || weapon.dmgType) : ''}`.trim();
+	  const notes = ['副手'];
+	  if (hasTwoWeaponStyle(next) && hasProperty(weapon, 'L')) notes.push('双武器战斗: 可加属性调整值');
+	  else if (!hasTwoWeaponStyle(next)) notes.push('双武器战斗: 不添加属性调整值');
+
+	  const attack: Attack = {
+	    id: `${sourceId}-attack`,
+	    sourceId,
+	    sourceName: weapon.name,
+	    automatic: true,
+	    offHand: true,
+	    name: `${weapon.name}(副手)`,
+	    bonus: formatModifier(attackBonus),
+	    damage: damageStr,
+	    type: formatWeaponType(weapon),
+	    notes: notes.join(', '),
+	  };
+
+	  return applyCharacterAdjustments(next, {
+	    id: sourceId,
+	    sourceId,
+	    sourceName: weapon.name,
+	    operations: [
+	      { type: 'addAttack', attack },
+	    ],
+	  });
+	};
+
+	export const unequipOffHandWeapon = (
+	  character: CharacterData,
+	  weapon: AutoBuilderWeapon,
+	): CharacterData => {
+	  return removeCharacterAdjustments(character, `equip-weapon-offhand-${weapon.id}`);
+	};
 
 export const refreshEquippedWeapons = (
-  character: CharacterData,
-  content: AutoBuilderContent,
-): CharacterData => {
-  const equippedWeaponIds = character.appliedAdjustments
-    .map(adjustment => adjustment.sourceId)
-    .filter(sourceId => sourceId.startsWith('equip-weapon-'))
-    .map(sourceId => sourceId.replace(/^equip-weapon-/, ''));
+	  character: CharacterData,
+	  content: AutoBuilderContent,
+	): CharacterData => {
+	  const equippedWeaponIds = character.appliedAdjustments
+	    .map(adjustment => adjustment.sourceId)
+	    .filter(sourceId => sourceId.startsWith('equip-weapon-') && !sourceId.startsWith('equip-weapon-offhand-'))
+	    .map(sourceId => sourceId.replace(/^equip-weapon-/, ''));
 
-  return equippedWeaponIds.reduce((next, weaponId) => {
-    const weapon = content.weapons.find(item => item.id === weaponId);
-    return weapon ? equipWeapon(next, weapon) : next;
-  }, character);
-};
+	  return equippedWeaponIds.reduce((next, weaponId) => {
+	    const weapon = content.weapons.find(item => item.id === weaponId);
+	    return weapon ? equipWeapon(next, weapon) : next;
+	  }, character);
+	};
 
-export const refreshCharacterAutomation = (
-  character: CharacterData,
-  content: AutoBuilderContent,
-): CharacterData => (
-  refreshAutomaticStyleAttacks(
-    refreshEquippedWeapons(
-      refreshEquippedArmor(
-        refreshAutomaticArmorClass(character),
-        content,
-      ),
-      content,
-    ),
-  )
-);
+export const refreshEquippedOffHandWeapons = (
+	  character: CharacterData,
+	  content: AutoBuilderContent,
+	): CharacterData => {
+	  const offHandIds = character.appliedAdjustments
+	    .map(a => a.sourceId)
+	    .filter(sid => sid.startsWith('equip-weapon-offhand-'))
+	    .map(sid => sid.replace(/^equip-weapon-offhand-/, ''));
+	  return offHandIds.reduce((next, weaponId) => {
+	    const weapon = content.weapons.find(w => w.id === weaponId);
+	    return weapon ? equipOffHandWeapon(next, weapon, content) : next;
+	  }, character);
+	};
+
+	export const refreshCharacterAutomation = (
+	  character: CharacterData,
+	  content: AutoBuilderContent,
+	): CharacterData => (
+	  refreshAutomaticStyleAttacks(
+	    refreshEquippedOffHandWeapons(
+	      refreshEquippedWeapons(
+	        refreshEquippedArmor(
+	          refreshAutomaticArmorClass(character),
+	          content,
+	        ),
+	        content,
+	      ),
+	      content,
+	    ),
+	  )
+	);
 
 const removeAutomaticStyleAttacks = (character: CharacterData): CharacterData => {
   return character.appliedAdjustments
@@ -642,32 +747,47 @@ export const refreshEquippedArmor = (
 };
 
 export const equipShield = (
-  character: CharacterData,
-  shield: AutoBuilderArmor,
-): CharacterData => {
-  const sourceId = `equip-shield-${shield.id}`;
-  const bonus = Number(shield.ac) || 2;
-  const next = removeAutomaticArmorClass(removeEquippedShields(character));
-  return refreshAutomaticArmorClass(applyCharacterAdjustments(next, {
-    id: sourceId,
-    sourceId,
-    sourceName: shield.name,
-    operations: [
-      { type: 'addNumber', path: 'armorBonus', value: bonus },
-      {
-        type: 'addFeature',
-        feature: {
-          id: `${sourceId}-feature`,
-          sourceId,
-          sourceName: shield.name,
-          name: `${shield.name} 已装备`,
-          ruleSystem: shield.ruleSystem,
-          description: `护甲等级加值 +${bonus}. ${formatArmorNotes(shield)}`,
-        },
-      },
-    ],
-  }));
-};
+	  character: CharacterData,
+	  shield: AutoBuilderArmor,
+	): CharacterData => {
+	  // Conflict: cannot equip shield if main weapon is two-handed
+	  const mainWeaponId = character.appliedAdjustments
+	    .map(a => a.sourceId)
+	    .find(sid => sid.startsWith('equip-weapon-') && !sid.startsWith('equip-weapon-offhand-'))
+	    ?.replace(/^equip-weapon-/, '');
+	  // We can't easily check the weapon's properties here without content,
+	  // so we'll assume the caller handles it. Shield unequips any off-hand weapon.
+	  let next = character;
+	  const offId = getEquippedOffHandWeaponId(next);
+	  if (offId) {
+	    next = next.appliedAdjustments
+	      .filter(a => a.sourceId.startsWith('equip-weapon-offhand-'))
+	      .reduce((c, a) => removeCharacterAdjustments(c, a.sourceId), next);
+	  }
+
+	  const sourceId = `equip-shield-${shield.id}`;
+	  const bonus = Number(shield.ac) || 2;
+	  next = removeAutomaticArmorClass(removeEquippedShields(next));
+	  return refreshAutomaticArmorClass(applyCharacterAdjustments(next, {
+	    id: sourceId,
+	    sourceId,
+	    sourceName: shield.name,
+	    operations: [
+	      { type: 'addNumber', path: 'armorBonus', value: bonus },
+	      {
+	        type: 'addFeature',
+	        feature: {
+	          id: `${sourceId}-feature`,
+	          sourceId,
+	          sourceName: shield.name,
+	          name: `${shield.name} 已装备`,
+	          ruleSystem: shield.ruleSystem,
+	          description: `护甲等级加值 +${bonus}. ${formatArmorNotes(shield)}`,
+	        },
+	      },
+	    ],
+	  }));
+	};
 
 export const unequipShield = (
   character: CharacterData,

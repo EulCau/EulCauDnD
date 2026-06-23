@@ -15,24 +15,34 @@ export interface SkillDefinition {
 }
 
 export interface Attack {
-  id: string;
-  name: string;
-  bonus: string;
-  damage: string;
-  type: string;
-  notes: string;
-  sourceId?: string;
-  sourceName?: string;
-  automatic?: boolean;
-}
+	  id: string;
+	  name: string;
+	  bonus: string;
+	  damage: string;
+	  type: string;
+	  notes: string;
+	  sourceId?: string;
+	  sourceName?: string;
+	  automatic?: boolean;
+	  offHand?: boolean;
+	}
 
-export interface Currency {
-  cp: string;
-  sp: string;
-  ep: string;
-  gp: string;
-  pp: string;
-}
+	export interface Currency {
+	  cp: string;
+	  sp: string;
+	  ep: string;
+	  gp: string;
+	  pp: string;
+	}
+
+	export interface InventoryItem {
+	  id: string;
+	  name: string;
+	  source: string;
+	  count: number;
+	  isEquipped?: boolean;
+	  variantBaseId?: string;
+	}
 
 export interface Spell {
 	  id: string;
@@ -140,12 +150,17 @@ export type AdjustmentOperation =
       attack: Attack;
       previousAttack?: Attack;
     }
-  | {
-      type: 'addSpell';
-      profileId: string;
-      spell: Spell;
-      previousSpell?: Spell;
-    };
+	  | {
+	      type: 'addSpell';
+	      profileId: string;
+	      spell: Spell;
+	      previousSpell?: Spell;
+	    }
+	  | {
+	      type: 'addItem';
+	      item: InventoryItem;
+	      previousItem?: InventoryItem;
+	    };
 
 export interface CharacterFeatureEntry {
   id: string;
@@ -272,7 +287,8 @@ export interface CharacterData {
   features: string;
   featureEntries: CharacterFeatureEntry[];
   resources: CharacterResource[];
-  appliedAdjustments: AppliedAdjustment[];
+	  appliedAdjustments: AppliedAdjustment[];
+	  inventory: InventoryItem[];
   automation: {
     ruleSystem: RuleSystem;
     officialExtensionsEnabled: boolean;
@@ -373,7 +389,8 @@ export const INITIAL_CHARACTER: CharacterData = {
   features: "",
   featureEntries: [],
   resources: [],
-  appliedAdjustments: [],
+	  appliedAdjustments: [],
+	  inventory: [],
   automation: {
     ruleSystem: "5e",
     officialExtensionsEnabled: true,

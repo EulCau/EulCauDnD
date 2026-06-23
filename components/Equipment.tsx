@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CharacterData } from '../types';
+import { CharacterData, InventoryItem } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { AutoBuilderContent } from '../utils/autoBuilderRules';
+import { applyCharacterAdjustments, removeCharacterAdjustments } from '../utils/characterAdjustments';
 import {
     equipArmor,
+    equipOffHandWeapon,
     equipShield,
     equipWeapon,
     getArmorOptions,
@@ -12,10 +14,12 @@ import {
     formatWeaponMasteryNames,
     formatWeaponPropertyNames,
     isArmorEquipped,
+    isOffHandWeaponEquipped,
     isShieldEquipped,
     isWeaponEquipped,
     refreshCharacterAutomation,
     unequipArmor,
+    unequipOffHandWeapon,
     unequipShield,
     unequipWeapon,
 } from '../utils/equipmentRules';
@@ -31,6 +35,7 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
     const { t } = useLanguage();
     const [content, setContent] = useState<AutoBuilderContent | null>(null);
     const [weaponId, setWeaponId] = useState('');
+    const [offHandWeaponId, setOffHandWeaponId] = useState('');
     const [armorId, setArmorId] = useState('');
     const [shieldId, setShieldId] = useState('');
     const updateMoney = (key: keyof typeof data.currency, val: string) => {
@@ -76,6 +81,53 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
     const toggleShield = () => {
         if (!selectedShield || !content) return;
         onUpdateCharacter(refreshCharacterAutomation(shieldEquipped ? unequipShield(data, selectedShield) : equipShield(data, selectedShield), content));
+    };
+
+    // Off-hand weapon
+    const selectedOffHand = weaponOptions.find(w => w.id === offHandWeaponId) || weaponOptions[0];
+    const offHandEquipped = selectedOffHand ? isOffHandWeaponEquipped(data, selectedOffHand) : false;
+    const toggleOffHand = () => {
+        if (!selectedOffHand || !content) return;
+        onUpdateCharacter(refreshCharacterAutomation(
+            offHandEquipped ? unequipOffHandWeapon(data, selectedOffHand) : equipOffHandWeapon(data, selectedOffHand, content),
+            content
+        ));
+    };
+
+    // Backpack/inventory
+    const addItemToInventory = (itemName: string, itemSource: string) => {
+        const existing = data.inventory.find(i => i.name === itemName && i.source === itemSource);
+        if (existing) {
+            onUpdateCharacter(applyCharacterAdjustments(data, {
+                id: `inv-${itemName}|${itemSource}`,
+                sourceId: `inv-${itemName}|${itemSource}`,
+                sourceName: itemName,
+                operations: [{ type: 'addItem', item: { ...existing, count: existing.count + 1 } }],
+            }));
+        } else {
+            onUpdateCharacter(applyCharacterAdjustments(data, {
+                id: `inv-${itemName}|${itemSource}`,
+                sourceId: `inv-${itemName}|${itemSource}`,
+                sourceName: itemName,
+                operations: [{
+                    type: 'addItem',
+                    item: { id: `${itemName}|${itemSource}`, name: itemName, source: itemSource, count: 1 },
+                }],
+            }));
+        }
+    };
+
+    const removeItemFromInventory = (item: InventoryItem) => {
+        if (item.count <= 1) {
+            onUpdateCharacter(removeCharacterAdjustments(data, `inv-${item.id}`));
+        } else {
+            onUpdateCharacter(applyCharacterAdjustments(data, {
+                id: `inv-${item.id}`,
+                sourceId: `inv-${item.id}`,
+                sourceName: item.name,
+                operations: [{ type: 'addItem', item: { ...item, count: item.count - 1 } }],
+            }));
+        }
     };
 
   return (

@@ -139,14 +139,21 @@ const withPreviousValue = (character: CharacterData, operation: AdjustmentOperat
         previousAttack: previousAttack ? cloneAttack(previousAttack) : undefined,
       };
     }
-    case 'addSpell': {
-      const profile = character.spellcastingProfiles.find(item => item.id === operation.profileId);
-      const previousSpell = profile?.spells.find(spell => spell.id === operation.spell.id);
-      return {
-        ...operation,
-        previousSpell: previousSpell ? cloneSpell(previousSpell) : undefined,
-      };
-    }
+	    case 'addSpell': {
+	      const profile = character.spellcastingProfiles.find(item => item.id === operation.profileId);
+	      const previousSpell = profile?.spells.find(spell => spell.id === operation.spell.id);
+	      return {
+	        ...operation,
+	        previousSpell: previousSpell ? cloneSpell(previousSpell) : undefined,
+	      };
+	    }
+	    case 'addItem': {
+	      const previousItem = character.inventory.find(item => item.id === operation.item.id);
+	      return {
+	        ...operation,
+	        previousItem: previousItem ? { ...previousItem } : undefined,
+	      };
+	    }
     default:
       return operation;
   }
@@ -233,6 +240,14 @@ const applyOperation = (character: MutableCharacter, operation: AdjustmentOperat
               }
             : profile
         )),
+      };
+    case 'addItem':
+      return {
+        ...character,
+        inventory: [
+          ...character.inventory.filter(item => item.id !== operation.item.id),
+          { ...operation.item },
+        ],
       };
     default:
       return character;
@@ -357,6 +372,20 @@ const removeOperation = (character: MutableCharacter, operation: AdjustmentOpera
               }
             : profile
         )),
+      };
+    case 'addItem':
+      if (operation.previousItem) {
+        return {
+          ...character,
+          inventory: [
+            ...character.inventory.filter(item => item.id !== operation.item.id),
+            { ...operation.previousItem },
+          ],
+        };
+      }
+      return {
+        ...character,
+        inventory: character.inventory.filter(item => item.id !== operation.item.id),
       };
     default:
       return character;

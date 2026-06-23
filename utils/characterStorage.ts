@@ -144,8 +144,9 @@ export const normalizeCharacter = (raw: Partial<CharacterData> = {}): CharacterD
             spells: Array.isArray(raw.spellcasting.spells) ? raw.spellcasting.spells : [],
           }
         : defaults.spellcasting,
-    spellcastingProfiles: normalizeSpellcastingProfiles(raw),
-    proficiencies: new Set(Array.isArray(raw.proficiencies) ? raw.proficiencies : []),
+	    spellcastingProfiles: normalizeSpellcastingProfiles(raw),
+	    inventory: Array.isArray(raw.inventory) ? raw.inventory.map(item => ({ ...item })) : [],
+	    proficiencies: new Set(Array.isArray(raw.proficiencies) ? raw.proficiencies : []),
     expertises: new Set(Array.isArray(raw.expertises) ? raw.expertises : []),
   };
 
