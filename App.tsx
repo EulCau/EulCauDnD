@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { AbilityScoreRow } from './components/AbilityScore';
 import { Vitals } from './components/Vitals';
@@ -10,50 +10,71 @@ import { FeaturesBox } from './components/FeaturesBox';
 import { SpellList } from './components/SpellList';
 import { BackstoryGenerator } from './components/BackstoryGenerator';
 import { AuthScreen } from './components/AuthScreen';
+import { AutoCharacterBuilder } from './components/AutoCharacterBuilder';
+import SearchPanel from './components/SearchPanel';
 import { CharacterData, INITIAL_CHARACTER, AbilityName } from './types';
 import { calculatePassivePerception, calculateProficiencyBonus, getTotalLevel } from './utils/dndCalculations';
 import { ABILITIES } from './constants';
 import { useLanguage } from './contexts/LanguageContext';
 import { useAuth } from './contexts/AuthContext';
 import { normalizeCharacter, parseCharacterJson, serializeCharacter } from './utils/characterStorage';
+import { applyCharacterAdjustments, removeCharacterAdjustments } from './utils/characterAdjustments';
+import { loadAutoBuilderContent, type AutoBuilderContent } from './utils/autoBuilderRules';
+import { loadMagicItems, type MagicItemData, type MagicItemsContent } from './utils/magicItems';
+import { refreshAutomaticArmorClass, refreshAutomaticStyleAttacks, refreshCharacterAutomation } from './utils/equipmentRules';
 
 export default function App() {
   const [character, setCharacter] = useState<CharacterData>(INITIAL_CHARACTER);
   const [isTouchMode, setIsTouchMode] = useState(() => localStorage.getItem('dnd_touch_mode') === 'true');
-  const [featuresRatio, setFeaturesRatio] = useState(0.5);
+  const [isAutoBuilderOpen, setIsAutoBuilderOpen] = useState(false);
+  const [autoBuilderContent, setAutoBuilderContent] = useState<AutoBuilderContent | null>(null);
+  const [magicItems, setMagicItems] = useState<MagicItemData[]>([]);
+
+  // All class and subclass features for search
+	  const allFeatures = useMemo(() => {
+	    if (!autoBuilderContent) return [];
+	    const result: Array<{ id: string; sourceId: string; name: string; sourceName: string; description: string }> = [];
+	    for (const cls of autoBuilderContent.classes) {
+	      for (const f of cls.levelOneFeatures || []) {
+	        if (f.name && f.description) {
+	          result.push({
+	            id: `${cls.key}-${cls.source}-${f.name}`,
+	            sourceId: `class:${cls.key}:${f.source}:L${f.level}`,
+	            name: f.name,
+	            sourceName: `${cls.name} (${f.source}) L${f.level}`,
+	            description: f.description,
+	          });
+	        }
+	      }
+	      for (const f of cls.levelFeatures || []) {
+	        if (f.name && f.description) {
+	          result.push({
+	            id: `${cls.key}-${cls.source}-L${f.level}-${f.name}`,
+	            sourceId: `class:${cls.key}:${f.source}:L${f.level}`,
+	            name: f.name,
+	            sourceName: `${cls.name} L${f.level} (${f.source})`,
+	            description: f.description,
+	          });
+	        }
+	      }
+	    }
+	    for (const sub of autoBuilderContent.subclasses) {
+	      for (const f of sub.features || []) {
+	        if (f.name && f.description) {
+	          result.push({
+	            id: `subclass-${sub.id}-L${f.level}-${f.name}`,
+	            sourceId: `subclass:${sub.id}:${f.source}:L${f.level}`,
+	            name: f.name,
+	            sourceName: `${sub.name} (${sub.className} · ${f.source}) L${f.level}`,
+	            description: f.description,
+	          });
+	        }
+	      }
+	    }
+	    return result;
+	  }, [autoBuilderContent]);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    
-    const startY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    const startRatio = featuresRatio;
-    
-    const handleDrag = (moveEvent: MouseEvent | TouchEvent) => {
-      if (!containerRef.current) return;
-      const currentY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
-      const deltaY = currentY - startY;
-      const containerHeight = containerRef.current.clientHeight;
-      
-      let newRatio = startRatio + (deltaY / containerHeight);
-      newRatio = Math.max(0.1, Math.min(0.9, newRatio));
-      setFeaturesRatio(newRatio);
-    };
-    
-    const handleDragEnd = () => {
-      document.removeEventListener('mousemove', handleDrag);
-      document.removeEventListener('mouseup', handleDragEnd);
-      document.removeEventListener('touchmove', handleDrag);
-      document.removeEventListener('touchend', handleDragEnd);
-    };
-    
-    document.addEventListener('mousemove', handleDrag);
-    document.addEventListener('mouseup', handleDragEnd);
-    document.addEventListener('touchmove', handleDrag);
-    document.addEventListener('touchend', handleDragEnd);
-  };
 
   useEffect(() => {
     document.body.classList.toggle('touch-mode', isTouchMode);
@@ -61,6 +82,11 @@ export default function App() {
 
     return () => document.body.classList.remove('touch-mode');
   }, [isTouchMode]);
+
+  useEffect(() => {
+    loadAutoBuilderContent().then(setAutoBuilderContent).catch(() => setAutoBuilderContent(null));
+    loadMagicItems().then(data => setMagicItems(data.items)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -84,14 +110,23 @@ export default function App() {
     localStorage.setItem(`dnd_data_${user.username}`, JSON.stringify(serializeCharacter(character)));
   }, [character, user]);
 
+  const refreshDerivedCharacter = (next: CharacterData): CharacterData => (
+    autoBuilderContent
+      ? refreshCharacterAutomation(next, autoBuilderContent)
+      : refreshAutomaticStyleAttacks(refreshAutomaticArmorClass(next))
+  );
+
   const updateField = (field: keyof CharacterData, value: any) => {
-    setCharacter(prev => ({ ...prev, [field]: value }));
+    setCharacter(prev => {
+      const next = { ...prev, [field]: value };
+      return field === 'classes' ? refreshDerivedCharacter(next) : next;
+    });
   };
 
   const updateAbility = (ability: AbilityName, val: number) => {
-    setCharacter(prev => ({
+    setCharacter(prev => refreshDerivedCharacter({
       ...prev,
-      abilities: { ...prev.abilities, [ability]: val }
+      abilities: { ...prev.abilities, [ability]: val },
     }));
   };
 
@@ -105,7 +140,7 @@ export default function App() {
       } else {
         newProfs.add(key);
       }
-      return { ...prev, proficiencies: newProfs, expertises: newExps };
+      return refreshDerivedCharacter({ ...prev, proficiencies: newProfs, expertises: newExps });
     });
   };
 
@@ -117,7 +152,42 @@ export default function App() {
       } else {
         newExps.add(key);
       }
-      return { ...prev, expertises: newExps };
+      return refreshDerivedCharacter({ ...prev, expertises: newExps });
+    });
+  };
+
+  const updateResource = (resourceId: string, current: number) => {
+    setCharacter(prev => ({
+      ...prev,
+      resources: prev.resources.map(resource => (
+        resource.id === resourceId
+          ? { ...resource, current: Math.max(0, Math.min(resource.max, current)) }
+          : resource
+      )),
+    }));
+  };
+
+  // Purchase magic item from search → add to inventory
+  const handlePurchaseItem = (itemName: string, itemSource: string) => {
+    setCharacter(prev => {
+      const existing = prev.inventory.find(i => i.name === itemName && i.source === itemSource);
+      if (existing) {
+        return applyCharacterAdjustments(prev, {
+          id: `inv-${itemName}|${itemSource}`,
+          sourceId: `inv-${itemName}|${itemSource}`,
+          sourceName: itemName,
+          operations: [{ type: 'addItem', item: { ...existing, count: existing.count + 1 } }],
+        });
+      }
+      return applyCharacterAdjustments(prev, {
+        id: `inv-${itemName}|${itemSource}`,
+        sourceId: `inv-${itemName}|${itemSource}`,
+        sourceName: itemName,
+        operations: [{
+          type: 'addItem',
+          item: { id: `${itemName}|${itemSource}`, name: itemName, source: itemSource, count: 1 },
+        }],
+      });
     });
   };
 
@@ -146,7 +216,7 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (event) => {
           try {
-              setCharacter(parseCharacterJson(event.target?.result as string));
+              setCharacter(refreshDerivedCharacter(parseCharacterJson(event.target?.result as string)));
           } catch (err) {
               console.error("Failed to parse uploaded JSON", err);
               alert(t('header.invalidFile'));
@@ -182,13 +252,21 @@ export default function App() {
         username={user.username}
         isTouchMode={isTouchMode}
         onToggleTouchMode={() => setIsTouchMode(!isTouchMode)}
+        onOpenAutoBuilder={() => setIsAutoBuilderOpen(true)}
+      />
+
+      <AutoCharacterBuilder
+        isOpen={isAutoBuilderOpen}
+        data={character}
+        onClose={() => setIsAutoBuilderOpen(false)}
+        onApply={setCharacter}
       />
 
       {/* MAIN 3-COLUMN LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         
         {/* LEFT COLUMN (3/12) */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
+        <div className="lg:col-span-3 flex flex-col gap-4 h-full">
              {/* Inspiration & Passive */}
              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between bg-white border border-gray-300 rounded-full px-3 py-1 shadow-sm">
@@ -233,8 +311,8 @@ export default function App() {
 
 
         {/* CENTER COLUMN (5/12) */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
-            
+        <div className="lg:col-span-5 flex flex-col gap-4 h-full">
+
             <Vitals 
                 data={character} 
                 onChange={updateField} 
@@ -242,7 +320,7 @@ export default function App() {
                 isTouchMode={isTouchMode}
             />
 
-            <div className="flex-1 min-h-[300px]">
+            <div className="flex-1 min-h-[200px] resize-y overflow-hidden">
                 <Attacks 
                     attacks={character.attacks} 
                     onUpdate={(atks) => updateField('attacks', atks)}
@@ -250,45 +328,51 @@ export default function App() {
             </div>
 
             <div className="flex-none">
-                <Equipment data={character} onChange={updateField} />
+                <Equipment data={character} onChange={updateField} onUpdateCharacter={setCharacter} magicItems={magicItems} autoBuilderContent={autoBuilderContent} />
             </div>
         </div>
 
 
         {/* RIGHT COLUMN (4/12) */}
-        {/* Use h-full to stretch to match the tallest column (likely left/center), and min-h-screen to ensure it's big enough on start */}
-        <div className="lg:col-span-4 flex flex-col gap-4 h-full min-h-[80vh]">
+        <div className="lg:col-span-4 flex flex-col gap-4 h-full">
              <div className="flex-none">
                  <Personality data={character} onChange={updateField} />
              </div>
 
-             {/* Resizable Container for Features & Backstory */}
-             <div ref={containerRef} className="flex-1 flex flex-col min-h-[400px]">
-                 <div style={{ flex: featuresRatio, minHeight: 0 }} className="flex flex-col">
-                     <FeaturesBox data={character} onChange={(val) => updateField('features', val)} />
-                 </div>
-
-                 {/* Draggable Divider */}
-                 <div 
-                    className="h-4 my-1 cursor-row-resize flex items-center justify-center group"
-                    onMouseDown={handleDragStart}
-                    onTouchStart={handleDragStart}
-                 >
-                    <div className="w-16 h-1 bg-gray-300 rounded-full group-hover:bg-dnd-red transition-colors" />
-                 </div>
-
-                 <div style={{ flex: 1 - featuresRatio, minHeight: 0 }} className="flex flex-col">
-                     <BackstoryGenerator 
-                        data={character}
-                        onUpdate={(story) => updateField('backstory', story)}
-                     />
-                 </div>
+             <div className="flex-1 flex flex-col min-h-0">
+                 <BackstoryGenerator 
+                    data={character}
+                    onUpdate={(story) => updateField('backstory', story)}
+                 />
              </div>
         </div>
       </div>
       
-      {/* Bottom Section: Spells Table */}
-      <SpellList data={character} onChange={updateField} profBonus={profBonus} />
+	      {/* Bottom Sections: Features, Resources, Adjustments — then Spells */}
+	      <div className="mt-4 flex flex-col gap-4">
+	        <FeaturesBox
+	          data={character}
+	          onChange={(val) => updateField('features', val)}
+	          onRemoveAdjustment={(sourceId) => setCharacter(prev => refreshDerivedCharacter(removeCharacterAdjustments(prev, sourceId)))}
+	          onUpdateResource={updateResource}
+	        />
+	        <SpellList data={character} onChange={updateField} profBonus={profBonus} />
+		        <SearchPanel
+		          spells={autoBuilderContent?.spells || []}
+		          features={[...allFeatures, ...character.featureEntries.map(f => ({ id: f.id, sourceId: f.sourceId, name: f.name, sourceName: f.sourceName, description: f.description }))]}
+		          magicItems={magicItems.map(item => ({
+		            id: item.id,
+		            name: item.name,
+		            englishName: item.englishName,
+		            typeLabel: item.typeLabel,
+		            rarity: item.rarity,
+		            category: item.category,
+		            description: item.description,
+		            source: item.source,
+		          }))}
+		          onPurchaseItem={handlePurchaseItem}
+		        />
+		      </div>
 
       <footer className="mt-12 text-center text-gray-400 text-xs pb-4">
         <p>&copy; {new Date().getFullYear()} {t('footer.text')}</p>

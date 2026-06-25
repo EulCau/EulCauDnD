@@ -29,7 +29,8 @@ export const calculatePassivePerception = (
 export const calculateMaxHP = (
   classes: ClassItem[],
   conScore: number,
-  override: number | null
+  override: number | null,
+  bonus = 0
 ): number => {
   if (override !== null) return override;
   
@@ -52,7 +53,7 @@ export const calculateMaxHP = (
     }
   });
   
-  return totalHP > 0 ? totalHP : 1; // Minimum 1 HP
+  return Math.max(1, totalHP + bonus); // Minimum 1 HP
 };
 
 export const calculateSpellSaveDC = (

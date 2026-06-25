@@ -15,38 +15,196 @@ export interface SkillDefinition {
 }
 
 export interface Attack {
-  id: string;
-  name: string;
-  bonus: string;
-  damage: string;
-  type: string;
-  notes: string;
-}
+	  id: string;
+	  name: string;
+	  bonus: string;
+	  damage: string;
+	  type: string;
+	  notes: string;
+	  sourceId?: string;
+	  sourceName?: string;
+	  automatic?: boolean;
+	  offHand?: boolean;
+	}
 
-export interface Currency {
-  cp: string;
-  sp: string;
-  ep: string;
-  gp: string;
-  pp: string;
-}
+	export interface Currency {
+	  cp: string;
+	  sp: string;
+	  ep: string;
+	  gp: string;
+	  pp: string;
+	}
+
+	export interface InventoryItem {
+	  id: string;
+	  name: string;
+	  source: string;
+	  count: number;
+	  isEquipped?: boolean;
+	  variantBaseId?: string;
+	}
 
 export interface Spell {
-  id: string;
-  level: number;
-  name: string;
-  prepared: boolean;
-  time: string;
-  range: string;
-  components: string; // V, S, M
-  duration: string;
-  concentration: boolean;
-  ritual: boolean;
-}
+	  id: string;
+	  level: number;
+	  name: string;
+	  prepared: boolean;
+	  time: string;
+	  range: string;
+	  components: string; // V, S, M
+	  material: string; // material components description
+	  duration: string;
+	  concentration: boolean;
+	  ritual: boolean;
+	}
 
 export interface SpellSlot {
   total: string;
   expended: string;
+}
+
+export type RuleSystem = '5e' | '5r';
+
+export type AdjustmentPath =
+  | `abilities.${AbilityName}`
+  | 'armorBase'
+  | 'armorBonus'
+  | 'initiativeBonus'
+  | 'initiativeOverride'
+  | 'speed'
+  | 'speedBonus'
+  | 'hpCurrent'
+  | 'hpMaxBonus'
+  | 'hpMaxOverride'
+  | 'hitDiceTotal'
+  | 'hitDiceUsed'
+  | 'spellAttackBonus'
+  | 'spellSaveDCBonus';
+
+export type AdjustmentOperation =
+  | {
+      type: 'set';
+      path: AdjustmentPath;
+      value: number | string | null;
+      previousValue?: number | string | null;
+    }
+  | {
+      type: 'setStringField';
+      field: 'race' | 'subrace' | 'background' | 'bodyType';
+      value: string;
+      previousValue?: string;
+    }
+  | {
+      type: 'setClasses';
+      value: ClassItem[];
+      previousValue?: ClassItem[];
+    }
+  | {
+      type: 'setAutomation';
+      value: CharacterData['automation'];
+      previousValue?: CharacterData['automation'];
+    }
+  | {
+      type: 'setSpellcasting';
+      value: CharacterData['spellcasting'];
+      previousValue?: CharacterData['spellcasting'];
+    }
+  | {
+      type: 'setSpellcastingProfiles';
+      value: SpellcastingProfile[];
+      previousValue?: SpellcastingProfile[];
+    }
+  | {
+      type: 'upsertSpellcastingProfile';
+      profile: SpellcastingProfile;
+      previousProfile?: SpellcastingProfile;
+    }
+  | {
+      type: 'upsertResource';
+      resource: CharacterResource;
+      previousResource?: CharacterResource;
+    }
+  | {
+      type: 'addNumber';
+      path: AdjustmentPath;
+      value: number;
+    }
+  | {
+      type: 'addProficiency';
+      key: string;
+      expertise?: boolean;
+      previousProficient?: boolean;
+      previousExpertise?: boolean;
+    }
+  | {
+      type: 'removeProficiency';
+      key: string;
+      previousProficient?: boolean;
+      previousExpertise?: boolean;
+    }
+  | {
+      type: 'addFeature';
+      feature: CharacterFeatureEntry;
+      previousFeature?: CharacterFeatureEntry;
+    }
+  | {
+      type: 'addAttack';
+      attack: Attack;
+      previousAttack?: Attack;
+    }
+	  | {
+	      type: 'addSpell';
+	      profileId: string;
+	      spell: Spell;
+	      previousSpell?: Spell;
+	    }
+	  | {
+	      type: 'addItem';
+	      item: InventoryItem;
+	      previousItem?: InventoryItem;
+	    };
+
+export interface CharacterFeatureEntry {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  name: string;
+  level?: number;
+  ruleSystem?: RuleSystem;
+  description: string;
+}
+
+export interface AppliedAdjustment {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  operations: AdjustmentOperation[];
+  appliedAt: string;
+}
+
+export interface CharacterResource {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  name: string;
+  current: number;
+  max: number;
+  reset: 'shortRest' | 'longRest' | 'dawn' | 'manual';
+  note?: string;
+  ruleSystem?: RuleSystem;
+}
+
+export interface SpellcastingProfile {
+  id: string;
+  classId?: string;
+  className: string;
+  ability: AbilityName;
+  preparationMode: 'preparedAll' | 'knownSelection' | 'manual';
+  slotSource?: 'class' | 'shared' | 'pact';
+  saveDCOverride: string;
+  attackBonusOverride: string;
+  slots: { [level: number]: SpellSlot };
+  spells: Spell[];
 }
 
 export interface ClassItem {
@@ -54,6 +212,7 @@ export interface ClassItem {
   name: string;
   level: number;
   subclass: string;
+  source?: string;
 }
 
 export interface CharacterData {
@@ -86,9 +245,14 @@ export interface CharacterData {
   acOverride: number | null;
   armorBase: number;
   armorBonus: number;
+  initiativeBonus: number;
   initiativeOverride: number | null;
+  spellAttackBonus: number;
+  spellSaveDCBonus: number;
   speed: string;
+  speedBonus: number;
   hpCurrent: number;
+  hpMaxBonus: number;
   hpMaxOverride: number | null;
   hpTemp: string;
   hitDiceTotal: string;
@@ -125,6 +289,16 @@ export interface CharacterData {
   
   // Features & Traits
   features: string;
+  featureEntries: CharacterFeatureEntry[];
+  resources: CharacterResource[];
+	  appliedAdjustments: AppliedAdjustment[];
+	  inventory: InventoryItem[];
+  automation: {
+    ruleSystem: RuleSystem;
+    officialExtensionsEnabled: boolean;
+    active: boolean;
+    originDecoupled?: boolean;
+  };
 
   // Spellcasting
   spellcasting: {
@@ -135,9 +309,22 @@ export interface CharacterData {
     slots: { [level: number]: SpellSlot }; // 1-9
     spells: Spell[];
   };
+  spellcastingProfiles: SpellcastingProfile[];
 
   backstory: string;
 }
+
+export const createEmptySpellSlots = (): { [level: number]: SpellSlot } => ({
+  1: { total: "0", expended: "0" },
+  2: { total: "0", expended: "0" },
+  3: { total: "0", expended: "0" },
+  4: { total: "0", expended: "0" },
+  5: { total: "0", expended: "0" },
+  6: { total: "0", expended: "0" },
+  7: { total: "0", expended: "0" },
+  8: { total: "0", expended: "0" },
+  9: { total: "0", expended: "0" },
+});
 
 export const INITIAL_CHARACTER: CharacterData = {
   name: "",
@@ -165,9 +352,14 @@ export const INITIAL_CHARACTER: CharacterData = {
   acOverride: null,
   armorBase: 10,
   armorBonus: 0,
+  initiativeBonus: 0,
   initiativeOverride: null,
+  spellAttackBonus: 0,
+  spellSaveDCBonus: 0,
   speed: "30",
+  speedBonus: 0,
   hpCurrent: 10,
+  hpMaxBonus: 0,
   hpMaxOverride: null,
   hpTemp: "",
   hitDiceTotal: "1d10",
@@ -201,23 +393,24 @@ export const INITIAL_CHARACTER: CharacterData = {
     other: ""
   },
   features: "",
+  featureEntries: [],
+  resources: [],
+	  appliedAdjustments: [],
+	  inventory: [],
+  automation: {
+    ruleSystem: "5e",
+    officialExtensionsEnabled: true,
+    active: false,
+    originDecoupled: false,
+  },
   spellcasting: {
     class: "",
     ability: 'INT',
     saveDCOverride: "",
     attackBonusOverride: "",
-    slots: {
-        1: { total: "0", expended: "0" },
-        2: { total: "0", expended: "0" },
-        3: { total: "0", expended: "0" },
-        4: { total: "0", expended: "0" },
-        5: { total: "0", expended: "0" },
-        6: { total: "0", expended: "0" },
-        7: { total: "0", expended: "0" },
-        8: { total: "0", expended: "0" },
-        9: { total: "0", expended: "0" },
-    },
+    slots: createEmptySpellSlots(),
     spells: []
   },
+  spellcastingProfiles: [],
   backstory: ""
 };

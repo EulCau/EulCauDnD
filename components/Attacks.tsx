@@ -25,9 +25,9 @@ export const Attacks: React.FC<AttacksProps> = ({ attacks, onUpdate }) => {
   };
 
   return (
-    <div className="bg-white border border-gray-300 p-3 rounded-lg h-full flex flex-col">
-      <div className="overflow-x-auto flex-1">
-        <table className="w-full text-left text-sm">
+	    <div className="bg-white border border-gray-300 p-3 rounded-lg h-full flex flex-col">
+	      <div className="overflow-y-auto flex-1">
+	        <table className="w-full text-left text-sm">
             <thead className="text-[10px] text-gray-500 uppercase border-b border-gray-300">
                 <tr>
                     <th className="font-bold py-1 w-1/4">{t('attacks.name')}</th>
@@ -42,7 +42,12 @@ export const Attacks: React.FC<AttacksProps> = ({ attacks, onUpdate }) => {
                 {attacks.map(atk => (
                     <tr key={atk.id} className="group hover:bg-gray-50">
                         <td className="p-1">
-                            <input type="text" className="w-full bg-transparent outline-none font-bold text-gray-800" value={atk.name} onChange={(e) => handleChange(atk.id, 'name', e.target.value)} placeholder=""/>
+                            <div className="flex flex-col">
+                                <input type="text" className="w-full bg-transparent outline-none font-bold text-gray-800" value={atk.name} onChange={(e) => handleChange(atk.id, 'name', e.target.value)} placeholder=""/>
+                                {atk.automatic && atk.sourceName && (
+                                    <span className="text-[9px] uppercase text-gray-400">{atk.sourceName}</span>
+                                )}
+                            </div>
                         </td>
                         <td className="p-1">
                             <input type="text" className="w-full bg-transparent outline-none text-center" value={atk.bonus} onChange={(e) => handleChange(atk.id, 'bonus', e.target.value)} placeholder="+0"/>

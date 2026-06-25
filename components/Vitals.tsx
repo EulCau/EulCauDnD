@@ -19,12 +19,34 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
   const calculatedAC = baseArmor + armorBonus;
   const finalAC = data.acOverride !== null ? data.acOverride : calculatedAC;
   
+  // AC breakdown
+  const acFeature = data.featureEntries.find(f => f.sourceId === 'auto-armor-class');
+  const armorFeature = data.featureEntries.find(f => f.sourceId?.startsWith('equip-armor-'));
+  const shieldFeature = data.featureEntries.find(f => f.sourceId?.startsWith('equip-shield-'));
+  const acBreakdownParts: string[] = [];
+  if (acFeature) {
+    acBreakdownParts.push(acFeature.description.replace(/^护甲等级基础值 \d+\.\s*/, ''));
+  } else {
+    acBreakdownParts.push(`10 ${dexMod >= 0 ? '+' : '-'} DEX(${dexMod})`);
+  }
+  if (armorFeature) {
+    const armorDesc = armorFeature.description?.replace(/^护甲等级基础值 \d+\.\s*/, '') || '';
+    if (armorDesc) acBreakdownParts.push(armorDesc);
+  }
+  if (shieldFeature) {
+    const shieldDesc = shieldFeature.description?.replace(/^护甲等级加值.*?\.\s*/, '') || '';
+    if (shieldDesc) acBreakdownParts.push(shieldDesc);
+  }
+  const acBreakdown = acBreakdownParts.filter(Boolean).join(' + ');
+  
   // HP Calc supports multiclass
-  const maxHP = calculateMaxHP(data.classes, data.abilities.CON, data.hpMaxOverride);
+  const maxHP = calculateMaxHP(data.classes, data.abilities.CON, data.hpMaxOverride, data.hpMaxBonus || 0);
   const totalLevel = getTotalLevel(data.classes);
   
-  const initiative = data.initiativeOverride !== null ? data.initiativeOverride : dexMod;
+  const initiative = data.initiativeOverride !== null ? data.initiativeOverride : dexMod + (data.initiativeBonus || 0);
   const initiativeDisplay = initiative >= 0 ? `+${initiative}` : `${initiative}`;
+  const speedValue = Number(data.speed) || 0;
+  const speedDisplay = String(speedValue + (data.speedBonus || 0));
 
   const updateDeathSave = (type: 'success' | 'failures', index: number) => {
     const arr = [...data.deathSaves[type]];
@@ -49,6 +71,11 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
         <div className="border-2 border-gray-400 bg-white rounded-t-none rounded-b-3xl p-2 flex flex-col items-center relative group shadow-sm h-32 justify-between">
           <div className="text-[10px] font-bold text-gray-500 uppercase mt-1">{t('vitals.ac')}</div>
           <span className="text-4xl font-bold font-serif">{finalAC}</span>
+          {acBreakdown && (
+            <span className="text-[7px] text-gray-400 text-center leading-tight px-1" title={t('vitals.acBreakdown')}>
+              {acBreakdown}
+            </span>
+          )}
           
           <div className="flex gap-1 w-full px-1">
              <div className="flex flex-col items-center w-1/2">
@@ -95,12 +122,16 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
         {/* Speed */}
         <div className="border-2 border-gray-400 bg-white rounded p-2 flex flex-col items-center justify-start h-24 relative shadow-sm">
           <div className="text-[10px] font-bold text-gray-500 uppercase">{t('vitals.speed')}</div>
-          <input 
-             type="text"
-             className="text-3xl font-bold font-serif mt-2 text-center w-full outline-none bg-transparent"
-             value={data.speed}
-             onChange={(e) => onChange('speed', e.target.value)}
-          />
+          <span className="text-3xl font-bold font-serif mt-2 text-center w-full">{speedDisplay}</span>
+          {isTouchMode && (
+            <input
+              type="text"
+              className="absolute bottom-1 w-12 text-center text-xs border border-gray-300 rounded bg-white"
+              value={data.speed}
+              onChange={(e) => onChange('speed', e.target.value)}
+              title={t('vitals.speed')}
+            />
+          )}
         </div>
       </div>
 
@@ -165,7 +196,7 @@ export const Vitals: React.FC<VitalsProps> = ({ data, onChange, isTouchMode }) =
                  <input 
                     type="text" 
                     className="w-full text-center border-b border-gray-200 text-sm"
-                    placeholder="e.g. 5d10"
+                    placeholder={t('vitals.hitDiceExample')}
                     value={data.hitDiceTotal}
                     onChange={(e) => onChange('hitDiceTotal', e.target.value)}
                  />

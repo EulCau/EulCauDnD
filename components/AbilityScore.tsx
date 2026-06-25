@@ -118,7 +118,7 @@ export const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({
                         checked={isProficient} 
                         onChange={() => onToggleProficiency(skill.name)}
                         className="w-4 h-4 rounded-full border-gray-400 mr-1 accent-black"
-                        title="Proficiency"
+                        title={t('stats.proficiency')}
                     />
                     <input 
                         type="checkbox" 
@@ -126,7 +126,7 @@ export const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({
                         disabled={!isProficient}
                         onChange={() => onToggleExpertise(skill.name)}
                         className="w-4 h-4 rounded-full border-gray-400 mr-2 accent-dnd-gold disabled:opacity-30"
-                        title="Expertise"
+                        title={t('stats.expertise')}
                     />
                     <span className="w-6 text-center border-b border-gray-300 mr-2 font-mono text-gray-600">
                         {formatModifier(skillMod)}
