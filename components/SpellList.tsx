@@ -87,8 +87,8 @@ export const SpellList: React.FC<SpellListProps> = ({ data, onChange, profBonus 
   // Standard Atk = Prof + Mod
   const calcAtk = calculateSpellAttackBonus(abilityScore, profBonus);
 
-  const displayDC = spellcasting.saveDCOverride || calcDC;
-  const displayAtk = spellcasting.attackBonusOverride || formatModifier(calcAtk);
+  const displayDC = spellcasting.saveDCOverride || (calcDC + data.spellSaveDCBonus);
+  const displayAtk = spellcasting.attackBonusOverride || formatModifier(calcAtk + data.spellAttackBonus);
 
   // Sort spells by level then name
   const sortedSpells = [...spellcasting.spells].sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));

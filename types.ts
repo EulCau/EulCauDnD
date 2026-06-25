@@ -77,7 +77,9 @@ export type AdjustmentPath =
   | 'hpMaxBonus'
   | 'hpMaxOverride'
   | 'hitDiceTotal'
-  | 'hitDiceUsed';
+  | 'hitDiceUsed'
+  | 'spellAttackBonus'
+  | 'spellSaveDCBonus';
 
 export type AdjustmentOperation =
   | {
@@ -245,6 +247,8 @@ export interface CharacterData {
   armorBonus: number;
   initiativeBonus: number;
   initiativeOverride: number | null;
+  spellAttackBonus: number;
+  spellSaveDCBonus: number;
   speed: string;
   speedBonus: number;
   hpCurrent: number;
@@ -350,6 +354,8 @@ export const INITIAL_CHARACTER: CharacterData = {
   armorBonus: 0,
   initiativeBonus: 0,
   initiativeOverride: null,
+  spellAttackBonus: 0,
+  spellSaveDCBonus: 0,
   speed: "30",
   speedBonus: 0,
   hpCurrent: 10,

@@ -249,7 +249,7 @@ export const formatWeaponType = (weapon: AutoBuilderWeapon): string => {
 const summarizeWeaponEntries = (weapon: AutoBuilderWeapon): string[] => (
   (weapon.entries || [])
     .filter((entry): entry is string => typeof entry === 'string')
-    .map(entry => entry.replace(/\{@[^}]+ ([^}|]+)(?:\|[^}]*)?\}/g, '$1'))
+    .map(entry => entry.replace(/\{@[^}]+ ([^}|]+)(?:\|[^}]*)?}/g, '$1'))
 );
 
 const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon): string => {
@@ -342,7 +342,7 @@ export const isShieldEquipped = (character: CharacterData, shield: AutoBuilderAr
   return character.appliedAdjustments.some(adjustment => adjustment.sourceId === `equip-shield-${shield.id}`);
 };
 
-const getArmorBase = (character: CharacterData, armor: AutoBuilderArmor): number => {
+export const getArmorBase = (character: CharacterData, armor: AutoBuilderArmor): number => {
 	  const dexMod = calculateModifier(character.abilities.DEX);
 	  const base = Number(armor.ac) || 10;
 	  const type = getItemType(armor);
@@ -359,7 +359,7 @@ const formatArmorNotes = (armor: AutoBuilderArmor): string => {
   return notes.filter(Boolean).join(', ');
 };
 
-const removeEquippedArmors = (character: CharacterData): CharacterData => {
+export const removeEquippedArmors = (character: CharacterData): CharacterData => {
   return character.appliedAdjustments
     .filter(adjustment => adjustment.sourceId.startsWith('equip-armor-'))
     .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);
@@ -371,7 +371,7 @@ const removeEquippedShields = (character: CharacterData): CharacterData => {
     .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);
 };
 
-const removeAutomaticArmorClass = (character: CharacterData): CharacterData => {
+export const removeAutomaticArmorClass = (character: CharacterData): CharacterData => {
   return character.appliedAdjustments
     .filter(adjustment => adjustment.sourceId === 'auto-armor-class')
     .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);

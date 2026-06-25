@@ -156,8 +156,8 @@ export const SpellSheet: React.FC<SpellSheetProps> = ({ data, onChange, profBonu
   const saveDC = calculateSpellSaveDC(abilityScore, profBonus);
   const attackBonus = calculateSpellAttackBonus(abilityScore, profBonus);
   
-  const displayDC = spellcasting.saveDCOverride || saveDC;
-  const displayAtk = spellcasting.attackBonusOverride || formatModifier(attackBonus);
+  const displayDC = spellcasting.saveDCOverride || (saveDC + data.spellSaveDCBonus);
+  const displayAtk = spellcasting.attackBonusOverride || formatModifier(attackBonus + data.spellAttackBonus);
 
   const renderBlock = (level: number) => {
       const levelSpells = spellcasting.spells.filter(s => s.level === level);

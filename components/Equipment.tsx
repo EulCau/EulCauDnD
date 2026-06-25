@@ -1,22 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Attack, CharacterData, InventoryItem } from '../types';
-import { useLanguage } from '../contexts/LanguageContext';
-import { AutoBuilderContent } from '../utils/autoBuilderRules';
-import { applyCharacterAdjustments, removeCharacterAdjustments } from '../utils/characterAdjustments';
-import { formatModifier, calculateProficiencyBonus, getTotalLevel } from '../utils/dndCalculations';
+import React, {useEffect, useMemo, useState} from 'react';
+import {AdjustmentOperation, Attack, CharacterData, InventoryItem} from '../types';
+import {useLanguage} from '../contexts/LanguageContext';
+import {AutoBuilderContent, AutoBuilderWeapon, loadAutoBuilderContent} from '../utils/autoBuilderRules';
+import {applyCharacterAdjustments, removeCharacterAdjustments} from '../utils/characterAdjustments';
+import {calculateProficiencyBonus, formatModifier, getTotalLevel} from '../utils/dndCalculations';
 import {
     equipArmor,
     equipOffHandWeapon,
     equipShield,
     equipWeapon,
-    getArmorOptions,
-    getShieldOptions,
-    getWeaponOptions,
     formatWeaponMasteryNames,
     formatWeaponPropertyNames,
+    formatWeaponType,
+    getArmorOptions,
     getAttackAbilityMod,
     getItemType,
-    formatWeaponType,
+    getShieldOptions,
+    getWeaponOptions,
     isArmorEquipped,
     isOffHandWeaponEquipped,
     isShieldEquipped,
@@ -30,7 +30,6 @@ import {
     unequipShield,
     unequipWeapon,
 } from '../utils/equipmentRules';
-import { loadAutoBuilderContent } from '../utils/autoBuilderRules';
 
 const DAMAGE_TYPES: Record<string, string> = { B: '钝击', P: '穿刺', S: '挥砍', A: '强酸', C: '寒冷', F: '火焰', L: '闪电', N: '黯蚀', O: '力场', R: '光耀', T: '雷鸣' };
 
@@ -49,7 +48,14 @@ interface EquipmentProps {
   data: CharacterData;
   onChange: (field: keyof CharacterData, value: any) => void;
   onUpdateCharacter: (character: CharacterData) => void;
-  magicItems?: Array<{ id: string; name: string; source: string; bonusWeapon?: string; bonusAc?: string; requires?: any; namePrefix?: string; category: string; isWeapon?: boolean; isArmor?: boolean; }>;
+  magicItems?: Array<{
+    id: string; name: string; englishName?: string; source: string;
+    bonusWeapon?: string; bonusAc?: string; bonusSpellAttack?: string; bonusSpellSaveDc?: string;
+    requires?: any; namePrefix?: string; category: string;
+    isWeapon?: boolean; isArmor?: boolean;
+    dmg1?: string; dmg2?: string; dmgType?: string; property?: string[]; range?: string;
+    weaponCategory?: string;
+  }>;
   autoBuilderContent?: AutoBuilderContent | null;
 }
 
@@ -158,18 +164,124 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
         return magicItems.find(m => m.name === invItem.name && m.source === invItem.source);
     };
 
-    // Equip a magic item from backpack
+    // Check if a magic item is currently equipped
+    const isMagicItemEquipped = (invItem: InventoryItem): boolean => {
+        const detail = getMagicItemDetail(invItem);
+        if (!detail) return false;
+        if (detail.isWeapon || detail.bonusWeapon) {
+            return data.appliedAdjustments.some(a => a.sourceId === `equip-magic-${invItem.id}`);
+        }
+        if (detail.isArmor || detail.bonusAc) {
+            return data.appliedAdjustments.some(a =>
+                a.sourceId === `magic-armor-${invItem.id}` ||
+                a.sourceId === `magic-ac-${invItem.id}`
+            );
+        }
+        if (detail.bonusSpellAttack || detail.bonusSpellSaveDc) {
+            return data.appliedAdjustments.some(a => a.sourceId === `magic-spell-${invItem.id}`);
+        }
+        return false;
+    };
+
+    // Unequip a magic item from backpack
+    const unequipFromInventory = (invItem: InventoryItem) => {
+        const sourceIds = [
+            `equip-magic-${invItem.id}`,
+            `magic-armor-${invItem.id}`,
+            `magic-ac-${invItem.id}`,
+            `magic-spell-${invItem.id}`,
+        ];
+        let next = data;
+
+        // If this magic item had a tracked base armor equip, remove that specific armor
+        const bindingAdj = next.appliedAdjustments.find(a => a.sourceId === `magic-armor-${invItem.id}`);
+        if (bindingAdj) {
+            const feature = bindingAdj.operations.find(op => op.type === 'addFeature');
+            if (feature && 'feature' in feature) {
+                const f = (feature as { feature: { name: string } }).feature;
+                if (f.name.startsWith('绑定:')) {
+                    const armorId = f.name.split(':')[1];
+                    const armorSourceId = `equip-armor-${armorId}`;
+                    if (next.appliedAdjustments.some(a => a.sourceId === armorSourceId)) {
+                        next = removeCharacterAdjustments(next, armorSourceId);
+                    }
+                }
+            }
+        }
+
+        for (const sid of sourceIds) {
+            if (next.appliedAdjustments.some(a => a.sourceId === sid)) {
+                next = removeCharacterAdjustments(next, sid);
+            }
+        }
+        if (autoBuilderContent) {
+            next = refreshCharacterAutomation(next, autoBuilderContent);
+        }
+        onUpdateCharacter(next);
+    };
+
+    // Equip a magic item from backpack (or unequip if already equipped)
     const equipFromInventory = (invItem: InventoryItem) => {
         if (!autoBuilderContent) return;
         const detail = getMagicItemDetail(invItem);
         if (!detail) return;
 
+        // Toggle: if already equipped, unequip instead
+        if (isMagicItemEquipped(invItem)) {
+            unequipFromInventory(invItem);
+            return;
+        }
+
+        const applySpellBonuses = (next: CharacterData, itemDetail: typeof detail): CharacterData => {
+            const bonusAttack = Number(String(itemDetail.bonusSpellAttack || '0').replace('+', '')) || 0;
+            const bonusSaveDC = Number(String(itemDetail.bonusSpellSaveDc || '0').replace('+', '')) || 0;
+            if (bonusAttack === 0 && bonusSaveDC === 0) return next;
+
+            const ops: AdjustmentOperation[] = [];
+            if (bonusAttack > 0) {
+                ops.push({ type: 'addNumber', path: 'spellAttackBonus', value: bonusAttack });
+            }
+            if (bonusSaveDC > 0) {
+                ops.push({ type: 'addNumber', path: 'spellSaveDCBonus', value: bonusSaveDC });
+            }
+            return applyCharacterAdjustments(next, {
+                id: `magic-spell-${invItem.id}`,
+                sourceId: `magic-spell-${invItem.id}`,
+                sourceName: itemDetail.name,
+                operations: ops,
+            });
+        };
+
         if (detail.isWeapon || detail.bonusWeapon) {
-            // Use selected base weapon (or first available)
-            const baseName = inventoryBaseChoices[invItem.id];
-            const weaponData = baseName
-                ? autoBuilderContent.weapons.find(w => w.name === baseName)
-                : autoBuilderContent.weapons[0];
+            const hasRequires = detail.requires && Array.isArray(detail.requires) && detail.requires.length > 0;
+            let weaponData: AutoBuilderWeapon | undefined;
+            const magicBonus = Number(String(detail.bonusWeapon || '0').replace('+', '')) || 0;
+
+            if (hasRequires) {
+                // Template weapon: needs a base weapon to apply to
+                const baseName = inventoryBaseChoices[invItem.id];
+                weaponData = baseName
+                    ? autoBuilderContent.weapons.find(w => w.name === baseName)
+                    : autoBuilderContent.weapons[0];
+            } else if (detail.dmg1) {
+                // Standalone weapon: use its own data (e.g. Moon Sickle)
+                weaponData = {
+                    id: `magic-${detail.id}`,
+                    key: detail.id,
+                    name: detail.name,
+                    englishName: detail.englishName,
+                    source: 'PHB' as const,
+                    ruleSystem: data.automation.ruleSystem,
+                    weaponCategory: detail.weaponCategory || 'simple',
+                    type: detail.range ? 'R' : 'M',
+                    property: (detail.property || []).map(p => ({ uid: p })),
+                    dmg1: detail.dmg1,
+                    dmg2: detail.dmg2,
+                    dmgType: detail.dmgType,
+                    bonusWeapon: detail.bonusWeapon || '0',
+                    range: detail.range,
+                };
+            }
             if (!weaponData) return;
 
             // Equip with baked-in magic bonus. Use a unique sourceId
@@ -177,18 +289,20 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
             const magicSourceId = `equip-magic-${invItem.id}`;
             const profBonus = calculateProficiencyBonus(getTotalLevel(data.classes));
             const abilityMod = getAttackAbilityMod(data, weaponData);
-            const magicBonus = Number(String(detail.bonusWeapon || '0').replace('+', '')) || 0;
+            const attackName = hasRequires
+                ? `${detail.name} ${weaponData.name}`
+                : detail.name;
             const attackBonus = abilityMod + magicBonus + (isWeaponProficient(data, weaponData) ? profBonus : 0);
             const attack: Attack = {
                 id: `${magicSourceId}-attack`,
                 sourceId: magicSourceId,
-                sourceName: `${detail.name} (${weaponData.name})`,
+                sourceName: attackName,
                 automatic: true,
-                name: `${detail.name} ${weaponData.name}`,
+                name: attackName,
                 bonus: formatModifier(attackBonus),
                 damage: `${weaponData.dmg1 || ''}${magicBonus + abilityMod === 0 ? '' : formatModifier(magicBonus + abilityMod)} ${weaponData.dmgType ? (DAMAGE_TYPES[weaponData.dmgType] || weaponData.dmgType) : ''}`.trim(),
                 type: formatWeaponType(weaponData),
-                notes: `魔法武器 +${magicBonus}`,
+                notes: hasRequires ? `魔法武器 +${magicBonus}` : detail.name,
             };
             // Unequip any existing main weapon first
             const existingMain = data.appliedAdjustments.find(a => a.sourceId.startsWith('equip-weapon-') && !a.sourceId.startsWith('equip-weapon-offhand-') && !a.sourceId.startsWith('equip-magic-'));
@@ -202,16 +316,38 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                 sourceName: attack.sourceName,
                 operations: [{ type: 'addAttack', attack }],
             });
+            // Apply spell bonuses
+            next = applySpellBonuses(next, detail);
             // Still refresh armor (but not weapons, to preserve the magic attack)
-            const content = autoBuilderContent;
-            next = refreshAutomaticArmorClass(refreshEquippedArmor(next, content));
+            next = refreshAutomaticArmorClass(refreshEquippedArmor(next, autoBuilderContent));
             onUpdateCharacter(next);
         } else if (detail.isArmor || detail.bonusAc) {
-            // Equip armor, then add bonusAc separately
+            // Equip armor via standard equip, then track which base was used
             const targetType = getArmorTypeFromRequires(detail.requires);
-            const armorData = autoBuilderContent.armors.find(a => getItemType(a) === targetType) || autoBuilderContent.armors[0];
-            if (!armorData) return;
-            let next = equipArmor(data, armorData);
+            const baseName = inventoryBaseChoices[invItem.id];
+            const armorData = baseName
+                ? autoBuilderContent.armors.find(a => a.name === baseName)
+                : autoBuilderContent.armors.find(a => getItemType(a) === targetType);
+            const finalArmorData = armorData || autoBuilderContent.armors.find(a => getItemType(a) === targetType) || autoBuilderContent.armors[0];
+            if (!finalArmorData) return;
+
+            let next = equipArmor(data, finalArmorData);
+            // Track which base armor this magic item equipped, so unequip can remove it
+            next = applyCharacterAdjustments(next, {
+                id: `magic-armor-${invItem.id}`,
+                sourceId: `magic-armor-${invItem.id}`,
+                sourceName: detail.name,
+                operations: [{
+                    type: 'addFeature',
+                    feature: {
+                        id: `magic-armor-${invItem.id}-binding`,
+                        sourceId: `magic-armor-${invItem.id}`,
+                        sourceName: detail.name,
+                        name: `绑定:${finalArmorData.id}`,
+                        description: `${detail.name} → ${finalArmorData.name}`,
+                    },
+                }],
+            });
             const acBonus = Number(String(detail.bonusAc || '0').replace('+', '')) || 0;
             if (acBonus > 0) {
                 next = applyCharacterAdjustments(next, {
@@ -221,7 +357,13 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                     operations: [{ type: 'addNumber', path: 'armorBonus', value: acBonus }],
                 });
             }
+            next = applySpellBonuses(next, detail);
             onUpdateCharacter(refreshCharacterAutomation(next, autoBuilderContent));
+        } else if (detail.bonusSpellAttack || detail.bonusSpellSaveDc) {
+            // Focus/other items with only spell bonuses
+            let next = data;
+            next = applySpellBonuses(next, detail);
+            onUpdateCharacter(next);
         }
     };
 
@@ -380,32 +522,44 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                     <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                         {data.inventory.map(item => {
                             const detail = getMagicItemDetail(item);
-                            const isEquippable = detail && (detail.isWeapon || detail.isArmor || detail.bonusWeapon || detail.bonusAc);
+                            const isWeaponItem = detail && (detail.isWeapon || !!detail.bonusWeapon);
+                            const isArmorItem = detail && (detail.isArmor || !!detail.bonusAc);
+                            const isFocusItem = detail && !isWeaponItem && !isArmorItem && (!!detail.bonusSpellAttack || !!detail.bonusSpellSaveDc);
+                            const isEquippable = isWeaponItem || isArmorItem || isFocusItem;
                             const hasRequires = detail?.requires && Array.isArray(detail.requires) && detail.requires.length > 0;
-                            const baseWeaponOptions = autoBuilderContent?.weapons || [];
-                            const chosenBase = inventoryBaseChoices[item.id] || baseWeaponOptions[0]?.name || '';
+                            const baseOptions = isWeaponItem
+                                ? (autoBuilderContent?.weapons || [])
+                                : isArmorItem
+                                    ? (autoBuilderContent?.armors || [])
+                                    : [];
+                            const chosenBase = inventoryBaseChoices[item.id] || baseOptions[0]?.name || '';
+                            const isEquipped = isMagicItemEquipped(item);
 
                             return (
                             <div key={item.id} className="w-full flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5">
                                 <span className="text-[10px] text-gray-800 truncate flex-1">{item.name}</span>
                                 <span className="text-[9px] text-gray-400 shrink-0">×{item.count}</span>
-                                {isEquippable && hasRequires && (
+                                {isEquippable && hasRequires && baseOptions.length > 0 && (
                                     <select
                                         value={chosenBase}
                                         onChange={(e) => setInventoryBaseChoices(prev => ({ ...prev, [item.id]: e.target.value }))}
                                         className="text-[9px] border border-gray-200 rounded bg-white max-w-[80px]"
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        {baseWeaponOptions.map(w => (
-                                            <option key={w.id} value={w.name}>{w.name}</option>
+                                        {baseOptions.map(opt => (
+                                            <option key={opt.id || opt.name} value={opt.name}>{opt.name}</option>
                                         ))}
                                     </select>
                                 )}
                                 {isEquippable && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); equipFromInventory(item); }}
-                                        className="text-[9px] uppercase font-bold px-1 py-0.5 rounded border border-blue-300 text-blue-700 hover:bg-blue-50 shrink-0"
-                                    >装备</button>
+                                        className={`text-[9px] uppercase font-bold px-1 py-0.5 rounded border shrink-0 ${
+                                            isEquipped
+                                                ? 'border-orange-300 text-orange-700 hover:bg-orange-50'
+                                                : 'border-blue-300 text-blue-700 hover:bg-blue-50'
+                                        }`}
+                                    >{isEquipped ? '卸下' : '装备'}</button>
                                 )}
                                 <button
                                     onClick={(e) => { e.stopPropagation(); removeItemFromInventory(item); }}

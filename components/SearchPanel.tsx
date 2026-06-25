@@ -61,6 +61,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
   const [selectedSources, setSelectedSources] = useState<Record<string, string>>({});
   const [detail, setDetail] = useState<DetailView | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'spells' | 'features' | 'items'>('all');
+  const [recentlyPurchased, setRecentlyPurchased] = useState<Set<string>>(new Set());
 
   // Group features by name for source disambiguation
   const featureGroups = useMemo(() => {
@@ -315,10 +316,26 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
                   </div>
                   {result.type === 'item' && onPurchaseItem && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); onPurchaseItem(result.data.name, result.data.source); }}
-                      className="ml-1 shrink-0 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border border-green-300 text-green-700 hover:bg-green-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPurchaseItem(result.data.name, result.data.source);
+                        const key = `${result.data.name}|${result.data.source}`;
+                        setRecentlyPurchased(prev => new Set(prev).add(key));
+                        setTimeout(() => {
+                          setRecentlyPurchased(prev => {
+                            const next = new Set(prev);
+                            next.delete(key);
+                            return next;
+                          });
+                        }, 1500);
+                      }}
+                      className={`ml-1 shrink-0 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border transition-colors ${
+                        recentlyPurchased.has(`${result.data.name}|${result.data.source}`)
+                          ? 'border-green-500 bg-green-100 text-green-800'
+                          : 'border-green-300 text-green-700 hover:bg-green-50'
+                      }`}
                     >
-                      购买
+                      {recentlyPurchased.has(`${result.data.name}|${result.data.source}`) ? '✓' : '购买'}
                     </button>
                   )}
                 </button>
