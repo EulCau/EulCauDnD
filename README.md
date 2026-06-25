@@ -2,30 +2,30 @@
 
 [中文说明 / Chinese README](README_zh.md)
 
-A browser-based Dungeons & Dragons character sheet and semi-automatic character builder for D&D 5e and 5r. The app focuses on turning structured rule data into an editable character sheet: create a level-1 character, level up an existing character, track derived values, and search spells, features, and magic items.
+A browser-based Dungeons & Dragons character sheet with a semi-automatic builder for D&D 5e and 5r. It can create a level-1 character, apply level-up changes, refresh derived values, and search spells, class features, subclass features, and magic items.
 
-## What this branch does
+## About this branch
 
-The `auto-character-builder` branch adds a rule-driven character creation and level-up workflow on top of the existing character sheet UI.
+The `auto-character-builder` branch adds a rule-data-driven build flow to the character sheet.
 
-Core capabilities include:
+Main features:
 
-- Character sheet editing with local persistence per user.
+- Editable character sheet with per-user local storage.
 - D&D 5e and 5r rule-system selection.
-- Level-1 character building from race, subrace, background, class, subclass, skills, tools, languages, feats, and spells.
-- Level-up support for existing automated characters.
+- Level-1 character creation from race, subrace, background, class, subclass, skills, tools, languages, feats, and spells.
+- Level-up flow for characters created or managed by the automation system.
 - Multiclass-aware class progression.
-- Ability Score Improvement or feat selection at eligible levels.
-- Spell selection, prepared/known spell handling, spell replacement for known-spell casters, and Bard Magical Secrets support.
-- Warlock invocations, metamagic, maneuvers, fighting styles, expertise choices, and weapon mastery choices where the source data supports them.
+- Ability Score Improvement and feat selection at eligible levels.
+- Spell selection, prepared/known spell handling, spell replacement for known-spell casters, and Bard Magical Secrets.
+- Warlock invocations, metamagic, maneuvers, fighting styles, expertise choices, and weapon mastery choices where available in the source data.
 - Automatic updates for class features, subclass features, proficiencies, resources, hit dice, hit points, spell slots, spellcasting profiles, armor class, and attacks.
 - Search panel for spells, class/subclass features, and magic items.
-- Magic item purchase/add-to-inventory flow from search results.
-- Chinese and English UI localization, with Chinese as the default language in this branch.
+- Add-to-inventory flow for magic items from search results.
+- Chinese and English UI localization. Chinese is the default language on this branch.
 
 ## Data source
 
-The branch uses structured data generated from the `5etools-cn` submodule:
+Rule data is generated from the `5etools-cn` submodule:
 
 ```bash
 git submodule update --init --recursive
@@ -37,7 +37,7 @@ Submodule path:
 third_party/5etools-cn
 ```
 
-Generated runtime data is stored under:
+Generated runtime data:
 
 ```text
 public/data/auto-builder-core.json
@@ -45,7 +45,7 @@ public/data/core.json
 public/data/magic-items.json
 ```
 
-The generated data files are used by the browser app at runtime. Regenerate them only when the upstream rule data or extraction logic changes.
+These files are loaded by the browser app. Regenerate them after updating the submodule or changing the extraction scripts.
 
 ## Scripts
 
@@ -56,7 +56,7 @@ npm run build
 npm run preview
 ```
 
-Data extraction and validation scripts:
+Data extraction and checks:
 
 ```bash
 npm run extract:5etools
@@ -93,13 +93,13 @@ npm run audit:spell-behavior
    npm run dev
    ```
 
-4. Open the URL printed by Vite in your browser.
+4. Open the local URL printed by Vite.
 
-## Character automation model
+## Automation model
 
-The app does not simply overwrite the character sheet with opaque generated text. It applies structured adjustment operations for features, proficiencies, resources, spells, items, hit points, classes, and automation metadata. This makes the automatically added content easier to inspect, refresh, and remove.
+The builder writes structured adjustments to the character sheet. These adjustments cover features, proficiencies, resources, spells, items, hit points, classes, and automation metadata. Keeping these changes as structured records makes generated content easier to inspect, refresh, and remove later.
 
-The main automation code lives in:
+Main automation files:
 
 ```text
 components/AutoCharacterBuilder.tsx
@@ -109,7 +109,7 @@ utils/equipmentRules.ts
 utils/magicItems.ts
 ```
 
-The extraction and audit scripts live in:
+Extraction and audit scripts:
 
 ```text
 scripts/extract-5etools-character-data.mjs
@@ -118,12 +118,12 @@ scripts/audit-character-data.mjs
 scripts/audit-spell-behavior.mjs
 ```
 
-## Notes and limitations
+## Notes
 
-- This is a front-end application. Character data is stored in browser local storage.
-- Rule automation depends on the quality and completeness of the generated `public/data` files.
-- Some D&D rules still require manual judgment. The app is intended as a structured assistant, not a complete rules arbiter.
-- Very complex edge cases, optional rules, homebrew rules, and source-specific exceptions should be checked manually.
+- This is a front-end app. Character data is stored in browser local storage.
+- Rule automation depends on the generated files under `public/data`.
+- Some D&D rules still need manual review, especially optional rules, homebrew content, and source-specific exceptions.
+- Complex character options should be checked against the original rule text.
 
 ## Tech stack
 
@@ -133,6 +133,6 @@ scripts/audit-spell-behavior.mjs
 - Tailwind CSS CDN setup
 - 5etools-cn data extraction scripts
 
-## License and source-data notice
+## License and source data
 
-This repository contains application code and generated/derived data for local character-sheet usage. Respect the licenses and terms of any upstream data sources and dependencies used with this project.
+This repository contains application code and generated or derived data for character-sheet use. Check the licenses and terms of the upstream data sources and dependencies used with this project.
