@@ -67,6 +67,10 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
     const [armorId, setArmorId] = useState('');
     const [shieldId, setShieldId] = useState('');
     const [inventoryBaseChoices, setInventoryBaseChoices] = useState<Record<string, string>>({});
+    const [manualItemName, setManualItemName] = useState('');
+    const [manualItemCount, setManualItemCount] = useState('1');
+    const [manualItemSource, setManualItemSource] = useState('手动');
+
     const updateMoney = (key: keyof typeof data.currency, val: string) => {
         onChange('currency', { ...data.currency, [key]: val });
     };
@@ -124,25 +128,36 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
     };
 
     // Backpack/inventory
-    const addItemToInventory = (itemName: string, itemSource: string) => {
-        const existing = data.inventory.find(i => i.name === itemName && i.source === itemSource);
-        if (existing) {
-            onUpdateCharacter(applyCharacterAdjustments(data, {
-                id: `inv-${itemName}|${itemSource}`,
-                sourceId: `inv-${itemName}|${itemSource}`,
-                sourceName: itemName,
-                operations: [{ type: 'addItem', item: { ...existing, count: existing.count + 1 } }],
-            }));
-        } else {
-            onUpdateCharacter(applyCharacterAdjustments(data, {
-                id: `inv-${itemName}|${itemSource}`,
-                sourceId: `inv-${itemName}|${itemSource}`,
-                sourceName: itemName,
-                operations: [{
-                    type: 'addItem',
-                    item: { id: `${itemName}|${itemSource}`, name: itemName, source: itemSource, count: 1 },
-                }],
-            }));
+    const addItemToInventory = (itemName: string, itemSource: string, quantity = 1) => {
+        const name = itemName.trim();
+        const source = itemSource.trim() || '手动';
+        const count = Math.max(1, Math.floor(quantity));
+        if (!name) return;
+
+        const itemId = `${name}|${source}`;
+        const existing = data.inventory.find(i => i.name === name && i.source === source);
+        onUpdateCharacter(applyCharacterAdjustments(data, {
+            id: `inv-${itemId}`,
+            sourceId: `inv-${itemId}`,
+            sourceName: name,
+            operations: [{
+                type: 'addItem',
+                item: {
+                    id: itemId,
+                    name,
+                    source,
+                    count: existing ? existing.count + count : count,
+                },
+            }],
+        }));
+    };
+
+    const addManualItemToInventory = () => {
+        const quantity = Number.parseInt(manualItemCount, 10);
+        addItemToInventory(manualItemName, manualItemSource, Number.isFinite(quantity) ? quantity : 1);
+        if (manualItemName.trim()) {
+            setManualItemName('');
+            setManualItemCount('1');
         }
     };
 
@@ -514,10 +529,48 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
             </div>
             
             {/* Backpack / Inventory */}
-            <div className="border border-gray-200 rounded p-2 bg-white">
-                <h4 className="text-[10px] text-gray-500 uppercase font-bold text-center border-b pb-1 mb-1">背包</h4>
+            <div className="border border-gray-200 rounded p-2 bg-white flex-1 min-w-0">
+                <h4 className="text-[10px] text-gray-500 uppercase font-bold text-center border-b pb-1 mb-2">背包</h4>
+                <form
+                    className="grid grid-cols-[1fr_3.5rem] gap-1 mb-2"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        addManualItemToInventory();
+                    }}
+                >
+                    <input
+                        type="text"
+                        value={manualItemName}
+                        onChange={(event) => setManualItemName(event.target.value)}
+                        placeholder="物品名称"
+                        className="border border-gray-300 rounded px-2 py-1 text-[10px] bg-white outline-none focus:border-dnd-gold"
+                    />
+                    <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={manualItemCount}
+                        onChange={(event) => setManualItemCount(event.target.value)}
+                        className="border border-gray-300 rounded px-1 py-1 text-[10px] bg-white outline-none text-center focus:border-dnd-gold"
+                        aria-label="数量"
+                    />
+                    <input
+                        type="text"
+                        value={manualItemSource}
+                        onChange={(event) => setManualItemSource(event.target.value)}
+                        placeholder="来源/备注"
+                        className="border border-gray-300 rounded px-2 py-1 text-[10px] bg-white outline-none focus:border-dnd-gold"
+                    />
+                    <button
+                        type="submit"
+                        disabled={!manualItemName.trim()}
+                        className="px-2 py-1 text-[10px] uppercase font-bold rounded border border-dnd-red text-dnd-red hover:bg-red-50 disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        添加
+                    </button>
+                </form>
                 {data.inventory.length === 0 ? (
-                    <p className="text-[10px] text-gray-400 text-center py-2">从右侧搜索面板购买魔法物品以添加到背包</p>
+                    <p className="text-[10px] text-gray-400 text-center py-2">从右侧搜索面板添加魔法物品，或在上方手动添加普通物品</p>
                 ) : (
                     <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                         {data.inventory.map(item => {
@@ -537,7 +590,8 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
 
                             return (
                             <div key={item.id} className="w-full flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5">
-                                <span className="text-[10px] text-gray-800 truncate flex-1">{item.name}</span>
+                                <span className="text-[10px] text-gray-800 truncate flex-1" title={`${item.name} · ${item.source}`}>{item.name}</span>
+                                {item.source && <span className="text-[8px] text-gray-400 shrink-0 max-w-[72px] truncate" title={item.source}>{item.source}</span>}
                                 <span className="text-[9px] text-gray-400 shrink-0">×{item.count}</span>
                                 {isEquippable && hasRequires && baseOptions.length > 0 && (
                                     <select
