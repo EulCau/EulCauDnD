@@ -12,6 +12,8 @@ const cloneInitialCharacter = (): CharacterData => ({
   proficiencies: new Set(INITIAL_CHARACTER.proficiencies),
   expertises: new Set(INITIAL_CHARACTER.expertises),
   attacks: INITIAL_CHARACTER.attacks.map(attack => ({ ...attack })),
+  damageResistances: [...INITIAL_CHARACTER.damageResistances],
+  senses: [...INITIAL_CHARACTER.senses],
   featureEntries: INITIAL_CHARACTER.featureEntries.map(feature => ({ ...feature })),
   appliedAdjustments: INITIAL_CHARACTER.appliedAdjustments.map(adjustment => ({
     ...adjustment,
@@ -120,6 +122,8 @@ export const normalizeCharacter = (raw: Partial<CharacterData> = {}): CharacterD
     abilities: { ...defaults.abilities, ...raw.abilities },
     classes: normalizeClasses(raw),
     attacks: Array.isArray(raw.attacks) && raw.attacks.length > 0 ? raw.attacks : defaults.attacks,
+    damageResistances: Array.isArray(raw.damageResistances) ? [...raw.damageResistances] : defaults.damageResistances,
+    senses: Array.isArray(raw.senses) ? [...raw.senses] : defaults.senses,
     featureEntries: Array.isArray(raw.featureEntries) ? raw.featureEntries.map(feature => ({ ...feature })) : [],
     resources: Array.isArray(raw.resources) ? raw.resources.map(resource => ({ ...resource })) : [],
     appliedAdjustments: Array.isArray(raw.appliedAdjustments)

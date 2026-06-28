@@ -56,6 +56,7 @@
 
 - `set`: 设置数值或字符串路径, 如 `armorBase`, `hpCurrent`, `abilities.STR`
 - `addNumber`: 对数值路径叠加, 可反向撤销
+- `addTextEntry`: 对结构化字符串列表追加条目, 可反向撤销, 当前用于 `damageResistances` 与 `senses`
 - `setStringField`: 设置 race, subrace, background, bodyType
 - `setClasses`: 设置多职业列表
 - `setAutomation`: 设置自动化元数据
@@ -86,6 +87,7 @@
 - 战斗风格, 魔契祈唤, 战技, 超魔的选择与加入
 - 武器精通选择与加入
 - 多职业升级时的职业列表, 熟练, 生命值, 生命骰更新
+- 种族黑暗视觉和伤害抗性现在会写入结构化 `senses` 与 `damageResistances`, 同时保留特性描述
 
 当前实现遵循“不可直接改散字段, 通过调整操作生成最终角色卡”的方向, 但还没有覆盖每个特性或专长的全部数值效果。
 
@@ -363,6 +365,33 @@
 
 - 本阶段修复的是 UI 选择模型到建卡函数之间的明确数据形态缺口.
 - 本阶段没有新增独立角色卡字段, 继续复用已有的能力值, 熟练集合和专精集合.
+
+## 阶段 3d 记录
+
+状态: 已完成.
+
+范围: 种族感官和抗性的结构化可撤销字段.
+
+改动:
+
+- `CharacterData` 新增 `damageResistances` 与 `senses` 列表.
+- `AdjustmentOperation` 新增 `addTextEntry`, 可对结构化字符串列表追加条目并按 `sourceId` 撤销.
+- `utils/characterAdjustments.ts` 记录 `previousExists`, 避免撤销某来源时误删原本就存在的同名条目.
+- `createOriginStructuredFeatureOperations` 现在会把种族/亚种族黑暗视觉写入 `senses`, 固定抗性写入 `damageResistances`.
+- `createRaceChoiceOperations` 现在会把选择型抗性写入 `damageResistances`.
+- `FeaturesBox` 显示结构化伤害抗性和感官.
+- `utils/characterStorage.ts` 为旧角色补默认 `damageResistances` 与 `senses`.
+- 新增 `scripts/audit-origin-structured-behavior.mjs`.
+- 新增 `npm run audit:origin-structured-behavior`.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段仍保留原有 `featureEntries` 描述, 因为抗性和黑暗视觉的规则文字需要在角色特性区可读.
+- 该阶段不新增免疫, 状态免疫, 条件优势等字段, 后续可以沿用同一操作模式扩展.
 
 ## 阶段 4a 记录
 
@@ -886,7 +915,7 @@
 
 目标: 每个特性, 专长, 武器, 物品尽量通过统一接口调整角色卡, 且可撤销。
 
-状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复。
+状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段。
 
 任务:
 
@@ -914,9 +943,19 @@
 - XPHB `Lightly Armored`, `Resilient`, `Skill Expert` 的能力值, 护甲, 盾牌, 豁免, 技能, 专精调整已由真实升级路径审计覆盖。
 - 新增 `npm run audit:feat-behavior`。
 
+阶段 3d 已完成的部分:
+
+- `CharacterData` 新增 `damageResistances` 与 `senses` 结构化列表。
+- `AdjustmentOperation` 新增 `addTextEntry`, 通过 previousExists 保护已有同名条目, 并支持随 `sourceId` 撤销。
+- 种族/亚种族固定黑暗视觉写入 `senses`, 固定抗性写入 `damageResistances`。
+- 种族选择型抗性也写入 `damageResistances`。
+- 黑暗视觉和抗性仍保留 `featureEntries` 描述, 避免丢失规则文字。
+- `FeaturesBox` 显示结构化抗性和感官。
+- 新增 `npm run audit:origin-structured-behavior`, 通过真实建卡路径验证 MPMM `Aasimar` 和 PHB `Dragonborn` 的结构化字段与撤销行为。
+
 阶段 3 后续建议:
 
-- 下一步优先增加独立 `senses`/`resistances` 字段还是继续写入特性条目, 需要按角色卡 UI 承载能力决定。
+- 下一步可以继续把更多现有特性描述中的可结构化内容迁移到字段, 例如免疫, 状态抗性/免疫, 特殊感官, 条件优势提示等。
 - 若保持当前 UI, 建议继续覆盖低风险专长规则, 如护甲熟练类, 豁免熟练类, 技能专家类和可明确映射到现有字段的专长。
 
 ### 阶段 4: 装备和攻击完善

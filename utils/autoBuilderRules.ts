@@ -3199,6 +3199,11 @@ const createOriginStructuredFeatureOperations = (
   const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
   if (entity.darkvision) {
     operations.push({
+      type: 'addTextEntry',
+      path: 'senses',
+      value: `黑暗视觉 ${entity.darkvision} 尺`,
+    });
+    operations.push({
       type: 'addFeature',
       feature: {
         id: `${sourceId}-darkvision`,
@@ -3214,6 +3219,11 @@ const createOriginStructuredFeatureOperations = (
 
   const fixedResistances = getFixedResistances(entity);
   if (fixedResistances.length) {
+    operations.push(...fixedResistances.map(resistance => ({
+      type: 'addTextEntry' as const,
+      path: 'damageResistances' as const,
+      value: resistance,
+    })));
     operations.push({
       type: 'addFeature',
       feature: {
@@ -3305,6 +3315,11 @@ const createRaceChoiceOperations = (
   }
   if (choices?.resistance) {
     const sourceId = `auto-race-${race.key}-${race.source}-choice-resistance`;
+    operations.push({
+      type: 'addTextEntry',
+      path: 'damageResistances',
+      value: choices.resistance,
+    });
     operations.push({
       type: 'addFeature',
       feature: {
