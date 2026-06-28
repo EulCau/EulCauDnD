@@ -17,6 +17,7 @@
     "audit:feat-behavior": "node scripts/audit-feat-behavior.mjs",
     "audit:source-priority": "node scripts/audit-source-priority.mjs",
     "audit:search-source-behavior": "node scripts/audit-search-source-behavior.mjs",
+    "audit:search-lazy-loading": "node scripts/audit-search-lazy-loading.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
