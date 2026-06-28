@@ -3001,7 +3001,7 @@ const createFixedProficiencyOperations = (
   for (const entry of proficiencies || []) {
     for (const [key, value] of Object.entries(entry)) {
       if (key === 'choose' || value !== true) continue;
-      const normalized = normalizeKey(key);
+      const normalized = normalizeEntityRef(key);
       operations.push({ type: 'addProficiency', key: prefix ? `${prefix}:${normalized}` : normalizeSkillName(normalized) });
     }
   }
