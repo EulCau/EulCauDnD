@@ -270,7 +270,13 @@ type AutoBuilderOrigin = {
   speed?: number | Record<string, number | boolean>;
   size?: string[];
   darkvision?: number;
+  blindsight?: number;
+  tremorsense?: number;
+  truesight?: number;
   resist?: unknown[];
+  immune?: unknown[];
+  vulnerable?: unknown[];
+  conditionImmune?: unknown[];
   skillProficiencies?: ProficiencyRecord[];
   toolProficiencies?: ProficiencyRecord[];
   languageProficiencies?: ProficiencyRecord[];
@@ -331,6 +337,7 @@ type AutoBuilderFeatureOperationOptions = {
 export type AutoBuilderToolChoiceSelection = Record<string, string[]>;
 export type AutoBuilderLanguageChoiceSelection = Record<string, string[]>;
 export type AutoBuilderSkillChoiceSelection = Record<string, string[]>;
+export type AutoBuilderWeaponChoiceSelection = Record<string, string[]>;
 
 export type AutoBuilderAbilityChoice = {
   mode: 'plus2plus1' | 'plus1three';
@@ -350,6 +357,7 @@ export type AutoBuilderAbilityScoreImprovementChoice = {
   featAbility?: AbilityName;
   featSkillChoices?: AutoBuilderSkillChoiceSelection;
   featToolChoices?: AutoBuilderToolChoiceSelection;
+  featWeaponChoices?: AutoBuilderWeaponChoiceSelection;
   featExpertiseChoices?: AutoBuilderSkillChoiceSelection;
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
@@ -367,6 +375,7 @@ export type AutoBuilderFeatChoice = {
   featAbility?: AbilityName;
   featSkillChoices?: AutoBuilderSkillChoiceSelection;
   featToolChoices?: AutoBuilderToolChoiceSelection;
+  featWeaponChoices?: AutoBuilderWeaponChoiceSelection;
   featExpertiseChoices?: AutoBuilderSkillChoiceSelection;
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
@@ -396,6 +405,7 @@ export type AutoBuilderRaceChoice = {
   size?: string;
   toolChoices?: AutoBuilderToolChoiceSelection;
   languageChoices?: AutoBuilderLanguageChoiceSelection;
+  weaponChoices?: AutoBuilderWeaponChoiceSelection;
 } & AutoBuilderFeatChoice;
 
 const RULE_SOURCE: Record<RuleSystem, 'PHB' | 'XPHB'> = {
@@ -874,6 +884,86 @@ export const getFeatToolChoiceOptions = (
   feat: AutoBuilderFeat | undefined,
 ): Array<{ id: string; label: string; from: string[]; count: number }> => (
   feat ? getToolChoiceOptionsFromProficiencies(feat.toolProficiencies, `feat-${feat.key}-${feat.source}`) : []
+);
+
+const isMundaneWeaponFilter = (filter: string): boolean => (
+  filter.includes('平凡') || filter.includes('寻常') || filter.toLowerCase().includes('mundane')
+);
+
+const getWeaponIdsFromFilter = (
+  content: AutoBuilderContent,
+  filter: string,
+  ruleSystem: RuleSystem,
+): string[] => {
+  const lowerFilter = filter.toLowerCase();
+  const wantsMartial = filter.includes('军用') || lowerFilter.includes('martial');
+  const wantsSimple = filter.includes('简易') || lowerFilter.includes('simple');
+  const preferredSource = RULE_SOURCE[ruleSystem];
+  const sourceRank = (weapon: AutoBuilderWeapon): number => (
+    weapon.source === preferredSource ? 0 : weapon.source === 'PHB' ? 1 : 2
+  );
+  return [...content.weapons]
+    .filter(weapon => {
+      if (wantsMartial && weapon.weaponCategory !== 'martial') return false;
+      if (wantsSimple && weapon.weaponCategory !== 'simple') return false;
+      if (isMundaneWeaponFilter(filter) && weapon.bonusWeapon) return false;
+      return true;
+    })
+    .sort((a, b) => sourceRank(a) - sourceRank(b) || a.name.localeCompare(b.name, 'zh-Hans-CN'))
+    .filter((weapon, index, weapons) => (
+      weapons.findIndex(candidate => candidate.key === weapon.key) === index
+    ))
+    .map(weapon => weapon.id);
+};
+
+const getWeaponChoiceOptionsFromProficiencies = (
+  content: AutoBuilderContent,
+  proficiencies: ProficiencyRecord[] | undefined,
+  sourceId: string,
+  ruleSystem: RuleSystem,
+): Array<{ id: string; label: string; from: string[]; count: number }> => {
+  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
+  (proficiencies || []).forEach((entry, entryIndex) => {
+    const choose = entry.choose as { from?: string[]; fromFilter?: string; count?: number } | undefined;
+    if (!choose) return;
+    const from = choose.from?.length
+      ? choose.from
+          .map(ref => {
+            const parsed = parseEntityRef(ref);
+            return content.weapons.find(weapon => (
+              (!parsed.source || weapon.source === parsed.source)
+              && (weapon.key === parsed.name || weapon.name === parsed.name || weapon.englishName === parsed.name)
+            ))?.id;
+          })
+          .filter((id): id is string => Boolean(id))
+      : (choose.fromFilter ? getWeaponIdsFromFilter(content, choose.fromFilter, ruleSystem) : []);
+    choices.push({
+      id: `${sourceId}-weapon-${entryIndex}-choose`,
+      label: 'choose',
+      from: uniqueStrings(from),
+      count: choose.count || 1,
+    });
+  });
+  return choices.filter(choice => choice.from.length > 0 && choice.count > 0);
+};
+
+export const getOriginWeaponChoiceOptions = (
+  content: AutoBuilderContent,
+  ruleSystem: RuleSystem,
+  origin: AutoBuilderOrigin | undefined,
+  secondaryOrigin?: AutoBuilderOrigin,
+): Array<{ id: string; label: string; from: string[]; count: number }> => (
+  [origin, secondaryOrigin].flatMap(entity => (
+    entity ? getWeaponChoiceOptionsFromProficiencies(content, entity.weaponProficiencies, `origin-${entity.key}-${entity.source}`, ruleSystem) : []
+  ))
+);
+
+export const getFeatWeaponChoiceOptions = (
+  content: AutoBuilderContent,
+  feat: AutoBuilderFeat | undefined,
+  ruleSystem: RuleSystem,
+): Array<{ id: string; label: string; from: string[]; count: number }> => (
+  feat ? getWeaponChoiceOptionsFromProficiencies(content, feat.weaponProficiencies, `feat-${feat.key}-${feat.source}`, ruleSystem) : []
 );
 
 export const getFeatLanguageChoiceOptions = (
@@ -3001,7 +3091,7 @@ const createFixedProficiencyOperations = (
   for (const entry of proficiencies || []) {
     for (const [key, value] of Object.entries(entry)) {
       if (key === 'choose' || value !== true) continue;
-      const normalized = normalizeKey(key);
+      const normalized = normalizeEntityRef(key);
       operations.push({ type: 'addProficiency', key: prefix ? `${prefix}:${normalized}` : normalizeSkillName(normalized) });
     }
   }
@@ -3027,6 +3117,18 @@ const createToolChoiceOperations = (
 ): AdjustmentOperation[] => {
   return Object.values(choices || {}).flatMap(tools => (
     tools.map(tool => ({ type: 'addProficiency', key: `tool:${normalizeKey(tool)}` } satisfies AdjustmentOperation))
+  ));
+};
+
+const createWeaponChoiceOperations = (
+  content: AutoBuilderContent,
+  choices?: AutoBuilderWeaponChoiceSelection,
+): AdjustmentOperation[] => {
+  return Object.values(choices || {}).flatMap(weaponIds => (
+    weaponIds.flatMap(weaponId => {
+      const weapon = content.weapons.find(item => item.id === weaponId);
+      return weapon ? [{ type: 'addProficiency', key: `weapon:${weapon.key.toLowerCase()}` } satisfies AdjustmentOperation] : [];
+    })
   ));
 };
 
@@ -3186,9 +3288,41 @@ const formatMovementModes = (speed: AutoBuilderOrigin['speed']): string[] => {
     .filter(Boolean);
 };
 
-const getFixedResistances = (entity: AutoBuilderOrigin): string[] => (
-  Array.from(new Set((entity.resist || []).filter((entry): entry is string => typeof entry === 'string')))
+const getFixedTextEntries = (entries: unknown[] | undefined): string[] => (
+  Array.from(new Set((entries || []).filter((entry): entry is string => typeof entry === 'string')))
 );
+
+const addStructuredTextEntries = (
+  operations: AdjustmentOperation[],
+  path: 'damageResistances' | 'damageImmunities' | 'damageVulnerabilities' | 'conditionImmunities' | 'senses',
+  values: string[],
+  feature: {
+    sourceId: string;
+    sourceName: string;
+    name: string;
+    description: string;
+    ruleSystem: RuleSystem;
+  },
+): void => {
+  if (!values.length) return;
+  operations.push(...values.map(value => ({
+    type: 'addTextEntry' as const,
+    path,
+    value,
+  })));
+  operations.push({
+    type: 'addFeature',
+    feature: {
+      id: feature.sourceId,
+      sourceId: feature.sourceId,
+      sourceName: feature.sourceName,
+      name: feature.name,
+      level: 1,
+      ruleSystem: feature.ruleSystem,
+      description: feature.description,
+    } satisfies CharacterFeatureEntry,
+  });
+};
 
 const createOriginStructuredFeatureOperations = (
   entity: AutoBuilderOrigin,
@@ -3198,45 +3332,75 @@ const createOriginStructuredFeatureOperations = (
   const operations: AdjustmentOperation[] = [];
   const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
   if (entity.darkvision) {
-    operations.push({
-      type: 'addTextEntry',
-      path: 'senses',
-      value: `黑暗视觉 ${entity.darkvision} 尺`,
+    addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${entity.darkvision} 尺`], {
+      sourceId: `${sourceId}-darkvision`,
+      sourceName: `${entity.name} ${entity.source}`,
+      name: '黑暗视觉',
+      ruleSystem,
+      description: `你拥有 ${entity.darkvision} 尺黑暗视觉.`,
     });
-    operations.push({
-      type: 'addFeature',
-      feature: {
-        id: `${sourceId}-darkvision`,
-        sourceId,
-        sourceName: `${entity.name} ${entity.source}`,
-        name: '黑暗视觉',
-        level: 1,
-        ruleSystem,
-        description: `你拥有 ${entity.darkvision} 尺黑暗视觉.`,
-      } satisfies CharacterFeatureEntry,
+  }
+  if (entity.blindsight) {
+    addStructuredTextEntries(operations, 'senses', [`盲视 ${entity.blindsight} 尺`], {
+      sourceId: `${sourceId}-blindsight`,
+      sourceName: `${entity.name} ${entity.source}`,
+      name: '盲视',
+      ruleSystem,
+      description: `你拥有 ${entity.blindsight} 尺盲视.`,
+    });
+  }
+  if (entity.tremorsense) {
+    addStructuredTextEntries(operations, 'senses', [`震颤感知 ${entity.tremorsense} 尺`], {
+      sourceId: `${sourceId}-tremorsense`,
+      sourceName: `${entity.name} ${entity.source}`,
+      name: '震颤感知',
+      ruleSystem,
+      description: `你拥有 ${entity.tremorsense} 尺震颤感知.`,
+    });
+  }
+  if (entity.truesight) {
+    addStructuredTextEntries(operations, 'senses', [`真实视觉 ${entity.truesight} 尺`], {
+      sourceId: `${sourceId}-truesight`,
+      sourceName: `${entity.name} ${entity.source}`,
+      name: '真实视觉',
+      ruleSystem,
+      description: `你拥有 ${entity.truesight} 尺真实视觉.`,
     });
   }
 
-  const fixedResistances = getFixedResistances(entity);
-  if (fixedResistances.length) {
-    operations.push(...fixedResistances.map(resistance => ({
-      type: 'addTextEntry' as const,
-      path: 'damageResistances' as const,
-      value: resistance,
-    })));
-    operations.push({
-      type: 'addFeature',
-      feature: {
-        id: `${sourceId}-fixed-resistances`,
-        sourceId,
-        sourceName: `${entity.name} ${entity.source}`,
-        name: '伤害抗性',
-        level: 1,
-        ruleSystem,
-        description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
-      } satisfies CharacterFeatureEntry,
-    });
-  }
+  const sourceName = `${entity.name} ${entity.source}`;
+  const fixedResistances = getFixedTextEntries(entity.resist);
+  addStructuredTextEntries(operations, 'damageResistances', fixedResistances, {
+    sourceId: `${sourceId}-fixed-resistances`,
+    sourceName,
+    name: '伤害抗性',
+    ruleSystem,
+    description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
+  });
+  const fixedImmunities = getFixedTextEntries(entity.immune);
+  addStructuredTextEntries(operations, 'damageImmunities', fixedImmunities, {
+    sourceId: `${sourceId}-fixed-immunities`,
+    sourceName,
+    name: '伤害免疫',
+    ruleSystem,
+    description: `你获得对 ${fixedImmunities.join(', ')} 伤害的免疫.`,
+  });
+  const fixedVulnerabilities = getFixedTextEntries(entity.vulnerable);
+  addStructuredTextEntries(operations, 'damageVulnerabilities', fixedVulnerabilities, {
+    sourceId: `${sourceId}-fixed-vulnerabilities`,
+    sourceName,
+    name: '伤害易伤',
+    ruleSystem,
+    description: `你对 ${fixedVulnerabilities.join(', ')} 伤害具有易伤.`,
+  });
+  const fixedConditionImmunities = getFixedTextEntries(entity.conditionImmune);
+  addStructuredTextEntries(operations, 'conditionImmunities', fixedConditionImmunities, {
+    sourceId: `${sourceId}-fixed-condition-immunities`,
+    sourceName,
+    name: '状态免疫',
+    ruleSystem,
+    description: `你免疫 ${fixedConditionImmunities.join(', ')} 状态.`,
+  });
 
   const movementModes = formatMovementModes(entity.speed);
   if (movementModes.length) {
@@ -3336,6 +3500,7 @@ const createRaceChoiceOperations = (
   if (choices?.size) {
     operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(choices.size) });
   }
+  operations.push(...createWeaponChoiceOperations(content, choices?.weaponChoices));
   operations.push(...createChosenFeatOperations(content, character, ruleSystem, choices, operations));
   return operations;
 };
@@ -3362,6 +3527,7 @@ const createChosenFeatOperations = (
     ...createFeatFixedAbilityOperations(feat, abilitiesAfterPreviousOperations, choices.featAbility),
     ...createSkillChoiceOperations(choices.featSkillChoices),
     ...createToolChoiceOperations(choices.featToolChoices),
+    ...createWeaponChoiceOperations(content, choices.featWeaponChoices),
     ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
     ...createLanguageChoiceOperations(choices.featLanguageChoices),
     ...createSavingThrowChoiceOperations(choices.featSavingThrowChoices),
@@ -3627,6 +3793,7 @@ const createAbilityScoreImprovementOperations = (
       ...createFeatFixedAbilityOperations(feat, character.abilities, choice.featAbility),
       ...createSkillChoiceOperations(choice.featSkillChoices),
       ...createToolChoiceOperations(choice.featToolChoices),
+      ...createWeaponChoiceOperations(content, choice.featWeaponChoices),
       ...createExpertiseChoiceOperations(choice.featExpertiseChoices),
       ...createLanguageChoiceOperations(choice.featLanguageChoices),
       ...createSavingThrowChoiceOperations(choice.featSavingThrowChoices),

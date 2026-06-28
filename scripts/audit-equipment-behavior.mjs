@@ -15,6 +15,10 @@ const projectImport = relativePath => path.join(ROOT, relativePath).replaceAll(p
 const entrySource = `
 import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
+  applyCharacterAdjustments,
+  removeCharacterAdjustments,
+} from '${projectImport('utils/characterAdjustments.ts')}';
+import {
   equipMagicWeapon,
   equipOffHandWeapon,
   equipShield,
@@ -74,12 +78,36 @@ const lightWeapon = weapons.find(weapon => hasProperty(weapon, 'L') && !hasPrope
 const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
 const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
+const thrownWeapon = weapons.find(weapon => hasProperty(weapon, 'T') && weapon.range && weapon.dmg1);
+const loadingAmmunitionWeapon = weapons.find(weapon => hasProperty(weapon, 'A') && hasProperty(weapon, 'LD') && weapon.range && weapon.dmg1);
+const reachWeapon = weapons.find(weapon => hasProperty(weapon, 'R') && !hasProperty(weapon, 'S') && weapon.dmg1);
+const versatileWeapon = weapons.find(weapon => hasProperty(weapon, 'V') && weapon.dmg1 && weapon.dmg2);
+const specialWeapon = weapons.find(weapon => hasProperty(weapon, 'S') && weapon.entries?.length);
+const heavyMelee5eWeapon = weapons.find(weapon => (
+  weapon.source === 'PHB'
+  && hasProperty(weapon, 'H')
+  && String(weapon.type || '').split('|')[0] === 'M'
+  && weapon.dmg1
+));
+const heavyRanged5rWeapon = weapons.find(weapon => (
+  weapon.source === 'XPHB'
+  && hasProperty(weapon, 'H')
+  && String(weapon.type || '').split('|')[0] === 'R'
+  && weapon.dmg1
+));
 const shield = content.armors.find(armor => String(armor.type || '').split('|')[0] === 'S');
 
 assert(lightWeapon, 'missing light weapon fixture');
 assert(nonLightWeapon, 'missing non-light weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
 assert(rangedWeapon, 'missing ranged weapon fixture');
+assert(thrownWeapon, 'missing thrown weapon fixture');
+assert(loadingAmmunitionWeapon, 'missing ammunition/loading weapon fixture');
+assert(reachWeapon, 'missing reach weapon fixture');
+assert(versatileWeapon, 'missing versatile weapon fixture');
+assert(specialWeapon, 'missing special weapon fixture');
+assert(heavyMelee5eWeapon, 'missing PHB heavy melee weapon fixture');
+assert(heavyRanged5rWeapon, 'missing XPHB heavy ranged weapon fixture');
 assert(shield, 'missing shield fixture');
 
 let character = cloneCharacter();
@@ -128,6 +156,79 @@ assert(
 );
 
 character = cloneCharacter();
+character = equipWeapon(character, thrownWeapon, content);
+const thrownAttack = getAttack(character, \`equip-weapon-\${thrownWeapon.id}\`);
+assert(thrownAttack, 'thrown weapon should add attack');
+assert(
+  thrownAttack.notes.includes('投掷射程'),
+  \`thrown weapon notes should mention thrown range, got \${thrownAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, loadingAmmunitionWeapon, content);
+const loadingAmmunitionAttack = getAttack(character, \`equip-weapon-\${loadingAmmunitionWeapon.id}\`);
+assert(loadingAmmunitionAttack, 'ammunition/loading weapon should add attack');
+assert(
+  loadingAmmunitionAttack.notes.includes('弹药') && loadingAmmunitionAttack.notes.includes('装填'),
+  \`ammunition/loading weapon notes should mention both properties, got \${loadingAmmunitionAttack.notes}\`,
+);
+assert(
+  loadingAmmunitionAttack.notes.includes('射程'),
+  \`ammunition/loading weapon notes should mention range, got \${loadingAmmunitionAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, reachWeapon, content);
+const reachAttack = getAttack(character, \`equip-weapon-\${reachWeapon.id}\`);
+assert(reachAttack, 'reach weapon should add attack');
+assert(
+  reachAttack.notes.includes('触及 10 尺'),
+  \`reach weapon notes should mention 10-foot reach, got \${reachAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, versatileWeapon, content);
+const versatileAttack = getAttack(character, \`equip-weapon-\${versatileWeapon.id}\`);
+assert(versatileAttack, 'versatile weapon should add attack');
+assert(
+  versatileAttack.damage.includes(versatileWeapon.dmg2) && versatileAttack.damage.includes('双手'),
+  \`versatile weapon damage should show two-handed damage option, got \${versatileAttack.damage}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, specialWeapon, content);
+const specialAttack = getAttack(character, \`equip-weapon-\${specialWeapon.id}\`);
+assert(specialAttack, 'special weapon should add attack');
+assert(
+  specialAttack.notes.includes('特殊') && specialAttack.notes.length > '特殊'.length,
+  \`special weapon notes should include special entry summary, got \${specialAttack.notes}\`,
+);
+
+character = {
+  ...cloneCharacter(),
+  bodyType: '小型',
+};
+character = equipWeapon(character, heavyMelee5eWeapon, content);
+const heavyMelee5eAttack = getAttack(character, \`equip-weapon-\${heavyMelee5eWeapon.id}\`);
+assert(heavyMelee5eAttack, 'PHB heavy melee weapon should add attack');
+assert(
+  heavyMelee5eAttack.notes.includes('当前体型') && heavyMelee5eAttack.notes.includes('劣势'),
+  \`PHB heavy weapon notes should mention current small size disadvantage, got \${heavyMelee5eAttack.notes}\`,
+);
+
+character = {
+  ...cloneCharacter(),
+  abilities: { ...cloneCharacter().abilities, DEX: 12 },
+};
+character = equipWeapon(character, heavyRanged5rWeapon, content);
+const heavyRanged5rAttack = getAttack(character, \`equip-weapon-\${heavyRanged5rWeapon.id}\`);
+assert(heavyRanged5rAttack, 'XPHB heavy ranged weapon should add attack');
+assert(
+  heavyRanged5rAttack.notes.includes('敏捷低于 13') && heavyRanged5rAttack.notes.includes('劣势'),
+  \`XPHB heavy ranged weapon notes should mention Dexterity 13 disadvantage, got \${heavyRanged5rAttack.notes}\`,
+);
+
+character = cloneCharacter();
 const nonLightOffHandReason = getOffHandWeaponEquipBlockReason(character, nonLightWeapon, content);
 assert(nonLightOffHandReason.includes('轻型'), 'non-light off-hand should explain light weapon requirement');
 character = equipOffHandWeapon(character, lightWeapon, content);
@@ -138,6 +239,11 @@ assert(
 assert(
   character.attacks.some(attack => attack.sourceId === \`equip-weapon-offhand-\${lightWeapon.id}\` && attack.offHand),
   'light off-hand weapon should add an off-hand attack',
+);
+const lightOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
+assert(
+  lightOffHandAttack.bonus === '+6',
+  \`off-hand attack bonus should include ability modifier and proficiency, got \${lightOffHandAttack.bonus}\`,
 );
 character = equipWeapon(character, nonLightWeapon, content);
 assert(
@@ -249,6 +355,72 @@ assert(
   'non-light template magic main hand should block light off-hand weapon',
 );
 
+character = cloneCharacter();
+const standaloneMagicWeapon = {
+  ...lightWeapon,
+  id: \`magic-standalone-\${lightWeapon.id}\`,
+  key: \`magic-standalone-\${lightWeapon.key}\`,
+  name: \`独立 +1 \${lightWeapon.name}\`,
+  bonusWeapon: '+1',
+};
+character = equipMagicWeapon(character, standaloneMagicWeapon, {
+  inventoryItemId: 'audit-magic-standalone-light',
+  displayName: standaloneMagicWeapon.name,
+  detailName: standaloneMagicWeapon.name,
+  magicBonus: 1,
+  isTemplate: false,
+});
+let standaloneMagicAttack = getAttack(character, 'equip-magic-audit-magic-standalone-light');
+assert(standaloneMagicAttack, 'standalone magic weapon should add attack');
+assert(
+  standaloneMagicAttack.magicWeaponSnapshot?.id === standaloneMagicWeapon.id,
+  'standalone magic weapon attack should keep weapon snapshot metadata',
+);
+assert(
+  getOffHandWeaponEquipBlockReason(character, lightWeapon, content) === '',
+  'light standalone magic main hand should allow light off-hand weapon',
+);
+character = {
+  ...character,
+  abilities: { ...character.abilities, STR: 18 },
+};
+character = refreshCharacterAutomation(character, content);
+standaloneMagicAttack = getAttack(character, 'equip-magic-audit-magic-standalone-light');
+assert(standaloneMagicAttack, 'standalone magic weapon should keep attack after refresh');
+assert(
+  standaloneMagicAttack.bonus === '+8',
+  \`standalone magic weapon attack bonus should refresh after STR change to +8, got \${standaloneMagicAttack.bonus}\`,
+);
+assert(
+  standaloneMagicAttack.damage.includes('+5'),
+  \`standalone magic weapon damage should refresh after STR change to +5, got \${standaloneMagicAttack.damage}\`,
+);
+
+character = cloneCharacter();
+character = equipOffHandWeapon(character, lightWeapon, content);
+const standaloneNonLightMagicWeapon = {
+  ...nonLightWeapon,
+  id: \`magic-standalone-\${nonLightWeapon.id}\`,
+  key: \`magic-standalone-\${nonLightWeapon.key}\`,
+  name: \`独立 +1 \${nonLightWeapon.name}\`,
+  bonusWeapon: '+1',
+};
+character = equipMagicWeapon(character, standaloneNonLightMagicWeapon, {
+  inventoryItemId: 'audit-magic-standalone-non-light',
+  displayName: standaloneNonLightMagicWeapon.name,
+  detailName: standaloneNonLightMagicWeapon.name,
+  magicBonus: 1,
+  isTemplate: false,
+});
+assert(
+  !character.appliedAdjustments.some(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-')),
+  'non-light standalone magic weapon should remove existing off-hand weapon',
+);
+assert(
+  getOffHandWeaponEquipBlockReason(character, lightWeapon, content).includes('基础武器不具有轻型属性'),
+  'non-light standalone magic main hand should block light off-hand weapon using snapshot metadata',
+);
+
 const secondMagicWeapon = {
   ...lightWeapon,
   id: \`magic-audit-2-\${lightWeapon.id}\`,
@@ -285,6 +457,41 @@ assert(
 assert(
   refreshedStrengthAttack.damage.includes('+4'),
   \`main weapon damage should refresh after STR change to +4, got \${refreshedStrengthAttack.damage}\`,
+);
+
+character = {
+  ...cloneCharacter(),
+  proficiencies: new Set(),
+};
+character = equipWeapon(character, nonLightWeapon, content);
+let proficiencyRefreshAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(proficiencyRefreshAttack, 'main weapon should add attack without proficiency');
+assert(
+  proficiencyRefreshAttack.bonus === '+3',
+  \`main weapon without proficiency should use only ability modifier +3, got \${proficiencyRefreshAttack.bonus}\`,
+);
+character = applyCharacterAdjustments(character, {
+  id: 'audit-weapon-name-proficiency',
+  sourceId: 'audit-weapon-name-proficiency',
+  sourceName: 'audit weapon proficiency',
+  operations: [
+    { type: 'addProficiency', key: \`weapon:\${nonLightWeapon.name}\` },
+  ],
+});
+character = refreshCharacterAutomation(character, content);
+proficiencyRefreshAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(proficiencyRefreshAttack, 'main weapon should keep attack after adding proficiency');
+assert(
+  proficiencyRefreshAttack.bonus === '+6',
+  \`main weapon should refresh after adding Chinese weapon-name proficiency to +6, got \${proficiencyRefreshAttack.bonus}\`,
+);
+character = removeCharacterAdjustments(character, 'audit-weapon-name-proficiency');
+character = refreshCharacterAutomation(character, content);
+proficiencyRefreshAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(proficiencyRefreshAttack, 'main weapon should keep attack after removing proficiency');
+assert(
+  proficiencyRefreshAttack.bonus === '+3',
+  \`main weapon should refresh after removing proficiency back to +3, got \${proficiencyRefreshAttack.bonus}\`,
 );
 
 character = cloneCharacter();
@@ -324,6 +531,13 @@ export default {
   nonLightWeapon: nonLightWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
   rangedWeapon: rangedWeapon.name,
+  thrownWeapon: thrownWeapon.name,
+  loadingAmmunitionWeapon: loadingAmmunitionWeapon.name,
+  reachWeapon: reachWeapon.name,
+  versatileWeapon: versatileWeapon.name,
+  specialWeapon: specialWeapon.name,
+  heavyMelee5eWeapon: heavyMelee5eWeapon.name,
+  heavyRanged5rWeapon: heavyRanged5rWeapon.name,
   shield: shield.name,
 };
 `;
@@ -359,8 +573,16 @@ console.log(JSON.stringify({
     'ordinary weapon attack bonus and damage',
     'archery ranged attack bonus and notes',
     'dueling melee damage and notes',
+    'thrown weapon notes include thrown range',
+    'ammunition and loading weapon notes include properties and range',
+    'reach weapon notes include 10-foot reach',
+    'versatile weapon damage includes two-handed option',
+    'special weapon notes include entry summary',
+    'PHB heavy weapon notes include small size disadvantage',
+    'XPHB heavy weapon notes include ability threshold disadvantage',
     'non-light off-hand reports light requirement',
     'light off-hand adds off-hand attack',
+    'off-hand attack bonus includes ability modifier and proficiency',
     'non-light main removes off-hand',
     'shield removes two-handed main',
     'magic weapon replaces ordinary main',
@@ -368,8 +590,12 @@ console.log(JSON.stringify({
     'light template magic weapon allows off-hand',
     'magic weapon refreshes after ability change',
     'non-light template magic weapon removes and blocks off-hand',
+    'standalone magic weapon stores snapshot metadata',
+    'standalone magic weapon refreshes after ability change',
+    'standalone magic weapon snapshot controls off-hand conflicts',
     'second magic weapon replaces first magic weapon',
     'main weapon refreshes after ability change',
+    'main weapon refreshes after adding and removing Chinese weapon-name proficiency',
     'ranged weapon refreshes after adding archery',
     'off-hand weapon refreshes after adding two-weapon fighting',
   ],

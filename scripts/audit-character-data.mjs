@@ -132,6 +132,14 @@ assert(
   'race fixed resistance metadata is missing',
 );
 assert(
+  (autoBuilder.data.races || []).some(race => (race.immune || []).some(entry => typeof entry === 'string')),
+  'race fixed damage immunity metadata is missing',
+);
+assert(
+  (autoBuilder.data.races || []).some(race => (race.conditionImmune || []).some(entry => typeof entry === 'string')),
+  'race fixed condition immunity metadata is missing',
+);
+assert(
   autoBuilderRules['5r'].raceSources?.[0] === 'XPHB'
     && autoBuilderRules['5r'].raceSources?.includes('MPMM'),
   '5r race source priority should prefer XPHB while allowing extension races',

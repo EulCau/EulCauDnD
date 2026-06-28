@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { RuleSystem } from '../types';
+import { loadBestiaryIndex } from '../utils/bestiary';
 import {
   dedupeSearchResultsByNameAndSource,
   getSearchFeatureSource,
@@ -185,19 +186,23 @@ const compareByNameAndSource = <T extends { name: string; source?: string }>(
     || String(a.source || '').localeCompare(String(b.source || ''))
 );
 
-const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems, monsters = [], ruleSystem, onPurchaseItem }) => {
+const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems, monsters: initialMonsters = [], ruleSystem, onPurchaseItem }) => {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [selectedSources, setSelectedSources] = useState<Record<string, string>>({});
   const [detail, setDetail] = useState<DetailView | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'spells' | 'features' | 'items' | 'monsters'>('all');
   const [recentlyPurchased, setRecentlyPurchased] = useState<Set<string>>(new Set());
+  const [loadedMonsters, setLoadedMonsters] = useState<SearchableMonster[]>(initialMonsters);
+  const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
+  const [hasRequestedMonsters, setHasRequestedMonsters] = useState(initialMonsters.length > 0);
   const [sourceFilter, setSourceFilter] = useState('');
   const [spellLevelFilter, setSpellLevelFilter] = useState('');
   const [itemCategoryFilter, setItemCategoryFilter] = useState('');
   const [itemRarityFilter, setItemRarityFilter] = useState('');
   const [monsterTypeFilter, setMonsterTypeFilter] = useState('');
   const [monsterCrFilter, setMonsterCrFilter] = useState('');
+  const monsters = loadedMonsters;
 
   const sourceOptions = useMemo(() => uniqueSorted([
     ...spells.map(spell => spell.source),
@@ -213,6 +218,22 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
   const hasActiveFilter = Boolean(sourceFilter || spellLevelFilter || itemCategoryFilter || itemRarityFilter || monsterTypeFilter || monsterCrFilter);
   const normalizedQuery = query.trim().toLowerCase();
   const shouldShowResults = Boolean(normalizedQuery || hasActiveFilter);
+  const shouldLoadMonsters = (
+    activeTab === 'monsters'
+    || (activeTab === 'all' && shouldShowResults)
+    || Boolean(monsterTypeFilter || monsterCrFilter)
+  );
+  const isMonsterSearchPending = isLoadingMonsters && (activeTab === 'all' || activeTab === 'monsters');
+
+  useEffect(() => {
+    if (!shouldLoadMonsters || hasRequestedMonsters) return;
+    setHasRequestedMonsters(true);
+    setIsLoadingMonsters(true);
+    loadBestiaryIndex()
+      .then(data => setLoadedMonsters(data.monsters))
+      .catch(() => setLoadedMonsters([]))
+      .finally(() => setIsLoadingMonsters(false));
+  }, [hasRequestedMonsters, shouldLoadMonsters]);
 
   // Group features by name for source disambiguation
   const featureGroups = useMemo(() => {
@@ -649,6 +670,8 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
       {/* Results */}
       {!shouldShowResults ? (
         <p className="text-center text-gray-400 text-xs py-4">{t('search.hint')}</p>
+      ) : isMonsterSearchPending && totalCount === 0 ? (
+        <p className="text-center text-gray-400 text-xs py-4">{t('search.loadingMonsters')}</p>
       ) : totalCount === 0 ? (
         <p className="text-center text-gray-400 text-xs py-4">{t('search.noResults')}</p>
       ) : (

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-27T14:44:45.860Z",
+  "generatedAt": "2026-06-28T15:26:09.126Z",
   "classes": [
     {
       "key": "Barbarian",
@@ -35655,6 +35655,9 @@
       "resist": [
         "毒素"
       ],
+      "conditionImmune": [
+        "疾病"
+      ],
       "toolProficiencies": [
         {
           "any": 2
@@ -40057,6 +40060,12 @@
       "size": [
         "M"
       ],
+      "immune": [
+        "毒素"
+      ],
+      "conditionImmune": [
+        "中毒"
+      ],
       "toolProficiencies": [
         {
           "poisoner's kit": true
@@ -41980,6 +41989,9 @@
       "resist": [
         "毒素"
       ],
+      "conditionImmune": [
+        "疾病"
+      ],
       "skillProficiencies": [
         {
           "any": 1
@@ -42099,6 +42111,12 @@
         "M"
       ],
       "darkvision": 60,
+      "immune": [
+        "毒素"
+      ],
+      "conditionImmune": [
+        "中毒"
+      ],
       "languageProficiencies": [
         {
           "common": true,

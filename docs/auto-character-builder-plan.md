@@ -56,7 +56,7 @@
 
 - `set`: 设置数值或字符串路径, 如 `armorBase`, `hpCurrent`, `abilities.STR`
 - `addNumber`: 对数值路径叠加, 可反向撤销
-- `addTextEntry`: 对结构化字符串列表追加条目, 可反向撤销, 当前用于 `damageResistances` 与 `senses`
+- `addTextEntry`: 对结构化字符串列表追加条目, 可反向撤销, 当前用于 `damageResistances`, `damageImmunities`, `damageVulnerabilities`, `conditionImmunities` 与 `senses`
 - `setStringField`: 设置 race, subrace, background, bodyType
 - `setClasses`: 设置多职业列表
 - `setAutomation`: 设置自动化元数据
@@ -88,6 +88,9 @@
 - 武器精通选择与加入
 - 多职业升级时的职业列表, 熟练, 生命值, 生命骰更新
 - 种族黑暗视觉和伤害抗性现在会写入结构化 `senses` 与 `damageResistances`, 同时保留特性描述
+- 种族伤害免疫, 伤害易伤, 状态免疫, 特殊感官会写入结构化列表, 同时保留特性描述
+- 种族固定武器熟练会去除 5etools 来源后缀后写入 `proficiencies`, 可被装备攻击熟练判断复用
+- 种族和专长的选择型武器熟练会从 5etools `weaponProficiencies.choose` 生成选择项, 并通过 `addProficiency` 应用
 
 当前实现遵循“不可直接改散字段, 通过调整操作生成最终角色卡”的方向, 但还没有覆盖每个特性或专长的全部数值效果。
 
@@ -139,12 +142,14 @@
 - 副手武器装备失败原因已由 `utils/equipmentRules.ts` 提供, UI 会禁用按钮并显示原因
 - `audit:equipment-behavior` 已覆盖基础装备互斥, 攻击条目, 以及部分攻击数值公式回归检查
 - `audit:equipment-behavior` 已覆盖普通武器在属性和战斗风格变化后的刷新重算
+- `audit:equipment-behavior` 已覆盖投掷, 弹药, 装填, 触及, 两用和特殊武器条目备注
+- `audit:equipment-behavior` 已覆盖副手攻击命中公式, 以及中文武器名熟练添加/撤销后的刷新重算
 
 需要继续验证和补齐的点:
 
 - 装备后的普通主手和副手攻击会因 `refreshCharacterAutomation` 重算, 魔法武器攻击已与普通主手武器和其他魔法武器互斥。
-- 魔法武器刷新重算仍需要更细设计, 因为当前魔法武器 sourceId 绑定背包物品而不是基础武器 ID。
-- 武器熟练 key 同时存在英文和中文路径, 需要继续统一规范。基础熟练命中加值已有装备行为审计覆盖。
+- 模板魔法武器和独立魔法武器都已能刷新重算。独立魔法武器通过攻击条目上的轻量武器快照恢复。
+- 武器熟练 key 已支持英文键, 中文武器名, 中文/英文武器类别。后续若加入更多别名来源, 仍应继续走统一熟练判断 helper。
 
 ### 5. 5e 与 5r 区分
 
@@ -185,6 +190,7 @@
 - 搜索结果没有复用 5etools 的 `search/index.json` 或 `omnidexer` 元数据, 当前是应用内数组过滤。
 - 怪物详情已显示 statblock 摘要字段, 但未复用 5etools 原站的完整渲染器。
 - 搜索筛选控件已按当前规则版本处理 5e/5r 来源优先级, 同名搜索结果已按来源优先级去重。
+- 怪物索引已从应用启动加载改为 SearchPanel 按需加载。
 
 ## 当前验证状态
 
@@ -393,6 +399,92 @@
 - 本阶段仍保留原有 `featureEntries` 描述, 因为抗性和黑暗视觉的规则文字需要在角色特性区可读.
 - 该阶段不新增免疫, 状态免疫, 条件优势等字段, 后续可以沿用同一操作模式扩展.
 
+## 阶段 3e 记录
+
+状态: 已完成.
+
+范围: 种族固定熟练 key 规范化.
+
+改动:
+
+- `createFixedProficiencyOperations` 现在使用 `normalizeEntityRef`, 会去除 5etools 固定熟练 key 中的来源后缀, 如 `battleaxe|phb`.
+- 种族, 亚种族, 背景, 专长的固定工具, 语言, 武器, 护甲熟练都会复用同一规范化路径.
+- 扩展 `scripts/audit-origin-structured-behavior.mjs`, 通过 PHB 矮人 + PHB 法师真实 1 级建卡路径验证:
+  - 矮人战斗训练写入 `weapon:battleaxe`.
+  - 角色卡不保留 `weapon:battleaxe|phb`.
+  - 装备 PHB 战斧后, 命中会获得熟练加值.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+- `npm run audit:equipment-behavior`
+- `npm run audit:character-data`
+- `npm run build`
+
+说明:
+
+- 本阶段没有新增 UI 选择, 只修正已有固定熟练的规范化和数值联动.
+- 选择型武器熟练, 如 PHB `Weapon Master`, 仍需后续单独接入可选武器列表.
+
+## 阶段 3f 记录
+
+状态: 已完成.
+
+范围: 选择型武器熟练.
+
+改动:
+
+- 新增 `AutoBuilderWeaponChoiceSelection`, 用于保存按组选择的武器 id.
+- 新增 `getOriginWeaponChoiceOptions` 与 `getFeatWeaponChoiceOptions`, 从 5etools `weaponProficiencies.choose` 生成可选武器.
+- 当前支持 `choose.from` 和 `choose.fromFilter`; 对 `fromFilter` 中的军用/简易武器条件使用当前武器表解析.
+- `fromFilter` 解析会按规则版本优先来源排序并按武器 key 去重, 5r 下同名武器优先 XPHB.
+- `createRaceChoiceOperations`, `createChosenFeatOperations`, `createAbilityScoreImprovementOperations` 会把所选武器写入 `addProficiency`.
+- `AutoCharacterBuilder` 在种族选择, 起源专长, 种族赠专长, 战斗风格赠专长, ASI 专长位置显示武器熟练选择.
+- 扩展 `audit-origin-structured-behavior`, 验证 VGM 大地精可选择两项军用武器并应用所选熟练.
+- 扩展 `audit-feat-behavior`, 验证 PHB `Weapon Master` 暴露四项武器选择, 应用所选战斧熟练, 影响装备攻击命中, 且 5r 武器选择列表优先 XPHB 同名武器.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+- `npm run audit:feat-behavior`
+- `npm run audit:equipment-behavior`
+- `npm run build`
+
+说明:
+
+- 本阶段选择值使用武器 id, 应用到角色卡时写为 `weapon:${weapon.key.toLowerCase()}`.
+- `fromFilter` 解析当前只覆盖已出现的数据形态, 即军用/简易基础武器筛选; 更复杂的过滤语法后续再按真实数据扩展.
+
+## 阶段 3g 记录
+
+状态: 已完成.
+
+范围: 种族免疫, 易伤和特殊感官结构化.
+
+改动:
+
+- `CharacterData` 新增 `damageImmunities`, `damageVulnerabilities`, `conditionImmunities`.
+- `TextListAdjustmentPath` 扩展到伤害免疫, 伤害易伤, 状态免疫, 继续复用 `addTextEntry` 的可撤销逻辑.
+- `scripts/extract-5etools-character-data.mjs` 现在从 5etools 种族/亚种族数据抽取 `immune`, `vulnerable`, `conditionImmune`, `blindsight`, `tremorsense`, `truesight`.
+- `createOriginStructuredFeatureOperations` 会把固定免疫, 易伤, 状态免疫和特殊感官写入结构化字段, 并加入对应特性描述.
+- `FeaturesBox` 显示伤害免疫, 伤害易伤和状态免疫.
+- `characterStorage` 为旧角色补默认结构化列表.
+- `public/data/auto-builder-core.json` 已重新抽取, 当前官方扩展数据中包含自动侏儒的疾病免疫, 纯血原体蛇人的毒素伤害免疫和中毒状态免疫.
+- 扩展 `audit-origin-structured-behavior`, 验证自动侏儒状态免疫可撤销, 纯血原体蛇人伤害免疫和状态免疫会结构化写入.
+- 扩展 `audit-character-data`, 验证抽取数据中存在种族伤害免疫和状态免疫元数据.
+
+已通过验证:
+
+- `npm run extract:5etools`
+- `npm run audit:origin-structured-behavior`
+- `npm run audit:character-data`
+- `npm run build`
+
+说明:
+
+- 当前官方白名单内没有伤害易伤或特殊感官样例, 但运行时和抽取字段已接入; 后续若来源白名单加入对应数据, 会自动进入结构化路径.
+- 本阶段只处理固定字符串条目, 不自动解析复杂 choose 或条件性免疫文本.
+
 ## 阶段 4a 记录
 
 状态: 已完成。
@@ -599,6 +691,109 @@
 
 - 本阶段不改变独立魔法武器路径, 因为该路径还没有完整基础武器快照.
 - 当前双武器规则仍按 5e/5r 的轻型主手约束处理, 未扩展到更复杂的专长或武器属性例外.
+
+## 阶段 4i 记录
+
+状态: 已完成.
+
+范围: 武器特性备注和特殊条目摘要.
+
+改动:
+
+- 触及武器的攻击备注从 `触及` 改为 `触及 10 尺`, 明确攻击距离含义.
+- `summarizeWeaponEntries` 现在可以递归提取 5etools `entries` 对象, 不再只处理纯字符串.
+- 特殊武器如捕网的 `entries` 正文会进入攻击备注.
+- 扩展 `scripts/audit-equipment-behavior.mjs`, 通过真实武器夹具验证:
+  - 投掷武器备注包含投掷射程.
+  - 弹药/装填武器备注包含弹药, 装填和射程.
+  - 触及武器备注包含 10 尺触及.
+  - 两用武器伤害显示双手伤害选项.
+  - 特殊武器备注包含特殊条目摘要.
+
+已通过验证:
+
+- `npm run audit:equipment-behavior`
+
+说明:
+
+- 本阶段不改变攻击数值公式, 只补齐攻击栏中的武器特性可读性和回归覆盖.
+
+## 阶段 4j 记录
+
+状态: 已完成.
+
+范围: 独立魔法武器刷新重算.
+
+改动:
+
+- `Attack` 新增 `magicWeaponSnapshot`, 用于保存独立魔法武器的轻量武器数据.
+- `equipMagicWeapon` 对非模板魔法武器写入 `magicWeaponSnapshot`.
+- `refreshEquippedMagicWeapons` 现在可以通过 `magicWeaponSnapshot` 重建独立魔法武器攻击.
+- 副手冲突判断可读取独立魔法武器快照, 不再一律因为缺少基础武器 ID 而保守阻止.
+- 扩展 `scripts/audit-equipment-behavior.mjs`, 覆盖:
+  - 独立魔法武器保存快照.
+  - 独立魔法武器随 STR 变化刷新命中和伤害.
+  - 轻型独立魔法主手允许轻型副手.
+  - 非轻型独立魔法主手移除并阻止副手.
+
+已通过验证:
+
+- `npm run audit:equipment-behavior`
+
+说明:
+
+- 模板魔法武器继续使用 `magicBaseWeaponId`.
+- 独立魔法武器使用快照路径, 避免依赖背包物品 ID 回查基础武器.
+
+## 阶段 4k 记录
+
+状态: 已完成.
+
+范围: 重型武器规则提示.
+
+改动:
+
+- `utils/equipmentRules.ts` 新增重型武器规则备注.
+- PHB/5e 重型武器会提示小型或更小体型生物攻击检定具有劣势; 当前角色体型为小型时, 攻击备注会明确显示当前体型触发劣势.
+- XPHB/5r 重型武器按武器类型区分属性门槛: 近战需力量 13, 远程需敏捷 13.
+- 当 XPHB/5r 重型武器对应属性低于 13 时, 攻击备注会明确显示当前属性触发劣势.
+- 扩展 `scripts/audit-equipment-behavior.mjs`, 使用真实 PHB 重型近战武器和 XPHB 重型远程武器验证备注.
+
+已通过验证:
+
+- `npm run audit:equipment-behavior`
+- `npm run audit:character-data`
+- `npm run build`
+
+说明:
+
+- 本阶段只在攻击备注中提示劣势条件, 不改命中加值公式.
+- 如果后续角色卡加入优势/劣势结构化字段, 可把当前备注逻辑迁移为可计算状态.
+
+## 阶段 4l 记录
+
+状态: 已完成.
+
+范围: 副手命中公式与武器熟练刷新.
+
+改动:
+
+- 修正副手攻击命中公式: 命中检定现在始终包含攻击属性调整值, 只有副手伤害在没有双武器战斗风格时不加属性调整值.
+- `isWeaponProficient` 现在会识别中文武器名熟练 key, 如 `weapon:鞭子`.
+- `isWeaponProficient` 对英文 key 做大小写兼容, 避免 `weapon:Whip` 与 `weapon:whip` 分叉.
+- 扩展 `scripts/audit-equipment-behavior.mjs`, 验证副手攻击命中包含属性调整值和熟练加值.
+- 扩展同一审计脚本, 通过 `applyCharacterAdjustments`/`removeCharacterAdjustments` 添加和撤销中文武器名熟练, 验证 `refreshCharacterAutomation` 会重算主手命中.
+
+已通过验证:
+
+- `npm run audit:equipment-behavior`
+- `npm run audit:character-data`
+- `npm run build`
+
+说明:
+
+- 本阶段没有改变副手伤害规则; 默认副手伤害仍不加属性调整值, 有双武器战斗风格时才加入.
+- 熟练判断仍以角色的 `proficiencies` 集合为权威来源, 没有新增角色字段.
 
 ## 阶段 5a 记录
 
@@ -882,6 +1077,32 @@
 - 这不是 5etools 原站完整渲染器, 但已经让搜索详情从轻量摘要提升到可读 statblock 摘要.
 - 索引体积显著增加, 后续搜索阶段应优先考虑怪物详情按需加载或拆分索引.
 
+## 阶段 6d 记录
+
+状态: 已完成.
+
+范围: 怪物索引按需加载.
+
+改动:
+
+- `App.tsx` 不再在应用启动时调用 `loadBestiaryIndex`.
+- `SearchPanel` 内部维护怪物索引加载状态.
+- 当用户打开 monsters tab, 或在 all tab 执行搜索/筛选时, 才首次加载 `bestiary-index.json`.
+- 同一个 `SearchPanel` 生命周期内只请求一次怪物索引.
+- 加入怪物索引加载中的提示文案.
+- 新增 `scripts/audit-search-lazy-loading.mjs`.
+- 新增 `npm run audit:search-lazy-loading`.
+
+已通过验证:
+
+- `npm run audit:search-lazy-loading`
+- `npm run build`
+
+说明:
+
+- 本阶段降低首屏网络负担, 但 `bestiary-index.json` 本身仍是单个大文件.
+- 后续若要继续压缩搜索成本, 应拆分轻量怪物索引和按需详情文件.
+
 ## 后续阶段计划
 
 ### 阶段 1: 稳定数据与验证入口
@@ -915,7 +1136,7 @@
 
 目标: 每个特性, 专长, 武器, 物品尽量通过统一接口调整角色卡, 且可撤销。
 
-状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段。
+状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化, 阶段 3f 已完成选择型武器熟练, 阶段 3g 已完成种族免疫, 易伤和特殊感官结构化。
 
 任务:
 
@@ -945,13 +1166,16 @@
 
 阶段 3d 已完成的部分:
 
-- `CharacterData` 新增 `damageResistances` 与 `senses` 结构化列表。
+- `CharacterData` 新增 `damageResistances`, `damageImmunities`, `damageVulnerabilities`, `conditionImmunities` 与 `senses` 结构化列表。
 - `AdjustmentOperation` 新增 `addTextEntry`, 通过 previousExists 保护已有同名条目, 并支持随 `sourceId` 撤销。
 - 种族/亚种族固定黑暗视觉写入 `senses`, 固定抗性写入 `damageResistances`。
+- 种族/亚种族固定伤害免疫, 伤害易伤, 状态免疫和特殊感官写入对应结构化列表。
 - 种族选择型抗性也写入 `damageResistances`。
+- 固定熟练 key 会去掉 5etools 来源后缀, 如 `battleaxe|phb` 写入为 `weapon:battleaxe`。
+- 选择型武器熟练会显示武器选择 UI, 并通过 `addProficiency` 写入所选武器熟练。
 - 黑暗视觉和抗性仍保留 `featureEntries` 描述, 避免丢失规则文字。
 - `FeaturesBox` 显示结构化抗性和感官。
-- 新增 `npm run audit:origin-structured-behavior`, 通过真实建卡路径验证 MPMM `Aasimar` 和 PHB `Dragonborn` 的结构化字段与撤销行为。
+- 新增 `npm run audit:origin-structured-behavior`, 通过真实建卡路径验证 MPMM `Aasimar`, PHB `Dragonborn`, PHB `Dwarf` 的结构化字段, 固定武器熟练与撤销行为。
 
 阶段 3 后续建议:
 
@@ -962,15 +1186,15 @@
 
 目标: 装备后攻击栏稳定显示正确数值和特性。
 
-状态: 进行中。阶段 4a 已完成基础装备冲突规则, 阶段 4b 已完成魔法武器攻击生成模块化, 阶段 4c 已完成副手装备失败提示, 阶段 4d 已完成装备行为回归审计, 阶段 4e 已完成攻击数值审计增强, 阶段 4f 已完成普通武器刷新重算审计, 阶段 4g 已完成模板魔法武器刷新重算, 阶段 4h 已完成模板魔法武器副手冲突细化。
+状态: 进行中。阶段 4a 已完成基础装备冲突规则, 阶段 4b 已完成魔法武器攻击生成模块化, 阶段 4c 已完成副手装备失败提示, 阶段 4d 已完成装备行为回归审计, 阶段 4e 已完成攻击数值审计增强, 阶段 4f 已完成普通武器刷新重算审计, 阶段 4g 已完成模板魔法武器刷新重算, 阶段 4h 已完成模板魔法武器副手冲突细化, 阶段 4i 已完成武器特性备注和特殊条目摘要, 阶段 4j 已完成独立魔法武器刷新重算, 阶段 4k 已完成重型武器规则提示, 阶段 4l 已完成副手命中公式和武器熟练刷新审计。
 
 任务:
 
 1. 已补主手, 副手, 盾牌, 双手武器冲突检查。
 2. 已按规则限制副手武器为轻型, 且 UI 会显示无法装备的原因。
 3. 已将魔法武器攻击生成合并到 `equipmentRules.ts`, 避免 UI 层手写攻击计算。
-4. 补充投掷, 弹药, 装填, 触及, 两用, 重型, 特殊武器的显示和备注。
-5. 已添加装备行为审计样例, 覆盖基础互斥, 攻击条目, 熟练加值, 属性加值, 箭术, 对决, 魔法武器加值, 普通武器刷新, 模板魔法武器随属性变化刷新, 以及模板魔法武器与副手的轻型冲突。未完成: 独立魔法武器刷新和更完整的熟练变化重算。
+4. 已补充投掷, 弹药, 装填, 触及, 两用, 特殊武器, 重型武器的显示和备注审计。
+5. 已添加装备行为审计样例, 覆盖基础互斥, 攻击条目, 熟练加值, 属性加值, 箭术, 对决, 魔法武器加值, 普通武器刷新, 模板魔法武器随属性变化刷新, 独立魔法武器随属性变化刷新, 魔法武器与副手的轻型冲突, 常见武器特性备注, 副手命中公式, 以及武器熟练添加/撤销后的刷新重算。
 
 ### 阶段 5: 施法职业逐职业核对
 
@@ -991,7 +1215,7 @@
 
 目标: 搜索从当前应用内搜索扩展为轻量资料检索。
 
-状态: 进行中。阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重。
+状态: 进行中。阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重。
 
 任务:
 
@@ -1000,7 +1224,8 @@
 3. 已在 `SearchPanel` 新增 monsters tab。
 4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR。
 5. 已让怪物详情显示 statblock 摘要, 包含属性, 豁免/技能, 感官/语言, 特性, 施法, 动作等分节。
-6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。未完成: 搜索数据懒加载和 5etools 原站级完整怪物渲染。
+6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。
+7. 已将怪物索引改为搜索面板按需加载。未完成: 拆分轻量索引/详情文件和 5etools 原站级完整怪物渲染。
 
 ### 阶段 7: 来源优先级和同名去重
 

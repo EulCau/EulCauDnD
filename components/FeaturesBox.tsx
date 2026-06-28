@@ -67,7 +67,11 @@ export const FeaturesBox: React.FC<FeaturesBoxProps> = ({ data, onChange, onRemo
           </div>
         </div>
       )}
-      {(data.damageResistances.length > 0 || data.senses.length > 0) && (
+      {(data.damageResistances.length > 0
+        || data.damageImmunities.length > 0
+        || data.damageVulnerabilities.length > 0
+        || data.conditionImmunities.length > 0
+        || data.senses.length > 0) && (
         <div className="border-b border-gray-200 pb-2">
           <h3 className="text-[10px] text-gray-500 uppercase font-bold text-center mb-2">
             结构化特性
@@ -80,6 +84,42 @@ export const FeaturesBox: React.FC<FeaturesBoxProps> = ({ data, onChange, onRemo
                   {data.damageResistances.map(resistance => (
                     <span key={resistance} className="bg-red-50 border border-red-100 text-red-700 rounded px-1.5 py-0.5">
                       {resistance}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {data.damageImmunities.length > 0 && (
+              <div>
+                <div className="text-[9px] font-bold text-gray-400 uppercase mb-1">伤害免疫</div>
+                <div className="flex flex-wrap gap-1">
+                  {data.damageImmunities.map(immunity => (
+                    <span key={immunity} className="bg-emerald-50 border border-emerald-100 text-emerald-700 rounded px-1.5 py-0.5">
+                      {immunity}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {data.damageVulnerabilities.length > 0 && (
+              <div>
+                <div className="text-[9px] font-bold text-gray-400 uppercase mb-1">伤害易伤</div>
+                <div className="flex flex-wrap gap-1">
+                  {data.damageVulnerabilities.map(vulnerability => (
+                    <span key={vulnerability} className="bg-orange-50 border border-orange-100 text-orange-700 rounded px-1.5 py-0.5">
+                      {vulnerability}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {data.conditionImmunities.length > 0 && (
+              <div>
+                <div className="text-[9px] font-bold text-gray-400 uppercase mb-1">状态免疫</div>
+                <div className="flex flex-wrap gap-1">
+                  {data.conditionImmunities.map(immunity => (
+                    <span key={immunity} className="bg-purple-50 border border-purple-100 text-purple-700 rounded px-1.5 py-0.5">
+                      {immunity}
                     </span>
                   ))}
                 </div>

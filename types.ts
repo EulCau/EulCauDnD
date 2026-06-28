@@ -29,7 +29,27 @@ export interface Attack {
 	  magicBonus?: number;
 	  magicDetailName?: string;
 	  magicTemplate?: boolean;
+	  magicWeaponSnapshot?: AttackWeaponSnapshot;
 	}
+
+export interface AttackWeaponSnapshot {
+  id: string;
+  key: string;
+  name: string;
+  englishName?: string;
+  source: string;
+  ruleSystem: RuleSystem;
+  weaponCategory?: string;
+  type?: string;
+  property?: Array<string | { uid?: string; note?: string }>;
+  mastery?: string[];
+  dmg1?: string;
+  dmg2?: string;
+  dmgType?: string;
+  bonusWeapon?: string;
+  range?: string;
+  entries?: unknown[];
+}
 
 	export interface Currency {
 	  cp: string;
@@ -87,6 +107,9 @@ export type AdjustmentPath =
 
 export type TextListAdjustmentPath =
   | 'damageResistances'
+  | 'damageImmunities'
+  | 'damageVulnerabilities'
+  | 'conditionImmunities'
   | 'senses';
 
 export type AdjustmentOperation =
@@ -304,6 +327,9 @@ export interface CharacterData {
   // Features & Traits
   features: string;
   damageResistances: string[];
+  damageImmunities: string[];
+  damageVulnerabilities: string[];
+  conditionImmunities: string[];
   senses: string[];
   featureEntries: CharacterFeatureEntry[];
   resources: CharacterResource[];
@@ -410,6 +436,9 @@ export const INITIAL_CHARACTER: CharacterData = {
   },
   features: "",
   damageResistances: [],
+  damageImmunities: [],
+  damageVulnerabilities: [],
+  conditionImmunities: [],
   senses: [],
   featureEntries: [],
   resources: [],
