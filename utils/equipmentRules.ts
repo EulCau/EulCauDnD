@@ -281,15 +281,20 @@ export const isWeaponProficient = (character: CharacterData, weapon: AutoBuilder
 
   const category = weapon.weaponCategory;
   const englishKey = weapon.englishName?.toLowerCase();
+  const normalizedProficiencies = new Set([
+    ...Array.from(character.proficiencies),
+    ...Array.from(character.proficiencies).map(key => key.toLowerCase()),
+  ]);
   const keys = [
     category ? `weapon:${category}` : '',
     category === 'simple' ? 'weapon:简易' : '',
     category === 'martial' ? 'weapon:军用' : '',
     englishKey ? `weapon:${englishKey}` : '',
+    `weapon:${weapon.name}`,
     `weapon:${weapon.key.toLowerCase()}`,
   ].filter(Boolean);
 
-  return keys.some(key => character.proficiencies.has(key));
+  return keys.some(key => normalizedProficiencies.has(key) || normalizedProficiencies.has(key.toLowerCase()));
 };
 
 const formatDamage = (character: CharacterData, weapon: AutoBuilderWeapon): string => {
@@ -740,7 +745,7 @@ export const equipWeapon = (
 	  const offHandMod = hasTwoWeaponStyle(next) ? abilityMod : 0;
 	  const magicBonus = getWeaponBonus(weapon);
 	  const profBonus = calculateProficiencyBonus(getTotalLevel(next.classes));
-	  const attackBonus = offHandMod + magicBonus + (isWeaponProficient(next, weapon) ? profBonus : 0);
+	  const attackBonus = abilityMod + magicBonus + (isWeaponProficient(next, weapon) ? profBonus : 0);
 	  const damageStr = `${weapon.dmg1 || ''}${offHandMod + magicBonus === 0 ? '' : formatModifier(offHandMod + magicBonus)} ${weapon.dmgType ? (DAMAGE_TYPES[weapon.dmgType] || weapon.dmgType) : ''}`.trim();
 	  const notes = ['副手'];
 	  if (hasTwoWeaponStyle(next) && hasProperty(weapon, 'L')) notes.push('双武器战斗: 可加属性调整值');

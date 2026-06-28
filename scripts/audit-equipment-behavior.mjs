@@ -15,6 +15,10 @@ const projectImport = relativePath => path.join(ROOT, relativePath).replaceAll(p
 const entrySource = `
 import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
+  applyCharacterAdjustments,
+  removeCharacterAdjustments,
+} from '${projectImport('utils/characterAdjustments.ts')}';
+import {
   equipMagicWeapon,
   equipOffHandWeapon,
   equipShield,
@@ -236,6 +240,11 @@ assert(
   character.attacks.some(attack => attack.sourceId === \`equip-weapon-offhand-\${lightWeapon.id}\` && attack.offHand),
   'light off-hand weapon should add an off-hand attack',
 );
+const lightOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
+assert(
+  lightOffHandAttack.bonus === '+6',
+  \`off-hand attack bonus should include ability modifier and proficiency, got \${lightOffHandAttack.bonus}\`,
+);
 character = equipWeapon(character, nonLightWeapon, content);
 assert(
   !character.appliedAdjustments.some(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-')),
@@ -450,6 +459,41 @@ assert(
   \`main weapon damage should refresh after STR change to +4, got \${refreshedStrengthAttack.damage}\`,
 );
 
+character = {
+  ...cloneCharacter(),
+  proficiencies: new Set(),
+};
+character = equipWeapon(character, nonLightWeapon, content);
+let proficiencyRefreshAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(proficiencyRefreshAttack, 'main weapon should add attack without proficiency');
+assert(
+  proficiencyRefreshAttack.bonus === '+3',
+  \`main weapon without proficiency should use only ability modifier +3, got \${proficiencyRefreshAttack.bonus}\`,
+);
+character = applyCharacterAdjustments(character, {
+  id: 'audit-weapon-name-proficiency',
+  sourceId: 'audit-weapon-name-proficiency',
+  sourceName: 'audit weapon proficiency',
+  operations: [
+    { type: 'addProficiency', key: \`weapon:\${nonLightWeapon.name}\` },
+  ],
+});
+character = refreshCharacterAutomation(character, content);
+proficiencyRefreshAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(proficiencyRefreshAttack, 'main weapon should keep attack after adding proficiency');
+assert(
+  proficiencyRefreshAttack.bonus === '+6',
+  \`main weapon should refresh after adding Chinese weapon-name proficiency to +6, got \${proficiencyRefreshAttack.bonus}\`,
+);
+character = removeCharacterAdjustments(character, 'audit-weapon-name-proficiency');
+character = refreshCharacterAutomation(character, content);
+proficiencyRefreshAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(proficiencyRefreshAttack, 'main weapon should keep attack after removing proficiency');
+assert(
+  proficiencyRefreshAttack.bonus === '+3',
+  \`main weapon should refresh after removing proficiency back to +3, got \${proficiencyRefreshAttack.bonus}\`,
+);
+
 character = cloneCharacter();
 character = equipWeapon(character, rangedWeapon, content);
 character = addFeature(character, 'Archery');
@@ -538,6 +582,7 @@ console.log(JSON.stringify({
     'XPHB heavy weapon notes include ability threshold disadvantage',
     'non-light off-hand reports light requirement',
     'light off-hand adds off-hand attack',
+    'off-hand attack bonus includes ability modifier and proficiency',
     'non-light main removes off-hand',
     'shield removes two-handed main',
     'magic weapon replaces ordinary main',
@@ -550,6 +595,7 @@ console.log(JSON.stringify({
     'standalone magic weapon snapshot controls off-hand conflicts',
     'second magic weapon replaces first magic weapon',
     'main weapon refreshes after ability change',
+    'main weapon refreshes after adding and removing Chinese weapon-name proficiency',
     'ranged weapon refreshes after adding archery',
     'off-hand weapon refreshes after adding two-weapon fighting',
   ],
