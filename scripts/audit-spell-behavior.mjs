@@ -15,6 +15,18 @@ const getClass = (key, source) => {
   return cls;
 };
 
+const getSubclass = (classKey, classSource, subclassName, subclassSource) => {
+  const cls = getClass(classKey, classSource);
+  const subclass = content.subclasses.find(item => (
+    item.className === cls.name
+    && item.classSource === cls.source
+    && item.name === subclassName
+    && item.source === subclassSource
+  ));
+  assert(subclass, `missing subclass ${classKey}|${classSource}|${subclassName}|${subclassSource}`);
+  return subclass;
+};
+
 const isPreparedAllClass = cls => (
   cls.preparedSpellsChange === 'restLong'
   && !cls.spellsKnownProgressionFixed?.length
@@ -75,23 +87,40 @@ const isKnownCasterClass = cls => {
   );
 };
 
-const buildAuditedProfileSpells = (cls, level, choices = { cantrips: [], leveled: [] }) => {
+const getAdditionalPreparedSpells = (cls, level, subclass) => {
+  const refs = [
+    ...(cls.additionalPreparedSpells || []),
+    ...(subclass?.additionalPreparedSpells || []),
+  ].filter(ref => ref.mode !== 'expanded' && ref.level <= level);
+  return refs
+    .map(ref => content.spells.find(spell => spell.name === ref.name && spell.source === ref.source))
+    .filter(Boolean);
+};
+
+const buildAuditedProfileSpells = (cls, level, choices = { cantrips: [], leveled: [] }, subclass) => {
   const allOptions = getClassSpellOptions(cls, level);
   const cantripIds = new Set(choices.cantrips || []);
   const leveledIds = new Set(choices.leveled || []);
   const preparedAll = isPreparedAllClass(cls);
   const knownCaster = isKnownCasterClass(cls);
+  const additionalPrepared = getAdditionalPreparedSpells(cls, level, subclass);
   const selected = preparedAll
     ? uniqueSpells([
       ...allOptions.filter(spell => spell.level === 0 && cantripIds.has(spell.id)),
       ...allOptions.filter(spell => spell.level > 0),
+      ...additionalPrepared,
     ])
-    : uniqueSpells(allOptions.filter(spell => cantripIds.has(spell.id) || leveledIds.has(spell.id)));
+    : uniqueSpells([
+      ...allOptions.filter(spell => cantripIds.has(spell.id) || leveledIds.has(spell.id)),
+      ...additionalPrepared,
+    ]);
+  const additionalIds = new Set(additionalPrepared.map(spell => spell.id));
   return selected.map(spell => ({
     id: spell.id,
     name: spell.name,
     level: spell.level,
-    prepared: knownCaster || spell.level === 0,
+    source: spell.source,
+    prepared: knownCaster || additionalIds.has(spell.id) || spell.level === 0,
   }));
 };
 
@@ -150,13 +179,22 @@ for (const [key, source, level] of preparedAllCases) {
     leveled: [],
   });
   const profileIds = new Set(profileSpells.map(spell => spell.id));
+  const additionalIds = new Set(getAdditionalPreparedSpells(cls, level).map(spell => spell.id));
   assert(
     leveledOptions.every(spell => profileIds.has(spell.id)),
     `${key}|${source} level ${level} should add every accessible leveled spell to prepared-all profile`,
   );
   assert(
-    profileSpells.filter(spell => spell.level > 0).every(spell => spell.prepared === false),
+    profileSpells
+      .filter(spell => spell.level > 0 && !additionalIds.has(spell.id))
+      .every(spell => spell.prepared === false),
     `${key}|${source} ordinary prepared-all leveled spells should not be auto-prepared`,
+  );
+  assert(
+    profileSpells
+      .filter(spell => additionalIds.has(spell.id))
+      .every(spell => spell.prepared === true),
+    `${key}|${source} additional prepared spells should be auto-prepared`,
   );
   if (firstCantrip) {
     const selectedCantrip = profileSpells.find(spell => spell.id === firstCantrip.id);
@@ -220,10 +258,41 @@ const xphbWizard = getClass('Wizard', 'XPHB');
 assert(!isPreparedAllClass(xphbWizard), 'XPHB Wizard should use spellbook choices, not full prepared-all class list');
 assert(xphbWizard.spellsKnownProgressionFixed?.[0] === 6, 'XPHB Wizard should learn six 1st-level spells at level 1');
 
+const assertAdditionalPreparedSpell = (profileSpells, name, source, label) => {
+  const spell = profileSpells.find(item => item.name === name && item.source === source);
+  assert(spell, `${label} should add ${name}|${source} to the spell profile`);
+  assert(spell.prepared === true, `${label} should mark ${name}|${source} prepared`);
+};
+
+const xphbRanger = getClass('Ranger', 'XPHB');
+assertAdditionalPreparedSpell(
+  buildAuditedProfileSpells(xphbRanger, 1, { cantrips: [], leveled: [] }),
+  '猎人印记',
+  'XPHB',
+  'XPHB Ranger level 1 class prepared spell',
+);
+
+const lifeDomain = getSubclass('Cleric', 'PHB', '生命领域', 'PHB');
+assertAdditionalPreparedSpell(
+  buildAuditedProfileSpells(getClass('Cleric', 'PHB'), 1, { cantrips: [], leveled: [] }, lifeDomain),
+  '祝福术',
+  'PHB',
+  'PHB Life Domain level 1 subclass prepared spell',
+);
+
+const glamourBard = getSubclass('Bard', 'XPHB', '魅心学院', 'XPHB');
+assertAdditionalPreparedSpell(
+  buildAuditedProfileSpells(getClass('Bard', 'XPHB'), 3, { cantrips: [], leveled: [] }, glamourBard),
+  '魅惑类人',
+  'XPHB',
+  'XPHB College of Glamour level 3 subclass prepared spell',
+);
+
 console.log(JSON.stringify({
   preparedAllCases: preparedAllCases.length,
   knownSelectionCases: knownSelectionCases.length,
   sharedSpellPriorityCase: xphbSpellName,
   wizardFixedLevelOneSpells: wizard.spellsKnownProgressionFixed?.[0],
   xphbWizardFixedLevelOneSpells: xphbWizard.spellsKnownProgressionFixed?.[0],
+  additionalPreparedCases: 3,
 }, null, 2));
