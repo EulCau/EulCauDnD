@@ -13,6 +13,7 @@ import {
     formatWeaponPropertyNames,
     getArmorOptions,
     getItemType,
+    getOffHandWeaponEquipBlockReason,
     getShieldOptions,
     getWeaponOptions,
     isArmorEquipped,
@@ -114,8 +115,12 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
     // Off-hand weapon
     const selectedOffHand = weaponOptions.find(w => w.id === offHandWeaponId) || weaponOptions[0];
     const offHandEquipped = selectedOffHand ? isOffHandWeaponEquipped(data, selectedOffHand) : false;
+    const offHandBlockReason = selectedOffHand && content && !offHandEquipped
+        ? getOffHandWeaponEquipBlockReason(data, selectedOffHand, content)
+        : '';
     const toggleOffHand = () => {
         if (!selectedOffHand || !content) return;
+        if (!offHandEquipped && offHandBlockReason) return;
         onUpdateCharacter(refreshCharacterAutomation(
             offHandEquipped ? unequipOffHandWeapon(data, selectedOffHand) : equipOffHandWeapon(data, selectedOffHand, content),
             content
@@ -429,12 +434,16 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                 </select>
                 <button
                     onClick={toggleOffHand}
-                    disabled={!selectedOffHand}
+                    disabled={!selectedOffHand || Boolean(offHandBlockReason)}
+                    title={offHandBlockReason || undefined}
                     className="px-1.5 py-0.5 text-[9px] uppercase font-bold rounded border border-gray-300 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
                 >
                     {offHandEquipped ? t('equipment.unequip') : t('equipment.equip')}
                 </button>
             </div>
+            {offHandBlockReason && (
+                <div className="mt-1 text-[10px] text-red-600 leading-relaxed">{offHandBlockReason}</div>
+            )}
             {selectedOffHand && offHandEquipped && (
                 <div className="text-[10px] text-gray-500">副手: {selectedOffHand.dmg1} {selectedOffHand.dmgType || ''}</div>
             )}

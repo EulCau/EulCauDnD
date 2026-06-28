@@ -374,6 +374,12 @@ export const isWeaponEquipped = (character: CharacterData, weapon: AutoBuilderWe
 	    ?.replace(/^equip-weapon-/, '')
 	);
 
+	const getEquippedMagicWeaponSourceId = (character: CharacterData): string | undefined => (
+	  character.appliedAdjustments
+	    .map(adjustment => adjustment.sourceId)
+	    .find(sourceId => sourceId.startsWith('equip-magic-'))
+	);
+
 	export const isArmorEquipped = (character: CharacterData, armor: AutoBuilderArmor): boolean => {
   return character.appliedAdjustments.some(adjustment => adjustment.sourceId === `equip-armor-${armor.id}`);
 };
@@ -585,16 +591,32 @@ export const equipWeapon = (
 	  });
 	};
 
+	export const getOffHandWeaponEquipBlockReason = (
+	  character: CharacterData,
+	  weapon: AutoBuilderWeapon,
+	  content: AutoBuilderContent,
+	): string => {
+	  if (!hasProperty(weapon, 'L')) return '副手武器必须具有轻型属性.';
+
+	  const mainHandId = getEquippedMainHandWeaponId(character);
+	  const mainHandWeapon = mainHandId ? content.weapons.find(w => w.id === mainHandId) : undefined;
+	  if (mainHandWeapon && !hasProperty(mainHandWeapon, 'L')) {
+	    return '主手武器不具有轻型属性, 不能进行双武器战斗.';
+	  }
+
+	  if (getEquippedMagicWeaponSourceId(character)) {
+	    return '已装备魔法主手武器, 请先卸下后再装备副手武器.';
+	  }
+
+	  return '';
+	};
+
 	export const equipOffHandWeapon = (
 	  character: CharacterData,
 	  weapon: AutoBuilderWeapon,
 	  content: AutoBuilderContent,
 	): CharacterData => {
-	  if (!hasProperty(weapon, 'L')) return character;
-
-	  const mainHandId = getEquippedMainHandWeaponId(character);
-	  const mainHandWeapon = mainHandId ? content.weapons.find(w => w.id === mainHandId) : undefined;
-	  if (mainHandWeapon && !hasProperty(mainHandWeapon, 'L')) return character;
+	  if (getOffHandWeaponEquipBlockReason(character, weapon, content)) return character;
 
 	  // Unequip any existing off-hand weapon first
 	  let next = character;
