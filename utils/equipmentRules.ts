@@ -46,6 +46,13 @@ const ARMOR_TYPES: Record<string, string> = {
 };
 
 type WeaponProperty = NonNullable<AutoBuilderWeapon['property']>[number];
+type MagicWeaponEquipOptions = {
+  inventoryItemId: string;
+  displayName: string;
+  detailName: string;
+  magicBonus: number;
+  isTemplate: boolean;
+};
 
 const getPropertyUid = (property: WeaponProperty): string => (
   typeof property === 'string' ? property : property.uid || ''
@@ -298,6 +305,32 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   return properties.join(', ');
 };
 
+const createWeaponAttack = (
+  character: CharacterData,
+  weapon: AutoBuilderWeapon,
+  sourceId: string,
+  attackName = weapon.name,
+  sourceName = attackName,
+  notes = formatWeaponNotes(character, weapon),
+): Attack => {
+  const profBonus = calculateProficiencyBonus(getTotalLevel(character.classes));
+  const abilityMod = getAttackAbilityMod(character, weapon);
+  const magicBonus = getWeaponBonus(weapon);
+  const fightingStyleBonus = isRangedWeapon(weapon) && hasFeature(character, ['箭术', 'Archery']) ? 2 : 0;
+  const attackBonus = abilityMod + magicBonus + fightingStyleBonus + (isWeaponProficient(character, weapon) ? profBonus : 0);
+  return {
+    id: `${sourceId}-attack`,
+    sourceId,
+    sourceName,
+    automatic: true,
+    name: attackName,
+    bonus: formatModifier(attackBonus),
+    damage: formatDamage(character, weapon),
+    type: formatWeaponType(weapon),
+    notes,
+  };
+};
+
 export const getWeaponOptions = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
@@ -502,23 +535,8 @@ export const equipWeapon = (
 	    }
 	  }
 
-	  const profBonus = calculateProficiencyBonus(getTotalLevel(next.classes));
-	  const abilityMod = getAttackAbilityMod(next, weapon);
-	  const magicBonus = getWeaponBonus(weapon);
-	  const fightingStyleBonus = isRangedWeapon(weapon) && hasFeature(next, ['箭术', 'Archery']) ? 2 : 0;
-	  const attackBonus = abilityMod + magicBonus + fightingStyleBonus + (isWeaponProficient(next, weapon) ? profBonus : 0);
 	  const sourceId = `equip-weapon-${weapon.id}`;
-	  const attack: Attack = {
-	    id: `${sourceId}-attack`,
-	    sourceId,
-	    sourceName: weapon.name,
-	    automatic: true,
-	    name: weapon.name,
-	    bonus: formatModifier(attackBonus),
-	    damage: formatDamage(next, weapon),
-	    type: formatWeaponType(weapon),
-	    notes: formatWeaponNotes(next, weapon),
-	  };
+	  const attack = createWeaponAttack(next, weapon, sourceId);
 
 	  return applyCharacterAdjustments(next, {
 	    id: sourceId,
@@ -535,6 +553,36 @@ export const equipWeapon = (
 	  weapon: AutoBuilderWeapon,
 	): CharacterData => {
 	  return removeCharacterAdjustments(character, `equip-weapon-${weapon.id}`);
+	};
+
+	export const equipMagicWeapon = (
+	  character: CharacterData,
+	  weapon: AutoBuilderWeapon,
+	  options: MagicWeaponEquipOptions,
+	): CharacterData => {
+	  let next = character;
+	  const existingMainSourceIds = next.appliedAdjustments
+	    .map(adjustment => adjustment.sourceId)
+	    .filter(sourceId => (
+	      (sourceId.startsWith('equip-weapon-') && !sourceId.startsWith('equip-weapon-offhand-'))
+	      || sourceId.startsWith('equip-magic-')
+	    ));
+	  next = existingMainSourceIds.reduce((current, sourceId) => removeCharacterAdjustments(current, sourceId), next);
+
+	  const sourceId = `equip-magic-${options.inventoryItemId}`;
+	  const notes = options.isTemplate
+	    ? `${formatWeaponNotes(next, weapon)}, 魔法武器 ${formatModifier(options.magicBonus)}`
+	    : `${options.detailName}, ${formatWeaponNotes(next, weapon)}`.replace(/, $/, '');
+	  const attack = createWeaponAttack(next, weapon, sourceId, options.displayName, options.displayName, notes);
+
+	  return applyCharacterAdjustments(next, {
+	    id: sourceId,
+	    sourceId,
+	    sourceName: options.displayName,
+	    operations: [
+	      { type: 'addAttack', attack },
+	    ],
+	  });
 	};
 
 	export const equipOffHandWeapon = (

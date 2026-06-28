@@ -1,19 +1,17 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {AdjustmentOperation, Attack, CharacterData, InventoryItem} from '../types';
+import {AdjustmentOperation, CharacterData, InventoryItem} from '../types';
 import {useLanguage} from '../contexts/LanguageContext';
 import {AutoBuilderContent, AutoBuilderWeapon, loadAutoBuilderContent} from '../utils/autoBuilderRules';
 import {applyCharacterAdjustments, removeCharacterAdjustments} from '../utils/characterAdjustments';
-import {calculateProficiencyBonus, formatModifier, getTotalLevel} from '../utils/dndCalculations';
 import {
     equipArmor,
+    equipMagicWeapon,
     equipOffHandWeapon,
     equipShield,
     equipWeapon,
     formatWeaponMasteryNames,
     formatWeaponPropertyNames,
-    formatWeaponType,
     getArmorOptions,
-    getAttackAbilityMod,
     getItemType,
     getShieldOptions,
     getWeaponOptions,
@@ -21,7 +19,6 @@ import {
     isOffHandWeaponEquipped,
     isShieldEquipped,
     isWeaponEquipped,
-    isWeaponProficient,
     refreshAutomaticArmorClass,
     refreshCharacterAutomation,
     refreshEquippedArmor,
@@ -30,8 +27,6 @@ import {
     unequipShield,
     unequipWeapon,
 } from '../utils/equipmentRules';
-
-const DAMAGE_TYPES: Record<string, string> = { B: '钝击', P: '穿刺', S: '挥砍', A: '强酸', C: '寒冷', F: '火焰', L: '闪电', N: '黯蚀', O: '力场', R: '光耀', T: '雷鸣' };
 
 /** Map a magic item's 'requires' field to an armor type code */
 const getArmorTypeFromRequires = (requires: any): string => {
@@ -275,9 +270,17 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
             if (hasRequires) {
                 // Template weapon: needs a base weapon to apply to
                 const baseName = inventoryBaseChoices[invItem.id];
-                weaponData = baseName
+                const baseWeapon = baseName
                     ? autoBuilderContent.weapons.find(w => w.name === baseName)
                     : autoBuilderContent.weapons[0];
+                weaponData = baseWeapon
+                    ? {
+                        ...baseWeapon,
+                        id: `magic-${invItem.id}-${baseWeapon.id}`,
+                        name: `${detail.name} ${baseWeapon.name}`,
+                        bonusWeapon: detail.bonusWeapon || '0',
+                    }
+                    : undefined;
             } else if (detail.dmg1) {
                 // Standalone weapon: use its own data (e.g. Moon Sickle)
                 weaponData = {
@@ -299,37 +302,15 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
             }
             if (!weaponData) return;
 
-            // Equip with baked-in magic bonus. Use a unique sourceId
-            // so refreshEquippedWeapons (which re-equips by base weapon ID) does NOT overwrite it.
-            const magicSourceId = `equip-magic-${invItem.id}`;
-            const profBonus = calculateProficiencyBonus(getTotalLevel(data.classes));
-            const abilityMod = getAttackAbilityMod(data, weaponData);
             const attackName = hasRequires
-                ? `${detail.name} ${weaponData.name}`
+                ? weaponData.name
                 : detail.name;
-            const attackBonus = abilityMod + magicBonus + (isWeaponProficient(data, weaponData) ? profBonus : 0);
-            const attack: Attack = {
-                id: `${magicSourceId}-attack`,
-                sourceId: magicSourceId,
-                sourceName: attackName,
-                automatic: true,
-                name: attackName,
-                bonus: formatModifier(attackBonus),
-                damage: `${weaponData.dmg1 || ''}${magicBonus + abilityMod === 0 ? '' : formatModifier(magicBonus + abilityMod)} ${weaponData.dmgType ? (DAMAGE_TYPES[weaponData.dmgType] || weaponData.dmgType) : ''}`.trim(),
-                type: formatWeaponType(weaponData),
-                notes: hasRequires ? `魔法武器 +${magicBonus}` : detail.name,
-            };
-            // Unequip any existing main weapon first
-            const existingMain = data.appliedAdjustments.find(a => a.sourceId.startsWith('equip-weapon-') && !a.sourceId.startsWith('equip-weapon-offhand-') && !a.sourceId.startsWith('equip-magic-'));
-            let next = data;
-            if (existingMain) {
-                next = removeCharacterAdjustments(next, existingMain.sourceId);
-            }
-            next = applyCharacterAdjustments(next, {
-                id: magicSourceId,
-                sourceId: magicSourceId,
-                sourceName: attack.sourceName,
-                operations: [{ type: 'addAttack', attack }],
+            let next = equipMagicWeapon(data, weaponData, {
+                inventoryItemId: invItem.id,
+                displayName: attackName,
+                detailName: detail.name,
+                magicBonus,
+                isTemplate: Boolean(hasRequires),
             });
             // Apply spell bonuses
             next = applySpellBonuses(next, detail);
