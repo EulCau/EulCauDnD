@@ -20,6 +20,7 @@ import {
   equipShield,
   equipWeapon,
   getOffHandWeaponEquipBlockReason,
+  refreshCharacterAutomation,
 } from '${projectImport('utils/equipmentRules.ts')}';
 import content from '${projectImport('public/data/auto-builder-core.json')}';
 
@@ -210,6 +211,56 @@ assert(
   'equipping a second magic weapon should replace the previous magic weapon',
 );
 
+character = cloneCharacter();
+character = equipWeapon(character, nonLightWeapon, content);
+character = {
+  ...character,
+  abilities: { ...character.abilities, STR: 18 },
+};
+character = refreshCharacterAutomation(character, content);
+const refreshedStrengthAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(refreshedStrengthAttack, 'refreshed main weapon should keep attack');
+assert(
+  refreshedStrengthAttack.bonus === '+7',
+  \`main weapon attack bonus should refresh after STR change to +7, got \${refreshedStrengthAttack.bonus}\`,
+);
+assert(
+  refreshedStrengthAttack.damage.includes('+4'),
+  \`main weapon damage should refresh after STR change to +4, got \${refreshedStrengthAttack.damage}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, rangedWeapon, content);
+character = addFeature(character, 'Archery');
+character = refreshCharacterAutomation(character, content);
+const refreshedArcheryAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(refreshedArcheryAttack, 'refreshed ranged weapon should keep attack');
+assert(
+  refreshedArcheryAttack.bonus === '+7',
+  \`ranged attack bonus should refresh after adding Archery to +7, got \${refreshedArcheryAttack.bonus}\`,
+);
+assert(
+  refreshedArcheryAttack.notes.includes('箭术 +2 命中'),
+  \`ranged attack notes should refresh after adding Archery, got \${refreshedArcheryAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = equipOffHandWeapon(character, lightWeapon, content);
+let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
+assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
+assert(
+  !refreshedOffHandAttack.damage.includes('+3'),
+  \`off-hand damage should initially omit ability modifier, got \${refreshedOffHandAttack.damage}\`,
+);
+character = addFeature(character, 'Two-Weapon Fighting');
+character = refreshCharacterAutomation(character, content);
+refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
+assert(refreshedOffHandAttack, 'refreshed off-hand weapon should keep attack');
+assert(
+  refreshedOffHandAttack.damage.includes('+3'),
+  \`off-hand damage should refresh after Two-Weapon Fighting to include ability modifier, got \${refreshedOffHandAttack.damage}\`,
+);
+
 export default {
   lightWeapon: lightWeapon.name,
   nonLightWeapon: nonLightWeapon.name,
@@ -258,5 +309,8 @@ console.log(JSON.stringify({
     'magic weapon attack bonus and damage',
     'magic weapon blocks off-hand',
     'second magic weapon replaces first magic weapon',
+    'main weapon refreshes after ability change',
+    'ranged weapon refreshes after adding archery',
+    'off-hand weapon refreshes after adding two-weapon fighting',
   ],
 }, null, 2));
