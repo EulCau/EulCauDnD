@@ -11,6 +11,7 @@
 	    "extract:bestiary": "node scripts/extract-bestiary-metadata.mjs",
     "audit:character-data": "node scripts/audit-character-data.mjs",
     "audit:spell-behavior": "node scripts/audit-spell-behavior.mjs",
+    "audit:equipment-behavior": "node scripts/audit-equipment-behavior.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
