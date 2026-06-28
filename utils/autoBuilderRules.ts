@@ -270,7 +270,13 @@ type AutoBuilderOrigin = {
   speed?: number | Record<string, number | boolean>;
   size?: string[];
   darkvision?: number;
+  blindsight?: number;
+  tremorsense?: number;
+  truesight?: number;
   resist?: unknown[];
+  immune?: unknown[];
+  vulnerable?: unknown[];
+  conditionImmune?: unknown[];
   skillProficiencies?: ProficiencyRecord[];
   toolProficiencies?: ProficiencyRecord[];
   languageProficiencies?: ProficiencyRecord[];
@@ -3282,9 +3288,41 @@ const formatMovementModes = (speed: AutoBuilderOrigin['speed']): string[] => {
     .filter(Boolean);
 };
 
-const getFixedResistances = (entity: AutoBuilderOrigin): string[] => (
-  Array.from(new Set((entity.resist || []).filter((entry): entry is string => typeof entry === 'string')))
+const getFixedTextEntries = (entries: unknown[] | undefined): string[] => (
+  Array.from(new Set((entries || []).filter((entry): entry is string => typeof entry === 'string')))
 );
+
+const addStructuredTextEntries = (
+  operations: AdjustmentOperation[],
+  path: 'damageResistances' | 'damageImmunities' | 'damageVulnerabilities' | 'conditionImmunities' | 'senses',
+  values: string[],
+  feature: {
+    sourceId: string;
+    sourceName: string;
+    name: string;
+    description: string;
+    ruleSystem: RuleSystem;
+  },
+): void => {
+  if (!values.length) return;
+  operations.push(...values.map(value => ({
+    type: 'addTextEntry' as const,
+    path,
+    value,
+  })));
+  operations.push({
+    type: 'addFeature',
+    feature: {
+      id: feature.sourceId,
+      sourceId: feature.sourceId,
+      sourceName: feature.sourceName,
+      name: feature.name,
+      level: 1,
+      ruleSystem: feature.ruleSystem,
+      description: feature.description,
+    } satisfies CharacterFeatureEntry,
+  });
+};
 
 const createOriginStructuredFeatureOperations = (
   entity: AutoBuilderOrigin,
@@ -3294,45 +3332,75 @@ const createOriginStructuredFeatureOperations = (
   const operations: AdjustmentOperation[] = [];
   const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
   if (entity.darkvision) {
-    operations.push({
-      type: 'addTextEntry',
-      path: 'senses',
-      value: `黑暗视觉 ${entity.darkvision} 尺`,
+    addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${entity.darkvision} 尺`], {
+      sourceId: `${sourceId}-darkvision`,
+      sourceName: `${entity.name} ${entity.source}`,
+      name: '黑暗视觉',
+      ruleSystem,
+      description: `你拥有 ${entity.darkvision} 尺黑暗视觉.`,
     });
-    operations.push({
-      type: 'addFeature',
-      feature: {
-        id: `${sourceId}-darkvision`,
-        sourceId,
-        sourceName: `${entity.name} ${entity.source}`,
-        name: '黑暗视觉',
-        level: 1,
-        ruleSystem,
-        description: `你拥有 ${entity.darkvision} 尺黑暗视觉.`,
-      } satisfies CharacterFeatureEntry,
+  }
+  if (entity.blindsight) {
+    addStructuredTextEntries(operations, 'senses', [`盲视 ${entity.blindsight} 尺`], {
+      sourceId: `${sourceId}-blindsight`,
+      sourceName: `${entity.name} ${entity.source}`,
+      name: '盲视',
+      ruleSystem,
+      description: `你拥有 ${entity.blindsight} 尺盲视.`,
+    });
+  }
+  if (entity.tremorsense) {
+    addStructuredTextEntries(operations, 'senses', [`震颤感知 ${entity.tremorsense} 尺`], {
+      sourceId: `${sourceId}-tremorsense`,
+      sourceName: `${entity.name} ${entity.source}`,
+      name: '震颤感知',
+      ruleSystem,
+      description: `你拥有 ${entity.tremorsense} 尺震颤感知.`,
+    });
+  }
+  if (entity.truesight) {
+    addStructuredTextEntries(operations, 'senses', [`真实视觉 ${entity.truesight} 尺`], {
+      sourceId: `${sourceId}-truesight`,
+      sourceName: `${entity.name} ${entity.source}`,
+      name: '真实视觉',
+      ruleSystem,
+      description: `你拥有 ${entity.truesight} 尺真实视觉.`,
     });
   }
 
-  const fixedResistances = getFixedResistances(entity);
-  if (fixedResistances.length) {
-    operations.push(...fixedResistances.map(resistance => ({
-      type: 'addTextEntry' as const,
-      path: 'damageResistances' as const,
-      value: resistance,
-    })));
-    operations.push({
-      type: 'addFeature',
-      feature: {
-        id: `${sourceId}-fixed-resistances`,
-        sourceId,
-        sourceName: `${entity.name} ${entity.source}`,
-        name: '伤害抗性',
-        level: 1,
-        ruleSystem,
-        description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
-      } satisfies CharacterFeatureEntry,
-    });
-  }
+  const sourceName = `${entity.name} ${entity.source}`;
+  const fixedResistances = getFixedTextEntries(entity.resist);
+  addStructuredTextEntries(operations, 'damageResistances', fixedResistances, {
+    sourceId: `${sourceId}-fixed-resistances`,
+    sourceName,
+    name: '伤害抗性',
+    ruleSystem,
+    description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
+  });
+  const fixedImmunities = getFixedTextEntries(entity.immune);
+  addStructuredTextEntries(operations, 'damageImmunities', fixedImmunities, {
+    sourceId: `${sourceId}-fixed-immunities`,
+    sourceName,
+    name: '伤害免疫',
+    ruleSystem,
+    description: `你获得对 ${fixedImmunities.join(', ')} 伤害的免疫.`,
+  });
+  const fixedVulnerabilities = getFixedTextEntries(entity.vulnerable);
+  addStructuredTextEntries(operations, 'damageVulnerabilities', fixedVulnerabilities, {
+    sourceId: `${sourceId}-fixed-vulnerabilities`,
+    sourceName,
+    name: '伤害易伤',
+    ruleSystem,
+    description: `你对 ${fixedVulnerabilities.join(', ')} 伤害具有易伤.`,
+  });
+  const fixedConditionImmunities = getFixedTextEntries(entity.conditionImmune);
+  addStructuredTextEntries(operations, 'conditionImmunities', fixedConditionImmunities, {
+    sourceId: `${sourceId}-fixed-condition-immunities`,
+    sourceName,
+    name: '状态免疫',
+    ruleSystem,
+    description: `你免疫 ${fixedConditionImmunities.join(', ')} 状态.`,
+  });
 
   const movementModes = formatMovementModes(entity.speed);
   if (movementModes.length) {

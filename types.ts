@@ -107,6 +107,9 @@ export type AdjustmentPath =
 
 export type TextListAdjustmentPath =
   | 'damageResistances'
+  | 'damageImmunities'
+  | 'damageVulnerabilities'
+  | 'conditionImmunities'
   | 'senses';
 
 export type AdjustmentOperation =
@@ -324,6 +327,9 @@ export interface CharacterData {
   // Features & Traits
   features: string;
   damageResistances: string[];
+  damageImmunities: string[];
+  damageVulnerabilities: string[];
+  conditionImmunities: string[];
   senses: string[];
   featureEntries: CharacterFeatureEntry[];
   resources: CharacterResource[];
@@ -430,6 +436,9 @@ export const INITIAL_CHARACTER: CharacterData = {
   },
   features: "",
   damageResistances: [],
+  damageImmunities: [],
+  damageVulnerabilities: [],
+  conditionImmunities: [],
   senses: [],
   featureEntries: [],
   resources: [],

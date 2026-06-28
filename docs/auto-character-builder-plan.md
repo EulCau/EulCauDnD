@@ -56,7 +56,7 @@
 
 - `set`: 设置数值或字符串路径, 如 `armorBase`, `hpCurrent`, `abilities.STR`
 - `addNumber`: 对数值路径叠加, 可反向撤销
-- `addTextEntry`: 对结构化字符串列表追加条目, 可反向撤销, 当前用于 `damageResistances` 与 `senses`
+- `addTextEntry`: 对结构化字符串列表追加条目, 可反向撤销, 当前用于 `damageResistances`, `damageImmunities`, `damageVulnerabilities`, `conditionImmunities` 与 `senses`
 - `setStringField`: 设置 race, subrace, background, bodyType
 - `setClasses`: 设置多职业列表
 - `setAutomation`: 设置自动化元数据
@@ -88,6 +88,7 @@
 - 武器精通选择与加入
 - 多职业升级时的职业列表, 熟练, 生命值, 生命骰更新
 - 种族黑暗视觉和伤害抗性现在会写入结构化 `senses` 与 `damageResistances`, 同时保留特性描述
+- 种族伤害免疫, 伤害易伤, 状态免疫, 特殊感官会写入结构化列表, 同时保留特性描述
 - 种族固定武器熟练会去除 5etools 来源后缀后写入 `proficiencies`, 可被装备攻击熟练判断复用
 - 种族和专长的选择型武器熟练会从 5etools `weaponProficiencies.choose` 生成选择项, 并通过 `addProficiency` 应用
 
@@ -453,6 +454,36 @@
 
 - 本阶段选择值使用武器 id, 应用到角色卡时写为 `weapon:${weapon.key.toLowerCase()}`.
 - `fromFilter` 解析当前只覆盖已出现的数据形态, 即军用/简易基础武器筛选; 更复杂的过滤语法后续再按真实数据扩展.
+
+## 阶段 3g 记录
+
+状态: 已完成.
+
+范围: 种族免疫, 易伤和特殊感官结构化.
+
+改动:
+
+- `CharacterData` 新增 `damageImmunities`, `damageVulnerabilities`, `conditionImmunities`.
+- `TextListAdjustmentPath` 扩展到伤害免疫, 伤害易伤, 状态免疫, 继续复用 `addTextEntry` 的可撤销逻辑.
+- `scripts/extract-5etools-character-data.mjs` 现在从 5etools 种族/亚种族数据抽取 `immune`, `vulnerable`, `conditionImmune`, `blindsight`, `tremorsense`, `truesight`.
+- `createOriginStructuredFeatureOperations` 会把固定免疫, 易伤, 状态免疫和特殊感官写入结构化字段, 并加入对应特性描述.
+- `FeaturesBox` 显示伤害免疫, 伤害易伤和状态免疫.
+- `characterStorage` 为旧角色补默认结构化列表.
+- `public/data/auto-builder-core.json` 已重新抽取, 当前官方扩展数据中包含自动侏儒的疾病免疫, 纯血原体蛇人的毒素伤害免疫和中毒状态免疫.
+- 扩展 `audit-origin-structured-behavior`, 验证自动侏儒状态免疫可撤销, 纯血原体蛇人伤害免疫和状态免疫会结构化写入.
+- 扩展 `audit-character-data`, 验证抽取数据中存在种族伤害免疫和状态免疫元数据.
+
+已通过验证:
+
+- `npm run extract:5etools`
+- `npm run audit:origin-structured-behavior`
+- `npm run audit:character-data`
+- `npm run build`
+
+说明:
+
+- 当前官方白名单内没有伤害易伤或特殊感官样例, 但运行时和抽取字段已接入; 后续若来源白名单加入对应数据, 会自动进入结构化路径.
+- 本阶段只处理固定字符串条目, 不自动解析复杂 choose 或条件性免疫文本.
 
 ## 阶段 4a 记录
 
@@ -1105,7 +1136,7 @@
 
 目标: 每个特性, 专长, 武器, 物品尽量通过统一接口调整角色卡, 且可撤销。
 
-状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化, 阶段 3f 已完成选择型武器熟练。
+状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化, 阶段 3f 已完成选择型武器熟练, 阶段 3g 已完成种族免疫, 易伤和特殊感官结构化。
 
 任务:
 
@@ -1135,9 +1166,10 @@
 
 阶段 3d 已完成的部分:
 
-- `CharacterData` 新增 `damageResistances` 与 `senses` 结构化列表。
+- `CharacterData` 新增 `damageResistances`, `damageImmunities`, `damageVulnerabilities`, `conditionImmunities` 与 `senses` 结构化列表。
 - `AdjustmentOperation` 新增 `addTextEntry`, 通过 previousExists 保护已有同名条目, 并支持随 `sourceId` 撤销。
 - 种族/亚种族固定黑暗视觉写入 `senses`, 固定抗性写入 `damageResistances`。
+- 种族/亚种族固定伤害免疫, 伤害易伤, 状态免疫和特殊感官写入对应结构化列表。
 - 种族选择型抗性也写入 `damageResistances`。
 - 固定熟练 key 会去掉 5etools 来源后缀, 如 `battleaxe|phb` 写入为 `weapon:battleaxe`。
 - 选择型武器熟练会显示武器选择 UI, 并通过 `addProficiency` 写入所选武器熟练。

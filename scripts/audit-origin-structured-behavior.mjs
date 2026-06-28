@@ -31,6 +31,8 @@ const aasimar = content.races.find(item => item.key === 'Aasimar' && item.source
 const dragonborn = content.races.find(item => item.key === 'Dragonborn' && item.source === 'PHB');
 const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'PHB');
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
+const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
+const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
 
 assert(fighter, 'missing XPHB Fighter');
@@ -41,6 +43,8 @@ assert(aasimar, 'missing MPMM Aasimar fixture');
 assert(dragonborn, 'missing PHB Dragonborn fixture');
 assert(dwarf, 'missing PHB Dwarf fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
+assert(autognome, 'missing AAG Autognome fixture');
+assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
 assert(battleaxe, 'missing PHB Battleaxe fixture');
 
 const baseOptions = {
@@ -144,8 +148,43 @@ assert(
   'Hobgoblin fixed light armor proficiency should still be applied with weapon choices',
 );
 
+const autognomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: autognome,
+});
+assert(
+  autognomeCharacter.conditionImmunities.includes('疾病'),
+  \`Autognome should add structured condition immunity, got \${autognomeCharacter.conditionImmunities.join(', ')}\`,
+);
+assert(
+  autognomeCharacter.damageResistances.includes('毒素'),
+  \`Autognome should keep structured poison resistance, got \${autognomeCharacter.damageResistances.join(', ')}\`,
+);
+const removedAutognome = removeCharacterAdjustments(autognomeCharacter, 'auto-character-5r');
+assert(!removedAutognome.conditionImmunities.includes('疾病'), 'removing auto-character should remove structured condition immunity');
+
+const yuanTiCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: yuanTi,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+assert(
+  yuanTiCharacter.damageImmunities.includes('毒素'),
+  \`Yuan-ti should add structured damage immunity, got \${yuanTiCharacter.damageImmunities.join(', ')}\`,
+);
+assert(
+  yuanTiCharacter.conditionImmunities.includes('中毒'),
+  \`Yuan-ti should add structured poisoned immunity, got \${yuanTiCharacter.conditionImmunities.join(', ')}\`,
+);
+assert(
+  yuanTiCharacter.featureEntries.some(feature => feature.id.endsWith('-fixed-immunities')),
+  'Yuan-ti should still add damage immunity feature description',
+);
+
 export default {
-  races: [aasimar.name, dragonborn.name, dwarf.name, hobgoblin.name],
+  races: [aasimar.name, dragonborn.name, dwarf.name, hobgoblin.name, autognome.name, yuanTi.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -153,6 +192,8 @@ export default {
     'structured origin data keeps feature descriptions',
     'fixed race weapon proficiencies normalize source suffixes and affect attacks',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
+    'fixed condition immunities add reversible structured entries',
+    'fixed damage immunities add structured entries and feature descriptions',
   ],
 };
 `;
