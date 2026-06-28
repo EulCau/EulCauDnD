@@ -575,6 +575,11 @@ export const equipWeapon = (
 	      || sourceId.startsWith('equip-magic-')
 	    ));
 	  next = existingMainSourceIds.reduce((current, sourceId) => removeCharacterAdjustments(current, sourceId), next);
+	  if (!hasProperty(weapon, 'L')) {
+	    next = next.appliedAdjustments
+	      .filter(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-'))
+	      .reduce((current, adjustment) => removeCharacterAdjustments(current, adjustment.sourceId), next);
+	  }
 
 	  const sourceId = `equip-magic-${options.inventoryItemId}`;
 	  const notes = options.isTemplate
@@ -611,8 +616,18 @@ export const equipWeapon = (
 	    return '主手武器不具有轻型属性, 不能进行双武器战斗.';
 	  }
 
-	  if (getEquippedMagicWeaponSourceId(character)) {
-	    return '已装备魔法主手武器, 请先卸下后再装备副手武器.';
+	  const magicSourceId = getEquippedMagicWeaponSourceId(character);
+	  if (magicSourceId) {
+	    const magicAttack = character.attacks.find(attack => attack.sourceId === magicSourceId);
+	    const magicBaseWeapon = magicAttack?.magicBaseWeaponId
+	      ? content.weapons.find(item => item.id === magicAttack.magicBaseWeaponId)
+	      : undefined;
+	    if (!magicBaseWeapon) {
+	      return '已装备魔法主手武器, 且无法判断其基础武器属性, 请先卸下后再装备副手武器.';
+	    }
+	    if (!hasProperty(magicBaseWeapon, 'L')) {
+	      return '魔法主手武器的基础武器不具有轻型属性, 不能进行双武器战斗.';
+	    }
 	  }
 
 	  return '';

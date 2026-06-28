@@ -189,8 +189,22 @@ assert(
   \`+1 magic melee weapon damage should include STR +3 and magic +1, got \${magicAttack.damage}\`,
 );
 assert(
-  getOffHandWeaponEquipBlockReason(character, lightWeapon, content).includes('魔法主手武器'),
-  'magic main hand should block off-hand equip until its base weapon can be tracked',
+  getOffHandWeaponEquipBlockReason(character, lightWeapon, content) === '',
+  'light template magic main hand should allow light off-hand weapon',
+);
+character = equipOffHandWeapon(character, lightWeapon, content);
+assert(
+  character.attacks.some(attack => attack.sourceId === \`equip-weapon-offhand-\${lightWeapon.id}\` && attack.offHand),
+  'light template magic main hand should allow equipping an off-hand attack',
+);
+character = refreshCharacterAutomation(character, content);
+assert(
+  getAttack(character, 'equip-magic-audit-magic-1'),
+  'magic weapon should keep attack after off-hand refresh',
+);
+assert(
+  getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`),
+  'off-hand weapon should keep attack after magic main refresh',
 );
 character = {
   ...character,
@@ -210,6 +224,29 @@ assert(
 assert(
   refreshedMagicAttack.magicBaseWeaponId === lightWeapon.id,
   'refreshed magic weapon attack should keep base weapon metadata',
+);
+
+const nonLightMagicWeapon = {
+  ...nonLightWeapon,
+  id: \`magic-audit-\${nonLightWeapon.id}\`,
+  name: \`+1 \${nonLightWeapon.name}\`,
+  bonusWeapon: '+1',
+};
+character = equipMagicWeapon(character, nonLightMagicWeapon, {
+  inventoryItemId: 'audit-magic-non-light',
+  displayName: nonLightMagicWeapon.name,
+  detailName: '+1 Weapon',
+  magicBonus: 1,
+  isTemplate: true,
+  baseWeaponId: nonLightWeapon.id,
+});
+assert(
+  !character.appliedAdjustments.some(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-')),
+  'non-light template magic weapon should remove existing off-hand weapon',
+);
+assert(
+  getOffHandWeaponEquipBlockReason(character, lightWeapon, content).includes('基础武器不具有轻型属性'),
+  'non-light template magic main hand should block light off-hand weapon',
 );
 
 const secondMagicWeapon = {
@@ -328,8 +365,9 @@ console.log(JSON.stringify({
     'shield removes two-handed main',
     'magic weapon replaces ordinary main',
     'magic weapon attack bonus and damage',
-    'magic weapon blocks off-hand',
+    'light template magic weapon allows off-hand',
     'magic weapon refreshes after ability change',
+    'non-light template magic weapon removes and blocks off-hand',
     'second magic weapon replaces first magic weapon',
     'main weapon refreshes after ability change',
     'ranged weapon refreshes after adding archery',
