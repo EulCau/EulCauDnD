@@ -3,8 +3,9 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const FILES = [
-  'data/character-content/core.json',
-  'public/character-content/auto-builder-core.json',
+  'public/data/core.json',
+  'public/data/auto-builder-core.json',
+  'public/data/bestiary-index.json',
 ];
 const MAX_PUBLIC_AUTO_BUILDER_BYTES = 6 * 1024 * 1024;
 
@@ -39,11 +40,22 @@ const assert = (condition, message) => {
 };
 
 const loaded = FILES.map(readJson);
-const [core, autoBuilder] = loaded;
+const [core, autoBuilder, bestiary] = loaded;
 
 assert(Array.isArray(core.data.spells), 'core.json is missing spells array');
 assert(Array.isArray(autoBuilder.data.spells), 'auto-builder-core.json is missing spells array');
+assert(Array.isArray(bestiary.data.monsters), 'bestiary-index.json is missing monsters array');
 assert(autoBuilder.size <= MAX_PUBLIC_AUTO_BUILDER_BYTES, `auto-builder data is too large: ${formatBytes(autoBuilder.size)}`);
+assert(bestiary.data.monsters.length > 1000, 'bestiary index has too few monsters');
+assert(
+  bestiary.data.monsters.some(monster => monster.source === 'MM')
+    && bestiary.data.monsters.some(monster => monster.source === 'XMM'),
+  'bestiary index should include both MM and XMM monsters',
+);
+assert(
+  bestiary.data.monsters.every(monster => monster.id && monster.name && monster.source),
+  'bestiary index has monsters missing id, name, or source',
+);
 
 const coreSpellSources = countBy(core.data.spells, spell => spell.source);
 const autoBuilderSpellSources = countBy(autoBuilder.data.spells, spell => spell.source);
@@ -60,7 +72,82 @@ for (const ruleSystem of ['5e', '5r']) {
   assert(Array.isArray(autoBuilderRules[ruleSystem]?.fightingStyleSources), `${ruleSystem} fightingStyleSources metadata is missing`);
   assert(Array.isArray(autoBuilderRules[ruleSystem]?.metamagicSources), `${ruleSystem} metamagicSources metadata is missing`);
   assert(Array.isArray(autoBuilderRules[ruleSystem]?.maneuverSources), `${ruleSystem} maneuverSources metadata is missing`);
+  assert(Array.isArray(autoBuilderRules[ruleSystem]?.raceSources), `${ruleSystem} raceSources metadata is missing`);
 }
+
+assert(
+  autoBuilderRules['5e'].primarySources?.[0] === 'PHB',
+  '5e primary source should be PHB',
+);
+assert(
+  autoBuilderRules['5r'].primarySources?.[0] === 'XPHB',
+  '5r primary source should be XPHB',
+);
+assert(
+  autoBuilderRules['5r'].spellSources?.[0] === 'XPHB'
+    && autoBuilderRules['5r'].spellSources?.includes('PHB'),
+  '5r spell source priority should prefer XPHB while allowing PHB',
+);
+assert(
+  autoBuilderRules['5e'].spellSources?.[0] === 'PHB'
+    && !autoBuilderRules['5e'].primarySources?.includes('XPHB'),
+  '5e should use PHB as its primary source and not XPHB',
+);
+
+const classSources = countBy(autoBuilder.data.classes || [], cls => cls.source);
+assert(classSources.PHB === 12, `expected 12 PHB classes, got ${classSources.PHB || 0}`);
+assert(classSources.XPHB === 12, `expected 12 XPHB classes, got ${classSources.XPHB || 0}`);
+
+const raceSources = countBy(autoBuilder.data.races || [], race => race.source);
+assert(raceSources.PHB > 0, 'PHB races are missing');
+assert(raceSources.XPHB > 0, 'XPHB races are missing');
+assert(raceSources.MPMM > 0, 'MPMM extension races are missing');
+assert(raceSources.AAG > 0, 'AAG extension races are missing');
+assert((autoBuilder.data.races || []).length > 30, 'official extension races were not added to auto-builder data');
+assert(
+  (autoBuilder.data.races || []).some(race => race.speed && typeof race.speed === 'object' && typeof race.speed.walk === 'number'),
+  'race object walk speeds are missing',
+);
+assert(
+  (autoBuilder.data.races || []).some(race => Number(race.darkvision) > 0),
+  'race darkvision metadata is missing',
+);
+assert(
+  (autoBuilder.data.races || []).some(race => (race.resist || []).some(entry => typeof entry === 'string')),
+  'race fixed resistance metadata is missing',
+);
+assert(
+  autoBuilderRules['5r'].raceSources?.[0] === 'XPHB'
+    && autoBuilderRules['5r'].raceSources?.includes('MPMM'),
+  '5r race source priority should prefer XPHB while allowing extension races',
+);
+assert(
+  autoBuilderRules['5e'].raceSources?.[0] === 'PHB'
+    && !autoBuilderRules['5e'].raceSources?.includes('XPHB')
+    && autoBuilderRules['5e'].raceSources?.includes('MPMM'),
+  '5e race source priority should prefer PHB, exclude XPHB, and allow extension races',
+);
+
+const hasFeat = (key, source) => (autoBuilder.data.feats || []).some(feat => feat.key === key && feat.source === source);
+assert(hasFeat('Tough', 'PHB'), 'PHB Tough feat is missing');
+assert(hasFeat('Tough', 'XPHB'), 'XPHB Tough feat is missing');
+assert(hasFeat('Alert', 'PHB'), 'PHB Alert feat is missing');
+assert(hasFeat('Alert', 'XPHB'), 'XPHB Alert feat is missing');
+assert(hasFeat('Mobile', 'PHB'), 'PHB Mobile feat is missing');
+assert(hasFeat('Speedy', 'XPHB'), 'XPHB Speedy feat is missing');
+
+const hasWeaponProperty = property => (autoBuilder.data.weapons || []).some(weapon => (
+  (weapon.property || []).some(entry => {
+    const uid = typeof entry === 'string' ? entry : entry?.uid;
+    return String(uid || '').split('|')[0] === property;
+  })
+));
+assert(hasWeaponProperty('2H'), 'two-handed weapon data is missing');
+assert(hasWeaponProperty('L'), 'light weapon data is missing');
+assert(
+  (autoBuilder.data.armors || []).some(armor => String(armor.type || '').split('|')[0] === 'S'),
+  'shield armor data is missing',
+);
 
 const getClass = (key, source) => autoBuilder.data.classes.find(cls => cls.key === key && cls.source === source);
 assert(
@@ -135,8 +222,12 @@ const stats = {
     classlessSpellsWithKnownClassMetadata: classlessSpellsWithKnownClassMetadata.length,
     subclassLinkedSpells: spellsWithSameSourceSubclassMetadata.length,
     spellsMissingSubclassIds: spellsMissingSubclassIds.length,
+    monsters: bestiary.data.monsters.length,
   },
   spellSources: autoBuilderSpellSources,
+  classSources,
+  raceSources,
+  subclassSources: countBy(autoBuilder.data.subclasses || [], subclass => subclass.source),
   invocationSources: countBy(autoBuilder.data.invocations || [], invocation => invocation.source),
   fightingStyleSources: countBy(autoBuilder.data.fightingStyles || [], style => style.source),
   metamagicSources: countBy(autoBuilder.data.metamagics || [], metamagic => metamagic.source),
@@ -155,6 +246,9 @@ const stats = {
   ),
   ruleManeuverSources: Object.fromEntries(
     Object.entries(autoBuilderRules).map(([ruleSystem, rule]) => [ruleSystem, rule.maneuverSources || []]),
+  ),
+  ruleRaceSources: Object.fromEntries(
+    Object.entries(autoBuilderRules).map(([ruleSystem, rule]) => [ruleSystem, rule.raceSources || []]),
   ),
 };
 

@@ -334,6 +334,13 @@ export const isWeaponEquipped = (character: CharacterData, weapon: AutoBuilderWe
 	    ?.replace(/^equip-weapon-offhand-/, '');
 	};
 
+	const getEquippedMainHandWeaponId = (character: CharacterData): string | undefined => (
+	  character.appliedAdjustments
+	    .map(adjustment => adjustment.sourceId)
+	    .find(sourceId => sourceId.startsWith('equip-weapon-') && !sourceId.startsWith('equip-weapon-offhand-'))
+	    ?.replace(/^equip-weapon-/, '')
+	);
+
 	export const isArmorEquipped = (character: CharacterData, armor: AutoBuilderArmor): boolean => {
   return character.appliedAdjustments.some(adjustment => adjustment.sourceId === `equip-armor-${armor.id}`);
 };
@@ -535,8 +542,18 @@ export const equipWeapon = (
 	  weapon: AutoBuilderWeapon,
 	  content: AutoBuilderContent,
 	): CharacterData => {
+	  if (!hasProperty(weapon, 'L')) return character;
+
+	  const mainHandId = getEquippedMainHandWeaponId(character);
+	  const mainHandWeapon = mainHandId ? content.weapons.find(w => w.id === mainHandId) : undefined;
+	  if (mainHandWeapon && !hasProperty(mainHandWeapon, 'L')) return character;
+
 	  // Unequip any existing off-hand weapon first
 	  let next = character;
+	  const shieldSrcId = next.appliedAdjustments
+	    .find(a => a.sourceId.startsWith('equip-shield-'))?.sourceId;
+	  if (shieldSrcId) next = removeCharacterAdjustments(next, shieldSrcId);
+
 	  const existingOffId = getEquippedOffHandWeaponId(next);
 	  if (existingOffId) {
 	    const old = content.weapons.find(w => w.id === existingOffId);
@@ -749,15 +766,16 @@ export const refreshEquippedArmor = (
 export const equipShield = (
 	  character: CharacterData,
 	  shield: AutoBuilderArmor,
+	  content?: AutoBuilderContent,
 	): CharacterData => {
-	  // Conflict: cannot equip shield if main weapon is two-handed
-	  const mainWeaponId = character.appliedAdjustments
-	    .map(a => a.sourceId)
-	    .find(sid => sid.startsWith('equip-weapon-') && !sid.startsWith('equip-weapon-offhand-'))
-	    ?.replace(/^equip-weapon-/, '');
-	  // We can't easily check the weapon's properties here without content,
-	  // so we'll assume the caller handles it. Shield unequips any off-hand weapon.
 	  let next = character;
+	  const mainWeaponId = getEquippedMainHandWeaponId(next);
+	  const mainWeapon = mainWeaponId ? content?.weapons.find(weapon => weapon.id === mainWeaponId) : undefined;
+	  if (mainWeapon && hasProperty(mainWeapon, '2H')) {
+	    next = removeCharacterAdjustments(next, `equip-weapon-${mainWeapon.id}`);
+	  }
+
+	  // Shield occupies the off hand.
 	  const offId = getEquippedOffHandWeaponId(next);
 	  if (offId) {
 	    next = next.appliedAdjustments

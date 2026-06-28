@@ -113,7 +113,7 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
 
     const toggleShield = () => {
         if (!selectedShield || !content) return;
-        onUpdateCharacter(refreshCharacterAutomation(shieldEquipped ? unequipShield(data, selectedShield) : equipShield(data, selectedShield), content));
+        onUpdateCharacter(refreshCharacterAutomation(shieldEquipped ? unequipShield(data, selectedShield) : equipShield(data, selectedShield, content), content));
     };
 
     // Off-hand weapon

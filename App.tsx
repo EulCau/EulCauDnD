@@ -21,6 +21,7 @@ import { normalizeCharacter, parseCharacterJson, serializeCharacter } from './ut
 import { applyCharacterAdjustments, removeCharacterAdjustments } from './utils/characterAdjustments';
 import { loadAutoBuilderContent, type AutoBuilderContent } from './utils/autoBuilderRules';
 import { loadMagicItems, type MagicItemData, type MagicItemsContent } from './utils/magicItems';
+import { loadBestiaryIndex, type BestiaryMonsterData } from './utils/bestiary';
 import { refreshAutomaticArmorClass, refreshAutomaticStyleAttacks, refreshCharacterAutomation } from './utils/equipmentRules';
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
   const [isAutoBuilderOpen, setIsAutoBuilderOpen] = useState(false);
   const [autoBuilderContent, setAutoBuilderContent] = useState<AutoBuilderContent | null>(null);
   const [magicItems, setMagicItems] = useState<MagicItemData[]>([]);
+  const [monsters, setMonsters] = useState<BestiaryMonsterData[]>([]);
 
   // All class and subclass features for search
 	  const allFeatures = useMemo(() => {
@@ -86,6 +88,7 @@ export default function App() {
   useEffect(() => {
     loadAutoBuilderContent().then(setAutoBuilderContent).catch(() => setAutoBuilderContent(null));
     loadMagicItems().then(data => setMagicItems(data.items)).catch(() => {});
+    loadBestiaryIndex().then(data => setMonsters(data.monsters)).catch(() => setMonsters([]));
   }, []);
 
   useEffect(() => {
@@ -370,6 +373,7 @@ export default function App() {
 		            description: item.description,
 		            source: item.source,
 		          }))}
+		          monsters={monsters}
 		          onPurchaseItem={handlePurchaseItem}
 		        />
 		      </div>

@@ -37,31 +37,75 @@ export interface SearchableMagicItem {
   source: string;
 }
 
+export interface SearchableMonster {
+  id: string;
+  name: string;
+  englishName?: string;
+  source: string;
+  size: string;
+  type: string;
+  alignment: string;
+  cr: string;
+  ac: string;
+  hp: number | null;
+  hpFormula: string;
+  speed: string;
+  environment: string[];
+  tags: string[];
+}
+
 interface SearchPanelProps {
   spells: SearchableSpell[];
   features: SearchableFeature[];
   magicItems: SearchableMagicItem[];
+  monsters?: SearchableMonster[];
   onPurchaseItem?: (name: string, source: string) => void;
 }
 
 interface DetailView {
-  type: 'spell' | 'feature' | 'item';
-  data: SearchableSpell | SearchableFeature | SearchableMagicItem;
+  type: 'spell' | 'feature' | 'item' | 'monster';
+  data: SearchableSpell | SearchableFeature | SearchableMagicItem | SearchableMonster;
 }
 
 const TYPE_ICONS: Record<string, string> = {
   spell: '✦',
   feature: '⚜',
   item: '◆',
+  monster: '▣',
 };
 
-const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems, onPurchaseItem }) => {
+const uniqueSorted = (values: Array<string | undefined | null>) => Array.from(new Set(
+  values
+    .map(value => (value || '').trim())
+    .filter(Boolean)
+)).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+
+const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems, monsters = [], onPurchaseItem }) => {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [selectedSources, setSelectedSources] = useState<Record<string, string>>({});
   const [detail, setDetail] = useState<DetailView | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'spells' | 'features' | 'items'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'spells' | 'features' | 'items' | 'monsters'>('all');
   const [recentlyPurchased, setRecentlyPurchased] = useState<Set<string>>(new Set());
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [spellLevelFilter, setSpellLevelFilter] = useState('');
+  const [itemCategoryFilter, setItemCategoryFilter] = useState('');
+  const [itemRarityFilter, setItemRarityFilter] = useState('');
+  const [monsterTypeFilter, setMonsterTypeFilter] = useState('');
+  const [monsterCrFilter, setMonsterCrFilter] = useState('');
+
+  const sourceOptions = useMemo(() => uniqueSorted([
+    ...spells.map(spell => spell.source),
+    ...magicItems.map(item => item.source),
+    ...monsters.map(monster => monster.source),
+  ]), [spells, magicItems, monsters]);
+  const itemCategoryOptions = useMemo(() => uniqueSorted(magicItems.map(item => item.category)), [magicItems]);
+  const itemRarityOptions = useMemo(() => uniqueSorted(magicItems.map(item => item.rarity)), [magicItems]);
+  const monsterTypeOptions = useMemo(() => uniqueSorted(monsters.map(monster => monster.type)), [monsters]);
+  const monsterCrOptions = useMemo(() => uniqueSorted(monsters.map(monster => monster.cr)), [monsters]);
+  const hasActiveFilter = Boolean(sourceFilter || spellLevelFilter || itemCategoryFilter || itemRarityFilter || monsterTypeFilter || monsterCrFilter);
+  const normalizedQuery = query.trim().toLowerCase();
+  const shouldShowResults = Boolean(normalizedQuery || hasActiveFilter);
 
   // Group features by name for source disambiguation
   const featureGroups = useMemo(() => {
@@ -76,37 +120,72 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
 
   // Filter results based on query
   const filteredSpells = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return spells.filter(s =>
-      s.name.toLowerCase().includes(q)
-      || (s.englishName && s.englishName.toLowerCase().includes(q))
-      || (s.description && s.description.toLowerCase().includes(q))
-    ).slice(0, 50);
-  }, [spells, query]);
+    if (!shouldShowResults) return [];
+    const matches = spells.filter(s =>
+      (!sourceFilter || s.source === sourceFilter)
+      && (!spellLevelFilter || String(s.level) === spellLevelFilter)
+      && (
+        !normalizedQuery
+        || s.name.toLowerCase().includes(normalizedQuery)
+        || (s.englishName && s.englishName.toLowerCase().includes(normalizedQuery))
+        || (s.description && s.description.toLowerCase().includes(normalizedQuery))
+      )
+    );
+    return normalizedQuery ? matches.slice(0, 50) : matches;
+  }, [spells, normalizedQuery, shouldShowResults, sourceFilter, spellLevelFilter]);
 
   const filteredFeatures = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return features.filter(f =>
-      f.name.toLowerCase().includes(q)
-      || f.description.toLowerCase().includes(q)
-      || f.sourceName.toLowerCase().includes(q)
-    ).slice(0, 50);
-  }, [features, query]);
+    if (!shouldShowResults) return [];
+    const matches = features.filter(f =>
+      (!sourceFilter || f.sourceName.toLowerCase().includes(sourceFilter.toLowerCase()))
+      && (
+        !normalizedQuery
+        || f.name.toLowerCase().includes(normalizedQuery)
+        || f.description.toLowerCase().includes(normalizedQuery)
+        || f.sourceName.toLowerCase().includes(normalizedQuery)
+      )
+    );
+    return normalizedQuery ? matches.slice(0, 50) : matches;
+  }, [features, normalizedQuery, shouldShowResults, sourceFilter]);
 
   const filteredItems = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return magicItems.filter(item =>
-      item.name.toLowerCase().includes(q)
-      || (item.englishName && item.englishName.toLowerCase().includes(q))
-      || item.description.toLowerCase().includes(q)
-    ).slice(0, 50);
-  }, [magicItems, query]);
+    if (!shouldShowResults) return [];
+    const matches = magicItems.filter(item =>
+      (!sourceFilter || item.source === sourceFilter)
+      && (!itemCategoryFilter || item.category === itemCategoryFilter)
+      && (!itemRarityFilter || item.rarity === itemRarityFilter)
+      && (
+        !normalizedQuery
+        || item.name.toLowerCase().includes(normalizedQuery)
+        || (item.englishName && item.englishName.toLowerCase().includes(normalizedQuery))
+        || item.description.toLowerCase().includes(normalizedQuery)
+      )
+    );
+    return normalizedQuery ? matches.slice(0, 50) : matches;
+  }, [magicItems, normalizedQuery, shouldShowResults, sourceFilter, itemCategoryFilter, itemRarityFilter]);
+
+  const filteredMonsters = useMemo(() => {
+    if (!shouldShowResults) return [];
+    const matches = monsters.filter(monster =>
+      (!sourceFilter || monster.source === sourceFilter)
+      && (!monsterTypeFilter || monster.type === monsterTypeFilter)
+      && (!monsterCrFilter || monster.cr === monsterCrFilter)
+      && (
+        !normalizedQuery
+        || monster.name.toLowerCase().includes(normalizedQuery)
+        || (monster.englishName && monster.englishName.toLowerCase().includes(normalizedQuery))
+        || monster.source.toLowerCase().includes(normalizedQuery)
+        || monster.type.toLowerCase().includes(normalizedQuery)
+        || monster.cr.toLowerCase().includes(normalizedQuery)
+        || monster.environment.some(env => env.toLowerCase().includes(normalizedQuery))
+        || monster.tags.some(tag => tag.toLowerCase().includes(normalizedQuery))
+      )
+    );
+    return normalizedQuery ? matches.slice(0, 50) : matches;
+  }, [monsters, normalizedQuery, shouldShowResults, sourceFilter, monsterTypeFilter, monsterCrFilter]);
 
   const results = useMemo(() => {
-    const items: Array<{ type: 'spell' | 'feature' | 'item'; data: any }> = [];
+    const items: Array<{ type: 'spell' | 'feature' | 'item' | 'monster'; data: any }> = [];
     if (activeTab === 'all' || activeTab === 'spells') {
       for (const s of filteredSpells) items.push({ type: 'spell', data: s });
     }
@@ -116,19 +195,31 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
     if (activeTab === 'all' || activeTab === 'items') {
       for (const i of filteredItems) items.push({ type: 'item', data: i });
     }
+    if (activeTab === 'all' || activeTab === 'monsters') {
+      for (const monster of filteredMonsters) items.push({ type: 'monster', data: monster });
+    }
     items.sort((a, b) => {
       if (a.type !== b.type) return a.type.localeCompare(b.type);
       return a.data.name.localeCompare(b.data.name, 'zh-Hans-CN');
     });
     return items;
-  }, [filteredSpells, filteredFeatures, filteredItems, activeTab]);
+  }, [filteredSpells, filteredFeatures, filteredItems, filteredMonsters, activeTab]);
 
   const clearSearch = useCallback(() => {
     setQuery('');
     setDetail(null);
   }, []);
 
-  const openDetail = useCallback((type: 'spell' | 'feature' | 'item', data: any) => {
+  const clearFilters = useCallback(() => {
+    setSourceFilter('');
+    setSpellLevelFilter('');
+    setItemCategoryFilter('');
+    setItemRarityFilter('');
+    setMonsterTypeFilter('');
+    setMonsterCrFilter('');
+  }, []);
+
+  const openDetail = useCallback((type: 'spell' | 'feature' | 'item' | 'monster', data: any) => {
     if (type === 'feature') {
       const group = featureGroups.get(data.name) || [];
       if (group.length > 1) {
@@ -150,10 +241,11 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
     }
   };
 
-  const totalCount = filteredSpells.length + filteredFeatures.length + filteredItems.length;
+  const totalCount = filteredSpells.length + filteredFeatures.length + filteredItems.length + filteredMonsters.length;
   const totalFeaturesCount = features.length;
   const totalSpellsCount = spells.length;
   const totalItemsCount = magicItems.length;
+  const totalMonstersCount = monsters.length;
 
   const renderDetailContent = () => {
     if (!detail) return null;
@@ -170,6 +262,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
                 {type === 'spell' && `${(data as SearchableSpell).level === 0 ? t('spells.cantrips') : `${t('spells.level')} ${(data as SearchableSpell).level}`} · ${(data as SearchableSpell).source}`}
                 {type === 'feature' && `${(data as SearchableFeature).sourceName}`}
                 {type === 'item' && `${(data as SearchableMagicItem).typeLabel} · ${(data as SearchableMagicItem).rarity} · ${(data as SearchableMagicItem).source}`}
+                {type === 'monster' && `${t('search.cr')} ${(data as SearchableMonster).cr || '-'} · ${(data as SearchableMonster).type} · ${(data as SearchableMonster).source}`}
               </span>
             </div>
           </div>
@@ -236,6 +329,27 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
             </div>
           </div>
         )}
+
+        {type === 'monster' && (
+          <div className="space-y-1 text-xs">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+              <div><span className="font-bold text-gray-600">{t('search.cr')}:</span> {(data as SearchableMonster).cr || '-'}</div>
+              <div><span className="font-bold text-gray-600">{t('search.size')}:</span> {(data as SearchableMonster).size || '-'}</div>
+              <div><span className="font-bold text-gray-600">AC:</span> {(data as SearchableMonster).ac || '-'}</div>
+              <div><span className="font-bold text-gray-600">HP:</span> {(data as SearchableMonster).hp ?? '-'} {(data as SearchableMonster).hpFormula ? `(${(data as SearchableMonster).hpFormula})` : ''}</div>
+              <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.type')}:</span> {(data as SearchableMonster).type || '-'}</div>
+              <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.speed')}:</span> {(data as SearchableMonster).speed || '-'}</div>
+              {(data as SearchableMonster).environment.length ? (
+                <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.environment')}:</span> {(data as SearchableMonster).environment.join(', ')}</div>
+              ) : null}
+            </div>
+            {(data as SearchableMonster).tags.length ? (
+              <div className="pt-2 border-t border-gray-200 text-[10px] text-gray-500">
+                {(data as SearchableMonster).tags.slice(0, 12).join(', ')}
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     );
   };
@@ -258,29 +372,113 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
       </div>
 
       {/* Tabs */}
-      {query && (
-        <div className="flex gap-1 border-b border-gray-100 mb-2">
-          {(['all', 'spells', 'features', 'items'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-2 py-1 text-[10px] uppercase font-bold rounded-t transition-colors ${
-                activeTab === tab
-                  ? 'bg-dnd-red text-white'
-                  : 'text-gray-500 hover:text-gray-800'
-              }`}
+      <div className="flex gap-1 border-b border-gray-100 mb-2">
+        {(['all', 'spells', 'features', 'items', 'monsters'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-2 py-1 text-[10px] uppercase font-bold rounded-t transition-colors ${
+              activeTab === tab
+                ? 'bg-dnd-red text-white'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {tab === 'all' && t('search.tabAll')}
+            {tab === 'spells' && `${t('search.tabSpells')} (${totalSpellsCount})`}
+            {tab === 'features' && `${t('search.tabFeatures')} (${totalFeaturesCount})`}
+            {tab === 'items' && `${t('search.tabItems')} (${totalItemsCount})`}
+            {tab === 'monsters' && `${t('search.tabMonsters')} (${totalMonstersCount})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Structured Filters */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          className="min-w-[92px] max-w-[150px] text-[10px] border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700"
+          aria-label={t('search.filterSource')}
+        >
+          <option value="">{t('search.filterSource')}</option>
+          {sourceOptions.map(source => <option key={source} value={source}>{source}</option>)}
+        </select>
+
+          {(activeTab === 'all' || activeTab === 'spells') && (
+            <select
+              value={spellLevelFilter}
+              onChange={(e) => setSpellLevelFilter(e.target.value)}
+              className="min-w-[92px] max-w-[150px] text-[10px] border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700"
+              aria-label={t('search.filterSpellLevel')}
             >
-              {tab === 'all' && t('search.tabAll')}
-              {tab === 'spells' && `${t('search.tabSpells')} (${totalSpellsCount})`}
-              {tab === 'features' && `${t('search.tabFeatures')} (${totalFeaturesCount})`}
-              {tab === 'items' && `${t('search.tabItems')} (${totalItemsCount})`}
+              <option value="">{t('search.filterSpellLevel')}</option>
+              {Array.from({ length: 10 }, (_, level) => (
+                <option key={level} value={String(level)}>
+                  {level === 0 ? t('spells.cantrips') : `${t('spells.level')} ${level}`}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {(activeTab === 'all' || activeTab === 'items') && (
+            <>
+              <select
+                value={itemCategoryFilter}
+                onChange={(e) => setItemCategoryFilter(e.target.value)}
+                className="min-w-[92px] max-w-[150px] text-[10px] border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700"
+                aria-label={t('search.filterItemCategory')}
+              >
+                <option value="">{t('search.filterItemCategory')}</option>
+                {itemCategoryOptions.map(category => <option key={category} value={category}>{category}</option>)}
+              </select>
+              <select
+                value={itemRarityFilter}
+                onChange={(e) => setItemRarityFilter(e.target.value)}
+                className="min-w-[92px] max-w-[150px] text-[10px] border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700"
+                aria-label={t('search.filterItemRarity')}
+              >
+                <option value="">{t('search.filterItemRarity')}</option>
+                {itemRarityOptions.map(rarity => <option key={rarity} value={rarity}>{rarity}</option>)}
+              </select>
+            </>
+          )}
+
+          {(activeTab === 'all' || activeTab === 'monsters') && (
+            <>
+              <select
+                value={monsterTypeFilter}
+                onChange={(e) => setMonsterTypeFilter(e.target.value)}
+                className="min-w-[92px] max-w-[150px] text-[10px] border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700"
+                aria-label={t('search.filterMonsterType')}
+              >
+                <option value="">{t('search.filterMonsterType')}</option>
+                {monsterTypeOptions.map(type => <option key={type} value={type}>{type}</option>)}
+              </select>
+              <select
+                value={monsterCrFilter}
+                onChange={(e) => setMonsterCrFilter(e.target.value)}
+                className="min-w-[72px] max-w-[120px] text-[10px] border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700"
+                aria-label={t('search.filterMonsterCr')}
+              >
+                <option value="">{t('search.filterMonsterCr')}</option>
+                {monsterCrOptions.map(cr => <option key={cr} value={cr}>{cr}</option>)}
+              </select>
+            </>
+          )}
+
+          {hasActiveFilter && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-[10px] border border-gray-200 rounded px-1.5 py-1 text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+            >
+              {t('search.clearFilters')}
             </button>
-          ))}
-        </div>
-      )}
+          )}
+      </div>
 
       {/* Results */}
-      {!query.trim() ? (
+      {!shouldShowResults ? (
         <p className="text-center text-gray-400 text-xs py-4">{t('search.hint')}</p>
       ) : totalCount === 0 ? (
         <p className="text-center text-gray-400 text-xs py-4">{t('search.noResults')}</p>
@@ -307,11 +505,17 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
                           {result.data.level === 0 ? t('spells.cantrips') : `${t('spells.level')} ${result.data.level}`}
                         </span>
                       )}
+                      {result.type === 'monster' && (
+                        <span className="text-[9px] text-gray-400 shrink-0">
+                          {t('search.cr')} {result.data.cr || '-'}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[9px] text-gray-400">
                       {result.type === 'spell' && result.data.source}
                       {result.type === 'feature' && result.data.sourceName}
                       {result.type === 'item' && `${result.data.rarity} · ${result.data.source}`}
+                      {result.type === 'monster' && `${result.data.type} · ${result.data.source}`}
                     </div>
                   </div>
                   {result.type === 'item' && onPurchaseItem && (

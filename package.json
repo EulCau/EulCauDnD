@@ -8,6 +8,7 @@
     "build": "vite build",
 	    "extract:5etools": "node scripts/extract-5etools-character-data.mjs",
 	    "extract:magic-items": "node scripts/extract-magic-items.mjs",
+	    "extract:bestiary": "node scripts/extract-bestiary-metadata.mjs",
     "audit:character-data": "node scripts/audit-character-data.mjs",
     "audit:spell-behavior": "node scripts/audit-spell-behavior.mjs",
     "preview": "vite preview"
