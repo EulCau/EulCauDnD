@@ -1,7 +1,12 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { RuleSystem } from '../types';
-import { getSearchFeatureSource, getSearchSourceRank, isSearchSourceAllowedForRuleSystem } from '../utils/searchSourceRules';
+import {
+  dedupeSearchResultsByNameAndSource,
+  getSearchFeatureSource,
+  getSearchSourceRank,
+  isSearchSourceAllowedForRuleSystem,
+} from '../utils/searchSourceRules';
 
 export interface SearchableSpell {
   id: string;
@@ -137,7 +142,8 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
   // Filter results based on query
   const filteredSpells = useMemo(() => {
     if (!shouldShowResults) return [];
-    const matches = spells.filter(s =>
+    const matches = dedupeSearchResultsByNameAndSource(
+      spells.filter(s =>
       isSearchSourceAllowedForRuleSystem(s.source, ruleSystem, sourceFilter)
       && (!spellLevelFilter || String(s.level) === spellLevelFilter)
       && (
@@ -146,13 +152,19 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
         || (s.englishName && s.englishName.toLowerCase().includes(normalizedQuery))
         || (s.description && s.description.toLowerCase().includes(normalizedQuery))
       )
+      ),
+      ruleSystem,
+      spell => spell.name,
+      spell => spell.source,
+      spell => spell.englishName,
     ).sort((a, b) => compareByNameAndSource(a, b, ruleSystem));
     return normalizedQuery ? matches.slice(0, 50) : matches;
   }, [spells, normalizedQuery, shouldShowResults, sourceFilter, spellLevelFilter, ruleSystem]);
 
   const filteredFeatures = useMemo(() => {
     if (!shouldShowResults) return [];
-    const matches = features.filter(f =>
+    const matches = dedupeSearchResultsByNameAndSource(
+      features.filter(f =>
       isSearchSourceAllowedForRuleSystem(getSearchFeatureSource(f), ruleSystem, sourceFilter)
       && (
         !normalizedQuery
@@ -160,6 +172,10 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
         || f.description.toLowerCase().includes(normalizedQuery)
         || f.sourceName.toLowerCase().includes(normalizedQuery)
       )
+      ),
+      ruleSystem,
+      feature => feature.name,
+      getSearchFeatureSource,
     ).sort((a, b) => (
       a.name.localeCompare(b.name, 'zh-Hans-CN')
         || getSearchSourceRank(getSearchFeatureSource(a), ruleSystem) - getSearchSourceRank(getSearchFeatureSource(b), ruleSystem)
@@ -170,7 +186,8 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
 
   const filteredItems = useMemo(() => {
     if (!shouldShowResults) return [];
-    const matches = magicItems.filter(item =>
+    const matches = dedupeSearchResultsByNameAndSource(
+      magicItems.filter(item =>
       isSearchSourceAllowedForRuleSystem(item.source, ruleSystem, sourceFilter)
       && (!itemCategoryFilter || item.category === itemCategoryFilter)
       && (!itemRarityFilter || item.rarity === itemRarityFilter)
@@ -180,13 +197,19 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
         || (item.englishName && item.englishName.toLowerCase().includes(normalizedQuery))
         || item.description.toLowerCase().includes(normalizedQuery)
       )
+      ),
+      ruleSystem,
+      item => item.name,
+      item => item.source,
+      item => item.englishName,
     ).sort((a, b) => compareByNameAndSource(a, b, ruleSystem));
     return normalizedQuery ? matches.slice(0, 50) : matches;
   }, [magicItems, normalizedQuery, shouldShowResults, sourceFilter, itemCategoryFilter, itemRarityFilter, ruleSystem]);
 
   const filteredMonsters = useMemo(() => {
     if (!shouldShowResults) return [];
-    const matches = monsters.filter(monster =>
+    const matches = dedupeSearchResultsByNameAndSource(
+      monsters.filter(monster =>
       isSearchSourceAllowedForRuleSystem(monster.source, ruleSystem, sourceFilter)
       && (!monsterTypeFilter || monster.type === monsterTypeFilter)
       && (!monsterCrFilter || monster.cr === monsterCrFilter)
@@ -200,6 +223,11 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
         || monster.environment.some(env => env.toLowerCase().includes(normalizedQuery))
         || monster.tags.some(tag => tag.toLowerCase().includes(normalizedQuery))
       )
+      ),
+      ruleSystem,
+      monster => monster.name,
+      monster => monster.source,
+      monster => monster.englishName,
     ).sort((a, b) => compareByNameAndSource(a, b, ruleSystem));
     return normalizedQuery ? matches.slice(0, 50) : matches;
   }, [monsters, normalizedQuery, shouldShowResults, sourceFilter, monsterTypeFilter, monsterCrFilter, ruleSystem]);

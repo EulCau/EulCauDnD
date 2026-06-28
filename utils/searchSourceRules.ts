@@ -36,3 +36,26 @@ export const getSearchFeatureSource = (
   if (!sourceMatch) return '';
   return sourceMatch.replace(/[()]/g, '').split('·').pop()?.trim() || '';
 };
+
+export const getSearchDedupeKey = (name: string | undefined, englishName?: string): string => (
+  String(englishName || name || '').trim().toLowerCase()
+);
+
+export const dedupeSearchResultsByNameAndSource = <T>(
+  items: T[],
+  ruleSystem: RuleSystem,
+  getName: (item: T) => string | undefined,
+  getSource: (item: T) => string | undefined,
+  getEnglishName: (item: T) => string | undefined = () => undefined,
+): T[] => {
+  const byName = new Map<string, T>();
+  for (const item of items) {
+    const key = getSearchDedupeKey(getName(item), getEnglishName(item));
+    if (!key) continue;
+    const existing = byName.get(key);
+    if (!existing || getSearchSourceRank(getSource(item), ruleSystem) < getSearchSourceRank(getSource(existing), ruleSystem)) {
+      byName.set(key, item);
+    }
+  }
+  return Array.from(byName.values());
+};

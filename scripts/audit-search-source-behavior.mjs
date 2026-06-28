@@ -10,6 +10,7 @@ const projectImport = relativePath => path.join(ROOT, relativePath).replaceAll(p
 
 const entrySource = `
 import {
+  dedupeSearchResultsByNameAndSource,
   getSearchFeatureSource,
   getSearchSourceRank,
   isSearchSourceAllowedForRuleSystem,
@@ -43,11 +44,61 @@ const duplicateSpellNames = new Set(
     .filter(name => content.spells.some(spell => spell.source === 'XPHB' && (spell.englishName || spell.name) === name)),
 );
 assert(duplicateSpellNames.size > 0, 'expected PHB/XPHB duplicate spell fixtures');
+const duplicateSpellName = Array.from(duplicateSpellNames)[0];
+const duplicateSpells = content.spells.filter(spell => (spell.englishName || spell.name) === duplicateSpellName);
+const deduped5rSpells = dedupeSearchResultsByNameAndSource(
+  duplicateSpells,
+  '5r',
+  spell => spell.name,
+  spell => spell.source,
+  spell => spell.englishName,
+);
+assert(deduped5rSpells.length === 1, '5r spell search dedupe should keep one duplicate spell result');
+assert(deduped5rSpells[0].source === 'XPHB', \`5r spell search dedupe should keep XPHB, got \${deduped5rSpells[0].source}\`);
+const deduped5eSpells = dedupeSearchResultsByNameAndSource(
+  duplicateSpells.filter(spell => isSearchSourceAllowedForRuleSystem(spell.source, '5e')),
+  '5e',
+  spell => spell.name,
+  spell => spell.source,
+  spell => spell.englishName,
+);
+assert(deduped5eSpells.length === 1, '5e spell search dedupe should keep one duplicate spell result');
+assert(deduped5eSpells[0].source === 'PHB', \`5e spell search dedupe should keep PHB, got \${deduped5eSpells[0].source}\`);
 
 const hasXdmItem = magicItems.items.some(item => item.source === 'XDMG');
 const hasXmmMonster = bestiary.monsters.some(monster => monster.source === 'XMM');
 assert(hasXdmItem, 'expected XDMG magic item fixture');
 assert(hasXmmMonster, 'expected XMM monster fixture');
+const duplicateMagicItemName = magicItems.items
+  .find(item => item.source === 'DMG' && magicItems.items.some(candidate => candidate.source === 'XDMG' && (candidate.englishName || candidate.name) === (item.englishName || item.name)))?.englishName
+  || 'Synthetic Magic Item';
+const deduped5rItems = dedupeSearchResultsByNameAndSource(
+  magicItems.items.some(item => (item.englishName || item.name) === duplicateMagicItemName)
+    ? magicItems.items.filter(item => (item.englishName || item.name) === duplicateMagicItemName)
+    : [
+        { name: '合成魔法物品', englishName: duplicateMagicItemName, source: 'DMG' },
+        { name: '合成魔法物品', englishName: duplicateMagicItemName, source: 'XDMG' },
+      ],
+  '5r',
+  item => item.name,
+  item => item.source,
+  item => item.englishName,
+);
+assert(deduped5rItems.length === 1, '5r item search dedupe should keep one duplicate item result');
+assert(deduped5rItems[0].source === 'XDMG', \`5r item search dedupe should keep XDMG, got \${deduped5rItems[0].source}\`);
+
+const duplicateMonsterName = bestiary.monsters
+  .find(monster => monster.source === 'MM' && bestiary.monsters.some(candidate => candidate.source === 'XMM' && (candidate.englishName || candidate.name) === (monster.englishName || monster.name)))?.englishName;
+assert(duplicateMonsterName, 'expected MM/XMM duplicate monster fixture');
+const deduped5rMonsters = dedupeSearchResultsByNameAndSource(
+  bestiary.monsters.filter(monster => (monster.englishName || monster.name) === duplicateMonsterName),
+  '5r',
+  monster => monster.name,
+  monster => monster.source,
+  monster => monster.englishName,
+);
+assert(deduped5rMonsters.length === 1, '5r monster search dedupe should keep one duplicate monster result');
+assert(deduped5rMonsters[0].source === 'XMM', \`5r monster search dedupe should keep XMM, got \${deduped5rMonsters[0].source}\`);
 
 assert(
   getSearchFeatureSource({ sourceId: 'class:Wizard:PHB:L1', sourceName: '法师 L1 (PHB)' }) === 'PHB',
@@ -64,6 +115,7 @@ export default {
     '5e search excludes 2024 sources by default',
     'explicit source filter can still select a 2024 source',
     '5r search ranks XPHB/XDMG/XMM before PHB/DMG/MM',
+    'same-name search dedupe keeps 5r sources for spells, items, and monsters',
     'feature source parsing supports class and subclass source ids',
   ],
 };
