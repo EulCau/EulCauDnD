@@ -89,6 +89,7 @@
 - 多职业升级时的职业列表, 熟练, 生命值, 生命骰更新
 - 种族黑暗视觉和伤害抗性现在会写入结构化 `senses` 与 `damageResistances`, 同时保留特性描述
 - 种族固定武器熟练会去除 5etools 来源后缀后写入 `proficiencies`, 可被装备攻击熟练判断复用
+- 种族和专长的选择型武器熟练会从 5etools `weaponProficiencies.choose` 生成选择项, 并通过 `addProficiency` 应用
 
 当前实现遵循“不可直接改散字段, 通过调整操作生成最终角色卡”的方向, 但还没有覆盖每个特性或专长的全部数值效果。
 
@@ -423,6 +424,35 @@
 
 - 本阶段没有新增 UI 选择, 只修正已有固定熟练的规范化和数值联动.
 - 选择型武器熟练, 如 PHB `Weapon Master`, 仍需后续单独接入可选武器列表.
+
+## 阶段 3f 记录
+
+状态: 已完成.
+
+范围: 选择型武器熟练.
+
+改动:
+
+- 新增 `AutoBuilderWeaponChoiceSelection`, 用于保存按组选择的武器 id.
+- 新增 `getOriginWeaponChoiceOptions` 与 `getFeatWeaponChoiceOptions`, 从 5etools `weaponProficiencies.choose` 生成可选武器.
+- 当前支持 `choose.from` 和 `choose.fromFilter`; 对 `fromFilter` 中的军用/简易武器条件使用当前武器表解析.
+- `fromFilter` 解析会按规则版本优先来源排序并按武器 key 去重, 5r 下同名武器优先 XPHB.
+- `createRaceChoiceOperations`, `createChosenFeatOperations`, `createAbilityScoreImprovementOperations` 会把所选武器写入 `addProficiency`.
+- `AutoCharacterBuilder` 在种族选择, 起源专长, 种族赠专长, 战斗风格赠专长, ASI 专长位置显示武器熟练选择.
+- 扩展 `audit-origin-structured-behavior`, 验证 VGM 大地精可选择两项军用武器并应用所选熟练.
+- 扩展 `audit-feat-behavior`, 验证 PHB `Weapon Master` 暴露四项武器选择, 应用所选战斧熟练, 影响装备攻击命中, 且 5r 武器选择列表优先 XPHB 同名武器.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+- `npm run audit:feat-behavior`
+- `npm run audit:equipment-behavior`
+- `npm run build`
+
+说明:
+
+- 本阶段选择值使用武器 id, 应用到角色卡时写为 `weapon:${weapon.key.toLowerCase()}`.
+- `fromFilter` 解析当前只覆盖已出现的数据形态, 即军用/简易基础武器筛选; 更复杂的过滤语法后续再按真实数据扩展.
 
 ## 阶段 4a 记录
 
@@ -1075,7 +1105,7 @@
 
 目标: 每个特性, 专长, 武器, 物品尽量通过统一接口调整角色卡, 且可撤销。
 
-状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化。
+状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化, 阶段 3f 已完成选择型武器熟练。
 
 任务:
 
@@ -1110,6 +1140,7 @@
 - 种族/亚种族固定黑暗视觉写入 `senses`, 固定抗性写入 `damageResistances`。
 - 种族选择型抗性也写入 `damageResistances`。
 - 固定熟练 key 会去掉 5etools 来源后缀, 如 `battleaxe|phb` 写入为 `weapon:battleaxe`。
+- 选择型武器熟练会显示武器选择 UI, 并通过 `addProficiency` 写入所选武器熟练。
 - 黑暗视觉和抗性仍保留 `featureEntries` 描述, 避免丢失规则文字。
 - `FeaturesBox` 显示结构化抗性和感官。
 - 新增 `npm run audit:origin-structured-behavior`, 通过真实建卡路径验证 MPMM `Aasimar`, PHB `Dragonborn`, PHB `Dwarf` 的结构化字段, 固定武器熟练与撤销行为。

@@ -12,6 +12,7 @@ const entrySource = `
 import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
   buildLevelOneCharacter,
+  getOriginWeaponChoiceOptions,
   getRaceResistanceOptions,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import { removeCharacterAdjustments } from '${projectImport('utils/characterAdjustments.ts')}';
@@ -29,6 +30,7 @@ const phbBackground = content.backgrounds.find(item => item.source === 'PHB') ||
 const aasimar = content.races.find(item => item.key === 'Aasimar' && item.source === 'MPMM');
 const dragonborn = content.races.find(item => item.key === 'Dragonborn' && item.source === 'PHB');
 const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'PHB');
+const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
 
 assert(fighter, 'missing XPHB Fighter');
@@ -38,6 +40,7 @@ assert(phbBackground, 'missing PHB background fixture');
 assert(aasimar, 'missing MPMM Aasimar fixture');
 assert(dragonborn, 'missing PHB Dragonborn fixture');
 assert(dwarf, 'missing PHB Dwarf fixture');
+assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(battleaxe, 'missing PHB Battleaxe fixture');
 
 const baseOptions = {
@@ -117,14 +120,39 @@ assert(
   \`Dwarf battleaxe attack should include proficiency bonus with STR 10, got \${battleaxeAttack.bonus}\`,
 );
 
+const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
+assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
+assert(hobgoblinWeaponChoices[0].count === 2, \`Hobgoblin should choose two martial weapons, got \${hobgoblinWeaponChoices[0].count}\`);
+assert(hobgoblinWeaponChoices[0].from.includes(battleaxe.id), 'Hobgoblin martial weapon choices should include battleaxe');
+const secondHobgoblinWeaponId = hobgoblinWeaponChoices[0].from.find(id => id !== battleaxe.id);
+assert(secondHobgoblinWeaponId, 'Hobgoblin martial weapon choices should include a second weapon');
+const hobgoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: hobgoblin,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+  raceChoices: {
+    weaponChoices: {
+      [hobgoblinWeaponChoices[0].id]: [battleaxe.id, secondHobgoblinWeaponId],
+    },
+  },
+});
+assert(hobgoblinCharacter.proficiencies.has('weapon:battleaxe'), 'Hobgoblin selected battleaxe proficiency should be applied');
+assert(
+  hobgoblinCharacter.proficiencies.has('armor:light'),
+  'Hobgoblin fixed light armor proficiency should still be applied with weapon choices',
+);
+
 export default {
-  races: [aasimar.name, dragonborn.name, dwarf.name],
+  races: [aasimar.name, dragonborn.name, dwarf.name, hobgoblin.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
     'chosen race resistance adds reversible structured resistance',
     'structured origin data keeps feature descriptions',
     'fixed race weapon proficiencies normalize source suffixes and affect attacks',
+    'chosen race weapon proficiencies expose choices and apply selected weapons',
   ],
 };
 `;

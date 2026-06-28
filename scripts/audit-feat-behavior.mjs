@@ -15,7 +15,9 @@ import {
   getFeatExpertiseChoiceOptions,
   getFeatSavingThrowChoiceOptions,
   getFeatSkillChoiceOptions,
+  getFeatWeaponChoiceOptions,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
+import { equipWeapon } from '${projectImport('utils/equipmentRules.ts')}';
 import content from '${projectImport('public/data/auto-builder-core.json')}';
 
 const assert = (condition, message) => {
@@ -45,6 +47,11 @@ const makeLevelThreeWizard = () => ({
 });
 
 const wizard = getClass('Wizard', 'XPHB');
+const phbWizard = getClass('Wizard', 'PHB');
+const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
+const xphbBattleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'XPHB');
+assert(battleaxe, 'missing PHB Battleaxe');
+assert(xphbBattleaxe, 'missing XPHB Battleaxe');
 
 const lightlyArmored = getFeat('Lightly Armored', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
@@ -108,12 +115,50 @@ assert(skillExpertCharacter.abilities.DEX === 14, \`Skill Expert should add +1 D
 assert(skillExpertCharacter.proficiencies.has('Perception'), 'Skill Expert should add selected skill proficiency');
 assert(skillExpertCharacter.expertises.has('Perception'), 'Skill Expert should add selected expertise');
 
+const weaponMaster = getFeat('Weapon Master', 'PHB');
+const weaponMasterChoices = getFeatWeaponChoiceOptions(content, weaponMaster, '5e');
+assert(weaponMasterChoices.length === 1, \`Weapon Master should expose one weapon choice group, got \${weaponMasterChoices.length}\`);
+assert(weaponMasterChoices[0].count === 4, \`Weapon Master should choose four weapons, got \${weaponMasterChoices[0].count}\`);
+assert(weaponMasterChoices[0].from.includes(battleaxe.id), 'Weapon Master choices should include battleaxe');
+const weaponMaster5rChoices = getFeatWeaponChoiceOptions(content, weaponMaster, '5r');
+assert(
+  weaponMaster5rChoices[0].from.includes(xphbBattleaxe.id) && !weaponMaster5rChoices[0].from.includes(battleaxe.id),
+  'Weapon Master 5r weapon choices should prefer XPHB battleaxe over PHB duplicate',
+);
+const selectedWeaponMasterIds = [
+  battleaxe.id,
+  ...weaponMasterChoices[0].from.filter(id => id !== battleaxe.id).slice(0, 3),
+];
+assert(selectedWeaponMasterIds.length === 4, 'Weapon Master should have at least four selectable weapons');
+const weaponMasterCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Weapon Master|PHB',
+    featAbility: 'DEX',
+    featWeaponChoices: {
+      [weaponMasterChoices[0].id]: selectedWeaponMasterIds,
+    },
+  },
+});
+assert(weaponMasterCharacter.proficiencies.has('weapon:battleaxe'), 'Weapon Master should add selected battleaxe proficiency');
+const weaponMasterWithBattleaxe = equipWeapon(weaponMasterCharacter, battleaxe, content);
+const battleaxeAttack = weaponMasterWithBattleaxe.attacks.find(attack => attack.sourceId === \`equip-weapon-\${battleaxe.id}\`);
+assert(battleaxeAttack, 'Weapon Master character should add battleaxe attack');
+assert(
+  battleaxeAttack.bonus === '+2',
+  \`Weapon Master battleaxe attack should include proficiency bonus with STR 10, got \${battleaxeAttack.bonus}\`,
+);
+
 export default {
-  feats: [lightlyArmored.name, resilient.name, skillExpert.name],
+  feats: [lightlyArmored.name, resilient.name, skillExpert.name, weaponMaster.name],
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
+    'Weapon Master exposes and applies selected weapon proficiencies',
+    'Weapon Master 5r weapon choices prefer XPHB duplicates',
   ],
 };
 `;

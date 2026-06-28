@@ -331,6 +331,7 @@ type AutoBuilderFeatureOperationOptions = {
 export type AutoBuilderToolChoiceSelection = Record<string, string[]>;
 export type AutoBuilderLanguageChoiceSelection = Record<string, string[]>;
 export type AutoBuilderSkillChoiceSelection = Record<string, string[]>;
+export type AutoBuilderWeaponChoiceSelection = Record<string, string[]>;
 
 export type AutoBuilderAbilityChoice = {
   mode: 'plus2plus1' | 'plus1three';
@@ -350,6 +351,7 @@ export type AutoBuilderAbilityScoreImprovementChoice = {
   featAbility?: AbilityName;
   featSkillChoices?: AutoBuilderSkillChoiceSelection;
   featToolChoices?: AutoBuilderToolChoiceSelection;
+  featWeaponChoices?: AutoBuilderWeaponChoiceSelection;
   featExpertiseChoices?: AutoBuilderSkillChoiceSelection;
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
@@ -367,6 +369,7 @@ export type AutoBuilderFeatChoice = {
   featAbility?: AbilityName;
   featSkillChoices?: AutoBuilderSkillChoiceSelection;
   featToolChoices?: AutoBuilderToolChoiceSelection;
+  featWeaponChoices?: AutoBuilderWeaponChoiceSelection;
   featExpertiseChoices?: AutoBuilderSkillChoiceSelection;
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
@@ -396,6 +399,7 @@ export type AutoBuilderRaceChoice = {
   size?: string;
   toolChoices?: AutoBuilderToolChoiceSelection;
   languageChoices?: AutoBuilderLanguageChoiceSelection;
+  weaponChoices?: AutoBuilderWeaponChoiceSelection;
 } & AutoBuilderFeatChoice;
 
 const RULE_SOURCE: Record<RuleSystem, 'PHB' | 'XPHB'> = {
@@ -874,6 +878,86 @@ export const getFeatToolChoiceOptions = (
   feat: AutoBuilderFeat | undefined,
 ): Array<{ id: string; label: string; from: string[]; count: number }> => (
   feat ? getToolChoiceOptionsFromProficiencies(feat.toolProficiencies, `feat-${feat.key}-${feat.source}`) : []
+);
+
+const isMundaneWeaponFilter = (filter: string): boolean => (
+  filter.includes('平凡') || filter.includes('寻常') || filter.toLowerCase().includes('mundane')
+);
+
+const getWeaponIdsFromFilter = (
+  content: AutoBuilderContent,
+  filter: string,
+  ruleSystem: RuleSystem,
+): string[] => {
+  const lowerFilter = filter.toLowerCase();
+  const wantsMartial = filter.includes('军用') || lowerFilter.includes('martial');
+  const wantsSimple = filter.includes('简易') || lowerFilter.includes('simple');
+  const preferredSource = RULE_SOURCE[ruleSystem];
+  const sourceRank = (weapon: AutoBuilderWeapon): number => (
+    weapon.source === preferredSource ? 0 : weapon.source === 'PHB' ? 1 : 2
+  );
+  return [...content.weapons]
+    .filter(weapon => {
+      if (wantsMartial && weapon.weaponCategory !== 'martial') return false;
+      if (wantsSimple && weapon.weaponCategory !== 'simple') return false;
+      if (isMundaneWeaponFilter(filter) && weapon.bonusWeapon) return false;
+      return true;
+    })
+    .sort((a, b) => sourceRank(a) - sourceRank(b) || a.name.localeCompare(b.name, 'zh-Hans-CN'))
+    .filter((weapon, index, weapons) => (
+      weapons.findIndex(candidate => candidate.key === weapon.key) === index
+    ))
+    .map(weapon => weapon.id);
+};
+
+const getWeaponChoiceOptionsFromProficiencies = (
+  content: AutoBuilderContent,
+  proficiencies: ProficiencyRecord[] | undefined,
+  sourceId: string,
+  ruleSystem: RuleSystem,
+): Array<{ id: string; label: string; from: string[]; count: number }> => {
+  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
+  (proficiencies || []).forEach((entry, entryIndex) => {
+    const choose = entry.choose as { from?: string[]; fromFilter?: string; count?: number } | undefined;
+    if (!choose) return;
+    const from = choose.from?.length
+      ? choose.from
+          .map(ref => {
+            const parsed = parseEntityRef(ref);
+            return content.weapons.find(weapon => (
+              (!parsed.source || weapon.source === parsed.source)
+              && (weapon.key === parsed.name || weapon.name === parsed.name || weapon.englishName === parsed.name)
+            ))?.id;
+          })
+          .filter((id): id is string => Boolean(id))
+      : (choose.fromFilter ? getWeaponIdsFromFilter(content, choose.fromFilter, ruleSystem) : []);
+    choices.push({
+      id: `${sourceId}-weapon-${entryIndex}-choose`,
+      label: 'choose',
+      from: uniqueStrings(from),
+      count: choose.count || 1,
+    });
+  });
+  return choices.filter(choice => choice.from.length > 0 && choice.count > 0);
+};
+
+export const getOriginWeaponChoiceOptions = (
+  content: AutoBuilderContent,
+  ruleSystem: RuleSystem,
+  origin: AutoBuilderOrigin | undefined,
+  secondaryOrigin?: AutoBuilderOrigin,
+): Array<{ id: string; label: string; from: string[]; count: number }> => (
+  [origin, secondaryOrigin].flatMap(entity => (
+    entity ? getWeaponChoiceOptionsFromProficiencies(content, entity.weaponProficiencies, `origin-${entity.key}-${entity.source}`, ruleSystem) : []
+  ))
+);
+
+export const getFeatWeaponChoiceOptions = (
+  content: AutoBuilderContent,
+  feat: AutoBuilderFeat | undefined,
+  ruleSystem: RuleSystem,
+): Array<{ id: string; label: string; from: string[]; count: number }> => (
+  feat ? getWeaponChoiceOptionsFromProficiencies(content, feat.weaponProficiencies, `feat-${feat.key}-${feat.source}`, ruleSystem) : []
 );
 
 export const getFeatLanguageChoiceOptions = (
@@ -3030,6 +3114,18 @@ const createToolChoiceOperations = (
   ));
 };
 
+const createWeaponChoiceOperations = (
+  content: AutoBuilderContent,
+  choices?: AutoBuilderWeaponChoiceSelection,
+): AdjustmentOperation[] => {
+  return Object.values(choices || {}).flatMap(weaponIds => (
+    weaponIds.flatMap(weaponId => {
+      const weapon = content.weapons.find(item => item.id === weaponId);
+      return weapon ? [{ type: 'addProficiency', key: `weapon:${weapon.key.toLowerCase()}` } satisfies AdjustmentOperation] : [];
+    })
+  ));
+};
+
 const createSkillChoiceOperations = (
   choices?: AutoBuilderSkillChoiceSelection,
 ): AdjustmentOperation[] => {
@@ -3336,6 +3432,7 @@ const createRaceChoiceOperations = (
   if (choices?.size) {
     operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(choices.size) });
   }
+  operations.push(...createWeaponChoiceOperations(content, choices?.weaponChoices));
   operations.push(...createChosenFeatOperations(content, character, ruleSystem, choices, operations));
   return operations;
 };
@@ -3362,6 +3459,7 @@ const createChosenFeatOperations = (
     ...createFeatFixedAbilityOperations(feat, abilitiesAfterPreviousOperations, choices.featAbility),
     ...createSkillChoiceOperations(choices.featSkillChoices),
     ...createToolChoiceOperations(choices.featToolChoices),
+    ...createWeaponChoiceOperations(content, choices.featWeaponChoices),
     ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
     ...createLanguageChoiceOperations(choices.featLanguageChoices),
     ...createSavingThrowChoiceOperations(choices.featSavingThrowChoices),
@@ -3627,6 +3725,7 @@ const createAbilityScoreImprovementOperations = (
       ...createFeatFixedAbilityOperations(feat, character.abilities, choice.featAbility),
       ...createSkillChoiceOperations(choice.featSkillChoices),
       ...createToolChoiceOperations(choice.featToolChoices),
+      ...createWeaponChoiceOperations(content, choice.featWeaponChoices),
       ...createExpertiseChoiceOperations(choice.featExpertiseChoices),
       ...createLanguageChoiceOperations(choice.featLanguageChoices),
       ...createSavingThrowChoiceOperations(choice.featSavingThrowChoices),
