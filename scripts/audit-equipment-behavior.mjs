@@ -52,15 +52,33 @@ const cloneCharacter = () => ({
   spellcastingProfiles: [],
 });
 
+const addFeature = (character, name, sourceId = \`audit-feature-\${name}\`) => ({
+  ...character,
+  featureEntries: [
+    ...character.featureEntries,
+    {
+      id: sourceId,
+      sourceId,
+      sourceName: name,
+      name,
+      description: name,
+    },
+  ],
+});
+
+const getAttack = (character, sourceId) => character.attacks.find(attack => attack.sourceId === sourceId);
+
 const weapons = content.weapons;
 const lightWeapon = weapons.find(weapon => hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
+const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
 const shield = content.armors.find(armor => String(armor.type || '').split('|')[0] === 'S');
 
 assert(lightWeapon, 'missing light weapon fixture');
 assert(nonLightWeapon, 'missing non-light weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
+assert(rangedWeapon, 'missing ranged weapon fixture');
 assert(shield, 'missing shield fixture');
 
 let character = cloneCharacter();
@@ -71,6 +89,41 @@ const blockedAttempt = equipOffHandWeapon(character, lightWeapon, content);
 assert(
   !blockedAttempt.appliedAdjustments.some(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-')),
   'blocked off-hand equip should not add an adjustment',
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, nonLightWeapon, content);
+const nonLightAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(nonLightAttack, 'ordinary main weapon should add attack');
+assert(nonLightAttack.bonus === '+6', \`ordinary main weapon attack bonus should be +6, got \${nonLightAttack.bonus}\`);
+assert(
+  nonLightAttack.damage.includes('+3'),
+  \`ordinary main weapon damage should include STR modifier +3, got \${nonLightAttack.damage}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, 'Archery');
+character = equipWeapon(character, rangedWeapon, content);
+const rangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(rangedAttack, 'ranged weapon should add attack');
+assert(rangedAttack.bonus === '+7', \`archery ranged attack bonus should be +7, got \${rangedAttack.bonus}\`);
+assert(
+  rangedAttack.notes.includes('箭术 +2 命中'),
+  \`archery ranged attack notes should mention +2, got \${rangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, 'Dueling');
+character = equipWeapon(character, nonLightWeapon, content);
+const duelingAttack = getAttack(character, \`equip-weapon-\${nonLightWeapon.id}\`);
+assert(duelingAttack, 'dueling main weapon should add attack');
+assert(
+  duelingAttack.damage.includes('+5'),
+  \`dueling damage should include STR +3 and style +2, got \${duelingAttack.damage}\`,
+);
+assert(
+  duelingAttack.notes.includes('对决 +2 伤害'),
+  \`dueling attack notes should mention damage bonus, got \${duelingAttack.notes}\`,
 );
 
 character = cloneCharacter();
@@ -126,6 +179,13 @@ assert(
   character.appliedAdjustments.some(adjustment => adjustment.sourceId === 'equip-magic-audit-magic-1'),
   'equipping a magic weapon should add magic weapon adjustment',
 );
+const magicAttack = getAttack(character, 'equip-magic-audit-magic-1');
+assert(magicAttack, 'magic weapon should add attack');
+assert(magicAttack.bonus === '+7', \`+1 magic melee weapon attack bonus should be +7, got \${magicAttack.bonus}\`);
+assert(
+  magicAttack.damage.includes('+4'),
+  \`+1 magic melee weapon damage should include STR +3 and magic +1, got \${magicAttack.damage}\`,
+);
 assert(
   getOffHandWeaponEquipBlockReason(character, lightWeapon, content).includes('魔法主手武器'),
   'magic main hand should block off-hand equip until its base weapon can be tracked',
@@ -154,6 +214,7 @@ export default {
   lightWeapon: lightWeapon.name,
   nonLightWeapon: nonLightWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
+  rangedWeapon: rangedWeapon.name,
   shield: shield.name,
 };
 `;
@@ -186,11 +247,15 @@ console.log(JSON.stringify({
   fixtures: result.default,
   checks: [
     'non-light main blocks off-hand',
+    'ordinary weapon attack bonus and damage',
+    'archery ranged attack bonus and notes',
+    'dueling melee damage and notes',
     'non-light off-hand reports light requirement',
     'light off-hand adds off-hand attack',
     'non-light main removes off-hand',
     'shield removes two-handed main',
     'magic weapon replaces ordinary main',
+    'magic weapon attack bonus and damage',
     'magic weapon blocks off-hand',
     'second magic weapon replaces first magic weapon',
   ],
