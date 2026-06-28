@@ -374,6 +374,7 @@ export default function App() {
 		            source: item.source,
 		          }))}
 		          monsters={monsters}
+		          ruleSystem={character.automation.ruleSystem}
 		          onPurchaseItem={handlePurchaseItem}
 		        />
 		      </div>

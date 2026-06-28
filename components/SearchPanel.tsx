@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import type { RuleSystem } from '../types';
+import { getSearchFeatureSource, getSearchSourceRank, isSearchSourceAllowedForRuleSystem } from '../utils/searchSourceRules';
 
 export interface SearchableSpell {
   id: string;
@@ -59,6 +61,7 @@ interface SearchPanelProps {
   features: SearchableFeature[];
   magicItems: SearchableMagicItem[];
   monsters?: SearchableMonster[];
+  ruleSystem: RuleSystem;
   onPurchaseItem?: (name: string, source: string) => void;
 }
 
@@ -80,7 +83,17 @@ const uniqueSorted = (values: Array<string | undefined | null>) => Array.from(ne
     .filter(Boolean)
 )).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
 
-const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems, monsters = [], onPurchaseItem }) => {
+const compareByNameAndSource = <T extends { name: string; source?: string }>(
+  a: T,
+  b: T,
+  ruleSystem: RuleSystem,
+): number => (
+  a.name.localeCompare(b.name, 'zh-Hans-CN')
+    || getSearchSourceRank(a.source, ruleSystem) - getSearchSourceRank(b.source, ruleSystem)
+    || String(a.source || '').localeCompare(String(b.source || ''))
+);
+
+const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems, monsters = [], ruleSystem, onPurchaseItem }) => {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [selectedSources, setSelectedSources] = useState<Record<string, string>>({});
@@ -113,16 +126,19 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
     for (const f of features) {
       const group = groups.get(f.name) || [];
       group.push(f);
-      groups.set(f.name, group);
+      groups.set(f.name, group.sort((a, b) => (
+        getSearchSourceRank(getSearchFeatureSource(a), ruleSystem) - getSearchSourceRank(getSearchFeatureSource(b), ruleSystem)
+          || a.sourceName.localeCompare(b.sourceName, 'zh-Hans-CN')
+      )));
     }
     return groups;
-  }, [features]);
+  }, [features, ruleSystem]);
 
   // Filter results based on query
   const filteredSpells = useMemo(() => {
     if (!shouldShowResults) return [];
     const matches = spells.filter(s =>
-      (!sourceFilter || s.source === sourceFilter)
+      isSearchSourceAllowedForRuleSystem(s.source, ruleSystem, sourceFilter)
       && (!spellLevelFilter || String(s.level) === spellLevelFilter)
       && (
         !normalizedQuery
@@ -130,28 +146,32 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
         || (s.englishName && s.englishName.toLowerCase().includes(normalizedQuery))
         || (s.description && s.description.toLowerCase().includes(normalizedQuery))
       )
-    );
+    ).sort((a, b) => compareByNameAndSource(a, b, ruleSystem));
     return normalizedQuery ? matches.slice(0, 50) : matches;
-  }, [spells, normalizedQuery, shouldShowResults, sourceFilter, spellLevelFilter]);
+  }, [spells, normalizedQuery, shouldShowResults, sourceFilter, spellLevelFilter, ruleSystem]);
 
   const filteredFeatures = useMemo(() => {
     if (!shouldShowResults) return [];
     const matches = features.filter(f =>
-      (!sourceFilter || f.sourceName.toLowerCase().includes(sourceFilter.toLowerCase()))
+      isSearchSourceAllowedForRuleSystem(getSearchFeatureSource(f), ruleSystem, sourceFilter)
       && (
         !normalizedQuery
         || f.name.toLowerCase().includes(normalizedQuery)
         || f.description.toLowerCase().includes(normalizedQuery)
         || f.sourceName.toLowerCase().includes(normalizedQuery)
       )
-    );
+    ).sort((a, b) => (
+      a.name.localeCompare(b.name, 'zh-Hans-CN')
+        || getSearchSourceRank(getSearchFeatureSource(a), ruleSystem) - getSearchSourceRank(getSearchFeatureSource(b), ruleSystem)
+        || a.sourceName.localeCompare(b.sourceName, 'zh-Hans-CN')
+    ));
     return normalizedQuery ? matches.slice(0, 50) : matches;
-  }, [features, normalizedQuery, shouldShowResults, sourceFilter]);
+  }, [features, normalizedQuery, shouldShowResults, sourceFilter, ruleSystem]);
 
   const filteredItems = useMemo(() => {
     if (!shouldShowResults) return [];
     const matches = magicItems.filter(item =>
-      (!sourceFilter || item.source === sourceFilter)
+      isSearchSourceAllowedForRuleSystem(item.source, ruleSystem, sourceFilter)
       && (!itemCategoryFilter || item.category === itemCategoryFilter)
       && (!itemRarityFilter || item.rarity === itemRarityFilter)
       && (
@@ -160,14 +180,14 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
         || (item.englishName && item.englishName.toLowerCase().includes(normalizedQuery))
         || item.description.toLowerCase().includes(normalizedQuery)
       )
-    );
+    ).sort((a, b) => compareByNameAndSource(a, b, ruleSystem));
     return normalizedQuery ? matches.slice(0, 50) : matches;
-  }, [magicItems, normalizedQuery, shouldShowResults, sourceFilter, itemCategoryFilter, itemRarityFilter]);
+  }, [magicItems, normalizedQuery, shouldShowResults, sourceFilter, itemCategoryFilter, itemRarityFilter, ruleSystem]);
 
   const filteredMonsters = useMemo(() => {
     if (!shouldShowResults) return [];
     const matches = monsters.filter(monster =>
-      (!sourceFilter || monster.source === sourceFilter)
+      isSearchSourceAllowedForRuleSystem(monster.source, ruleSystem, sourceFilter)
       && (!monsterTypeFilter || monster.type === monsterTypeFilter)
       && (!monsterCrFilter || monster.cr === monsterCrFilter)
       && (
@@ -180,9 +200,9 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
         || monster.environment.some(env => env.toLowerCase().includes(normalizedQuery))
         || monster.tags.some(tag => tag.toLowerCase().includes(normalizedQuery))
       )
-    );
+    ).sort((a, b) => compareByNameAndSource(a, b, ruleSystem));
     return normalizedQuery ? matches.slice(0, 50) : matches;
-  }, [monsters, normalizedQuery, shouldShowResults, sourceFilter, monsterTypeFilter, monsterCrFilter]);
+  }, [monsters, normalizedQuery, shouldShowResults, sourceFilter, monsterTypeFilter, monsterCrFilter, ruleSystem]);
 
   const results = useMemo(() => {
     const items: Array<{ type: 'spell' | 'feature' | 'item' | 'monster'; data: any }> = [];
@@ -200,10 +220,12 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
     }
     items.sort((a, b) => {
       if (a.type !== b.type) return a.type.localeCompare(b.type);
-      return a.data.name.localeCompare(b.data.name, 'zh-Hans-CN');
+      return a.data.name.localeCompare(b.data.name, 'zh-Hans-CN')
+        || getSearchSourceRank(a.type === 'feature' ? getSearchFeatureSource(a.data) : a.data.source, ruleSystem)
+          - getSearchSourceRank(b.type === 'feature' ? getSearchFeatureSource(b.data) : b.data.source, ruleSystem);
     });
     return items;
-  }, [filteredSpells, filteredFeatures, filteredItems, filteredMonsters, activeTab]);
+  }, [filteredSpells, filteredFeatures, filteredItems, filteredMonsters, activeTab, ruleSystem]);
 
   const clearSearch = useCallback(() => {
     setQuery('');

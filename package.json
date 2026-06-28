@@ -15,6 +15,7 @@
     "audit:feat-spell-behavior": "node scripts/audit-feat-spell-behavior.mjs",
     "audit:feat-behavior": "node scripts/audit-feat-behavior.mjs",
     "audit:source-priority": "node scripts/audit-source-priority.mjs",
+    "audit:search-source-behavior": "node scripts/audit-search-source-behavior.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
