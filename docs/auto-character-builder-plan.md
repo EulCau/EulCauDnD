@@ -153,12 +153,12 @@
 - 自动化元数据保存 `ruleSystem` 与 `officialExtensionsEnabled`
 - 法术, 专长, 祈唤, 超魔, 战技等有来源优先级
 - `5r` 的同名法术优先 XPHB, 然后才回退 PHB 和扩展
+- `5r` 的同名背景和同名子职优先 XPHB, 同时保留 5e 时期官方扩展选项
 - `5r` 子职可使用 5e 时期扩展子职, 代码里对子职源没有只限制 XPHB
 
 主要缺口:
 
-- `getAutoBuilderBackgrounds` 当前只返回 PHB 或 XPHB, 是否需要扩展背景要按用户需求确认。
-- 5r 中 5e 和 5r 同名内容的优先规则已在法术, 专长, 种族选择上存在, 但背景和子职选择列表还需要继续核对去重和优先级策略。
+- 5r 中 5e 和 5r 同名内容的优先规则已在法术, 专长, 种族, 背景, 子职选择上存在。
 - 扩展种族已进入数据和选择列表, 但多数扩展种族的复杂特性还只是以描述加入 `featureEntries`, 后续需要继续把可数值化部分转成调整操作。
 
 ### 6. 搜索
@@ -636,6 +636,43 @@
 - `npm run build` 通过。
 - Vite 仍报告主 chunk 超过 500 kB。这是既有体积警告, 不是本阶段引入的构建失败。
 
+## 阶段 7a 记录
+
+状态: 已完成。
+
+范围: 背景和子职来源优先级。
+
+改动:
+
+- `utils/autoBuilderRules.ts` 新增背景来源优先级:
+  - 5e: PHB。
+  - 5r: XPHB, PHB。
+- `utils/autoBuilderRules.ts` 新增子职来源优先级:
+  - 5e: PHB 和 5e 时期官方扩展, 排除 XPHB。
+  - 5r: XPHB 优先, 然后 PHB 和 5e 时期官方扩展。
+- 新增通用同名去重 helper, 对背景和子职选择列表按来源优先级保留最高优先版本。
+- `getAutoBuilderBackgrounds` 现在 5r 会保留 PHB-only 背景, 同名背景以 XPHB 为准。
+- `getAutoBuilderSubclasses` 现在会去除同名重复子职, 5r 同名子职以 XPHB 为准, 同时保留 XGE, TCE 等扩展子职。
+- 新增 `scripts/audit-source-priority.mjs`。
+- 新增 `npm run audit:source-priority`。
+
+已通过验证:
+
+- `npm run audit:source-priority`
+
+验证结果:
+
+- 5e backgrounds: 20
+- 5r backgrounds: 27
+- 5e Fighter subclasses: 10
+- 5r Fighter subclasses: 11
+- 5r Battle Master 来源为 XPHB。
+
+说明:
+
+- 本阶段只修选择列表层面的来源优先级和去重, 不改原始抽取数据。
+- 搜索面板按当前规则版本过滤或排序来源仍未完成。
+
 ## 后续阶段计划
 
 ### 阶段 1: 稳定数据与验证入口
@@ -739,6 +776,23 @@
 4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR。
 5. 已保持怪物详情为摘要, 避免加载完整怪物正文。
 6. 未完成: 搜索数据懒加载, 完整怪物 statblock, 以及按当前 5e/5r 规则版本过滤或排序来源。
+
+### 阶段 7: 来源优先级和同名去重
+
+目标: 5r 对同名 5e/5r 内容优先使用 5r, 同时保留可用的 5e 官方扩展内容。
+
+状态: 进行中。阶段 7a 已完成背景和子职选择列表的来源优先级审计与修正。
+
+任务:
+
+1. 已为背景选择实现来源优先级去重:
+   - 5e 只使用 PHB 背景。
+   - 5r 优先 XPHB, 同时保留 PHB-only 背景。
+2. 已为子职选择实现来源优先级去重:
+   - 5e 排除 XPHB 子职。
+   - 5r 同名子职优先 XPHB, 同时保留 5e 时期官方扩展子职。
+3. 新增 `npm run audit:source-priority`, 调用真实选择函数验证背景和子职无同名重复。
+4. 未完成: 搜索结果按当前规则版本做来源过滤或排序。
 
 ## 推荐下一步
 
