@@ -108,6 +108,16 @@ const uniqueSorted = (values: Array<string | undefined | null>) => Array.from(ne
     .filter(Boolean)
 )).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
 
+/** Convert a CR string to a numeric value for sorting. Unknown sorts last. */
+const crToSortValue = (cr: string): number => {
+  if (cr === '未知') return Infinity;
+  const n = Number(cr);
+  if (!isNaN(n)) return n;
+  const parts = cr.split('/');
+  if (parts.length === 2) return Number(parts[0]) / Number(parts[1]);
+  return Infinity;
+};
+
 const getMonsterSearchText = (monster: SearchableMonster): string => {
   const statblock = monster.statblock;
   const sections = [
@@ -197,7 +207,9 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
   const itemCategoryOptions = useMemo(() => uniqueSorted(magicItems.map(item => item.category)), [magicItems]);
   const itemRarityOptions = useMemo(() => uniqueSorted(magicItems.map(item => item.rarity)), [magicItems]);
   const monsterTypeOptions = useMemo(() => uniqueSorted(monsters.map(monster => monster.type)), [monsters]);
-  const monsterCrOptions = useMemo(() => uniqueSorted(monsters.map(monster => monster.cr)), [monsters]);
+  const monsterCrOptions = useMemo(() => Array.from(new Set(
+    monsters.map(monster => (monster.cr || '').trim()).filter(Boolean),
+  )).sort((a, b) => crToSortValue(a) - crToSortValue(b)), [monsters]);
   const hasActiveFilter = Boolean(sourceFilter || spellLevelFilter || itemCategoryFilter || itemRarityFilter || monsterTypeFilter || monsterCrFilter);
   const normalizedQuery = query.trim().toLowerCase();
   const shouldShowResults = Boolean(normalizedQuery || hasActiveFilter);
