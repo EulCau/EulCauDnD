@@ -34,6 +34,40 @@ const AUTO_BUILDER_FIGHTING_STYLE_SOURCES = ['PHB', 'TCE'];
 const AUTO_BUILDER_METAMAGIC_SOURCES = ['PHB', 'XPHB', 'TCE'];
 const AUTO_BUILDER_MANEUVER_SOURCES = ['PHB', 'XPHB', 'TCE'];
 const OFFICIAL_SUBCLASS_EXCLUDED_SOURCES = new Set(['UA', 'UAWGE']);
+const AUTO_BUILDER_RACE_SOURCE_PRIORITY_5E = [
+  'PHB',
+  'MPMM',
+  'AAG',
+  'FTD',
+  'TCE',
+  'ERLW',
+  'EFA',
+  'EGW',
+  'GGR',
+  'MOT',
+  'VRGR',
+  'WBtW',
+  'SCC',
+  'DSotDQ',
+  'AI',
+  'EEPC',
+  'MTF',
+  'VGM',
+  'SCAG',
+  'PSA',
+  'PSD',
+  'PSI',
+  'PSK',
+  'PSX',
+  'PSZ',
+  'LFL',
+  'RHW',
+];
+const AUTO_BUILDER_RACE_SOURCE_PRIORITY_5R = [
+  'XPHB',
+  ...AUTO_BUILDER_RACE_SOURCE_PRIORITY_5E,
+];
+const AUTO_BUILDER_RACE_SOURCES = new Set(AUTO_BUILDER_RACE_SOURCE_PRIORITY_5R);
 const AUTO_BUILDER_FEAT_SOURCES = new Set([
   'ABH',
   'BGG',
@@ -531,6 +565,7 @@ const coreData = {
       fightingStyleSources: ['PHB', 'TCE'],
       metamagicSources: ['PHB', 'TCE'],
       maneuverSources: ['PHB', 'TCE'],
+      raceSources: AUTO_BUILDER_RACE_SOURCE_PRIORITY_5E,
       officialExtensionsEnabled: true,
     },
     '5r': {
@@ -540,6 +575,7 @@ const coreData = {
       fightingStyleSources: ['XPHB', 'PHB', 'TCE'],
       metamagicSources: ['XPHB', 'PHB', 'TCE'],
       maneuverSources: ['XPHB', 'PHB', 'TCE'],
+      raceSources: AUTO_BUILDER_RACE_SOURCE_PRIORITY_5R,
       officialExtensionsEnabled: true,
     },
   },
@@ -819,10 +855,10 @@ const autoBuilderData = {
   classes: autoBuilderClasses,
   subclasses: autoBuilderSubclasses,
   races: (races.race || [])
-    .filter(race => race.source === 'PHB' || race.source === 'XPHB')
+    .filter(race => AUTO_BUILDER_RACE_SOURCES.has(race.source))
     .map(normalizeEntityForAutoBuilder),
   subraces: (races.subrace || [])
-    .filter(subrace => (subrace.source === 'PHB' || subrace.source === 'XPHB') && subrace.ENG_name && subrace.name)
+    .filter(subrace => AUTO_BUILDER_RACE_SOURCES.has(subrace.source) && subrace.ENG_name && subrace.name)
     .map(subrace => ({
       ...normalizeEntityForAutoBuilder(subrace),
       raceName: subrace.raceName,
@@ -878,6 +914,10 @@ console.log(JSON.stringify({
   autoBuilder: {
     classes: autoBuilderData.classes.length,
     subclasses: autoBuilderData.subclasses.length,
+    races: autoBuilderData.races.length,
+    subraces: autoBuilderData.subraces.length,
+    raceSources: countBy(autoBuilderData.races, race => race.source),
+    subraceSources: countBy(autoBuilderData.subraces, subrace => subrace.source),
     feats: autoBuilderData.feats.length,
     invocations: autoBuilderData.invocations.length,
     invocationSources: countBy(autoBuilderData.invocations, invocation => invocation.source),

@@ -46,6 +46,14 @@ const ARMOR_TYPES: Record<string, string> = {
 };
 
 type WeaponProperty = NonNullable<AutoBuilderWeapon['property']>[number];
+type MagicWeaponEquipOptions = {
+  inventoryItemId: string;
+  displayName: string;
+  detailName: string;
+  magicBonus: number;
+  isTemplate: boolean;
+  baseWeaponId?: string;
+};
 
 const getPropertyUid = (property: WeaponProperty): string => (
   typeof property === 'string' ? property : property.uid || ''
@@ -298,6 +306,32 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   return properties.join(', ');
 };
 
+const createWeaponAttack = (
+  character: CharacterData,
+  weapon: AutoBuilderWeapon,
+  sourceId: string,
+  attackName = weapon.name,
+  sourceName = attackName,
+  notes = formatWeaponNotes(character, weapon),
+): Attack => {
+  const profBonus = calculateProficiencyBonus(getTotalLevel(character.classes));
+  const abilityMod = getAttackAbilityMod(character, weapon);
+  const magicBonus = getWeaponBonus(weapon);
+  const fightingStyleBonus = isRangedWeapon(weapon) && hasFeature(character, ['箭术', 'Archery']) ? 2 : 0;
+  const attackBonus = abilityMod + magicBonus + fightingStyleBonus + (isWeaponProficient(character, weapon) ? profBonus : 0);
+  return {
+    id: `${sourceId}-attack`,
+    sourceId,
+    sourceName,
+    automatic: true,
+    name: attackName,
+    bonus: formatModifier(attackBonus),
+    damage: formatDamage(character, weapon),
+    type: formatWeaponType(weapon),
+    notes,
+  };
+};
+
 export const getWeaponOptions = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
@@ -333,6 +367,19 @@ export const isWeaponEquipped = (character: CharacterData, weapon: AutoBuilderWe
 	    .find(sourceId => sourceId.startsWith('equip-weapon-offhand-'))
 	    ?.replace(/^equip-weapon-offhand-/, '');
 	};
+
+	const getEquippedMainHandWeaponId = (character: CharacterData): string | undefined => (
+	  character.appliedAdjustments
+	    .map(adjustment => adjustment.sourceId)
+	    .find(sourceId => sourceId.startsWith('equip-weapon-') && !sourceId.startsWith('equip-weapon-offhand-'))
+	    ?.replace(/^equip-weapon-/, '')
+	);
+
+	const getEquippedMagicWeaponSourceId = (character: CharacterData): string | undefined => (
+	  character.appliedAdjustments
+	    .map(adjustment => adjustment.sourceId)
+	    .find(sourceId => sourceId.startsWith('equip-magic-'))
+	);
 
 	export const isArmorEquipped = (character: CharacterData, armor: AutoBuilderArmor): boolean => {
   return character.appliedAdjustments.some(adjustment => adjustment.sourceId === `equip-armor-${armor.id}`);
@@ -495,23 +542,8 @@ export const equipWeapon = (
 	    }
 	  }
 
-	  const profBonus = calculateProficiencyBonus(getTotalLevel(next.classes));
-	  const abilityMod = getAttackAbilityMod(next, weapon);
-	  const magicBonus = getWeaponBonus(weapon);
-	  const fightingStyleBonus = isRangedWeapon(weapon) && hasFeature(next, ['箭术', 'Archery']) ? 2 : 0;
-	  const attackBonus = abilityMod + magicBonus + fightingStyleBonus + (isWeaponProficient(next, weapon) ? profBonus : 0);
 	  const sourceId = `equip-weapon-${weapon.id}`;
-	  const attack: Attack = {
-	    id: `${sourceId}-attack`,
-	    sourceId,
-	    sourceName: weapon.name,
-	    automatic: true,
-	    name: weapon.name,
-	    bonus: formatModifier(attackBonus),
-	    damage: formatDamage(next, weapon),
-	    type: formatWeaponType(weapon),
-	    notes: formatWeaponNotes(next, weapon),
-	  };
+	  const attack = createWeaponAttack(next, weapon, sourceId);
 
 	  return applyCharacterAdjustments(next, {
 	    id: sourceId,
@@ -530,13 +562,90 @@ export const equipWeapon = (
 	  return removeCharacterAdjustments(character, `equip-weapon-${weapon.id}`);
 	};
 
+	export const equipMagicWeapon = (
+	  character: CharacterData,
+	  weapon: AutoBuilderWeapon,
+	  options: MagicWeaponEquipOptions,
+	): CharacterData => {
+	  let next = character;
+	  const existingMainSourceIds = next.appliedAdjustments
+	    .map(adjustment => adjustment.sourceId)
+	    .filter(sourceId => (
+	      (sourceId.startsWith('equip-weapon-') && !sourceId.startsWith('equip-weapon-offhand-'))
+	      || sourceId.startsWith('equip-magic-')
+	    ));
+	  next = existingMainSourceIds.reduce((current, sourceId) => removeCharacterAdjustments(current, sourceId), next);
+	  if (!hasProperty(weapon, 'L')) {
+	    next = next.appliedAdjustments
+	      .filter(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-'))
+	      .reduce((current, adjustment) => removeCharacterAdjustments(current, adjustment.sourceId), next);
+	  }
+
+	  const sourceId = `equip-magic-${options.inventoryItemId}`;
+	  const notes = options.isTemplate
+	    ? `${formatWeaponNotes(next, weapon)}, 魔法武器 ${formatModifier(options.magicBonus)}`
+	    : `${options.detailName}, ${formatWeaponNotes(next, weapon)}`.replace(/, $/, '');
+	  const attack = createWeaponAttack(next, weapon, sourceId, options.displayName, options.displayName, notes);
+	  if (options.baseWeaponId) {
+	    attack.magicBaseWeaponId = options.baseWeaponId;
+	    attack.magicBonus = options.magicBonus;
+	    attack.magicDetailName = options.detailName;
+	    attack.magicTemplate = options.isTemplate;
+	  }
+
+	  return applyCharacterAdjustments(next, {
+	    id: sourceId,
+	    sourceId,
+	    sourceName: options.displayName,
+	    operations: [
+	      { type: 'addAttack', attack },
+	    ],
+	  });
+	};
+
+	export const getOffHandWeaponEquipBlockReason = (
+	  character: CharacterData,
+	  weapon: AutoBuilderWeapon,
+	  content: AutoBuilderContent,
+	): string => {
+	  if (!hasProperty(weapon, 'L')) return '副手武器必须具有轻型属性.';
+
+	  const mainHandId = getEquippedMainHandWeaponId(character);
+	  const mainHandWeapon = mainHandId ? content.weapons.find(w => w.id === mainHandId) : undefined;
+	  if (mainHandWeapon && !hasProperty(mainHandWeapon, 'L')) {
+	    return '主手武器不具有轻型属性, 不能进行双武器战斗.';
+	  }
+
+	  const magicSourceId = getEquippedMagicWeaponSourceId(character);
+	  if (magicSourceId) {
+	    const magicAttack = character.attacks.find(attack => attack.sourceId === magicSourceId);
+	    const magicBaseWeapon = magicAttack?.magicBaseWeaponId
+	      ? content.weapons.find(item => item.id === magicAttack.magicBaseWeaponId)
+	      : undefined;
+	    if (!magicBaseWeapon) {
+	      return '已装备魔法主手武器, 且无法判断其基础武器属性, 请先卸下后再装备副手武器.';
+	    }
+	    if (!hasProperty(magicBaseWeapon, 'L')) {
+	      return '魔法主手武器的基础武器不具有轻型属性, 不能进行双武器战斗.';
+	    }
+	  }
+
+	  return '';
+	};
+
 	export const equipOffHandWeapon = (
 	  character: CharacterData,
 	  weapon: AutoBuilderWeapon,
 	  content: AutoBuilderContent,
 	): CharacterData => {
+	  if (getOffHandWeaponEquipBlockReason(character, weapon, content)) return character;
+
 	  // Unequip any existing off-hand weapon first
 	  let next = character;
+	  const shieldSrcId = next.appliedAdjustments
+	    .find(a => a.sourceId.startsWith('equip-shield-'))?.sourceId;
+	  if (shieldSrcId) next = removeCharacterAdjustments(next, shieldSrcId);
+
 	  const existingOffId = getEquippedOffHandWeaponId(next);
 	  if (existingOffId) {
 	    const old = content.weapons.find(w => w.id === existingOffId);
@@ -600,6 +709,36 @@ export const refreshEquippedWeapons = (
 	  }, character);
 	};
 
+export const refreshEquippedMagicWeapons = (
+	  character: CharacterData,
+	  content: AutoBuilderContent,
+	): CharacterData => {
+	  const magicAttacks = character.attacks
+	    .filter(attack => attack.sourceId?.startsWith('equip-magic-') && attack.magicBaseWeaponId);
+
+	  return magicAttacks.reduce((next, attack) => {
+	    const sourceId = attack.sourceId;
+	    const inventoryItemId = sourceId?.replace(/^equip-magic-/, '');
+	    const baseWeapon = content.weapons.find(item => item.id === attack.magicBaseWeaponId);
+	    if (!sourceId || !inventoryItemId || !baseWeapon) return next;
+	    const magicBonus = attack.magicBonus || 0;
+	    const weapon: AutoBuilderWeapon = {
+	      ...baseWeapon,
+	      id: `magic-${inventoryItemId}-${baseWeapon.id}`,
+	      name: attack.name,
+	      bonusWeapon: magicBonus ? formatModifier(magicBonus) : '0',
+	    };
+	    return equipMagicWeapon(next, weapon, {
+	      inventoryItemId,
+	      displayName: attack.name,
+	      detailName: attack.magicDetailName || attack.sourceName || attack.name,
+	      magicBonus,
+	      isTemplate: Boolean(attack.magicTemplate),
+	      baseWeaponId: baseWeapon.id,
+	    });
+	  }, character);
+	};
+
 export const refreshEquippedOffHandWeapons = (
 	  character: CharacterData,
 	  content: AutoBuilderContent,
@@ -620,9 +759,12 @@ export const refreshEquippedOffHandWeapons = (
 	): CharacterData => (
 	  refreshAutomaticStyleAttacks(
 	    refreshEquippedOffHandWeapons(
-	      refreshEquippedWeapons(
-	        refreshEquippedArmor(
-	          refreshAutomaticArmorClass(character),
+	      refreshEquippedMagicWeapons(
+	        refreshEquippedWeapons(
+	          refreshEquippedArmor(
+	            refreshAutomaticArmorClass(character),
+	            content,
+	          ),
 	          content,
 	        ),
 	        content,
@@ -749,15 +891,16 @@ export const refreshEquippedArmor = (
 export const equipShield = (
 	  character: CharacterData,
 	  shield: AutoBuilderArmor,
+	  content?: AutoBuilderContent,
 	): CharacterData => {
-	  // Conflict: cannot equip shield if main weapon is two-handed
-	  const mainWeaponId = character.appliedAdjustments
-	    .map(a => a.sourceId)
-	    .find(sid => sid.startsWith('equip-weapon-') && !sid.startsWith('equip-weapon-offhand-'))
-	    ?.replace(/^equip-weapon-/, '');
-	  // We can't easily check the weapon's properties here without content,
-	  // so we'll assume the caller handles it. Shield unequips any off-hand weapon.
 	  let next = character;
+	  const mainWeaponId = getEquippedMainHandWeaponId(next);
+	  const mainWeapon = mainWeaponId ? content?.weapons.find(weapon => weapon.id === mainWeaponId) : undefined;
+	  if (mainWeapon && hasProperty(mainWeapon, '2H')) {
+	    next = removeCharacterAdjustments(next, `equip-weapon-${mainWeapon.id}`);
+	  }
+
+	  // Shield occupies the off hand.
 	  const offId = getEquippedOffHandWeaponId(next);
 	  if (offId) {
 	    next = next.appliedAdjustments

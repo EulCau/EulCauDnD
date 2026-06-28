@@ -1,27 +1,25 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {AdjustmentOperation, Attack, CharacterData, InventoryItem} from '../types';
+import {AdjustmentOperation, CharacterData, InventoryItem} from '../types';
 import {useLanguage} from '../contexts/LanguageContext';
 import {AutoBuilderContent, AutoBuilderWeapon, loadAutoBuilderContent} from '../utils/autoBuilderRules';
 import {applyCharacterAdjustments, removeCharacterAdjustments} from '../utils/characterAdjustments';
-import {calculateProficiencyBonus, formatModifier, getTotalLevel} from '../utils/dndCalculations';
 import {
     equipArmor,
+    equipMagicWeapon,
     equipOffHandWeapon,
     equipShield,
     equipWeapon,
     formatWeaponMasteryNames,
     formatWeaponPropertyNames,
-    formatWeaponType,
     getArmorOptions,
-    getAttackAbilityMod,
     getItemType,
+    getOffHandWeaponEquipBlockReason,
     getShieldOptions,
     getWeaponOptions,
     isArmorEquipped,
     isOffHandWeaponEquipped,
     isShieldEquipped,
     isWeaponEquipped,
-    isWeaponProficient,
     refreshAutomaticArmorClass,
     refreshCharacterAutomation,
     refreshEquippedArmor,
@@ -30,8 +28,6 @@ import {
     unequipShield,
     unequipWeapon,
 } from '../utils/equipmentRules';
-
-const DAMAGE_TYPES: Record<string, string> = { B: '钝击', P: '穿刺', S: '挥砍', A: '强酸', C: '寒冷', F: '火焰', L: '闪电', N: '黯蚀', O: '力场', R: '光耀', T: '雷鸣' };
 
 /** Map a magic item's 'requires' field to an armor type code */
 const getArmorTypeFromRequires = (requires: any): string => {
@@ -67,6 +63,10 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
     const [armorId, setArmorId] = useState('');
     const [shieldId, setShieldId] = useState('');
     const [inventoryBaseChoices, setInventoryBaseChoices] = useState<Record<string, string>>({});
+    const [manualItemName, setManualItemName] = useState('');
+    const [manualItemCount, setManualItemCount] = useState('1');
+    const [manualItemSource, setManualItemSource] = useState('手动');
+
     const updateMoney = (key: keyof typeof data.currency, val: string) => {
         onChange('currency', { ...data.currency, [key]: val });
     };
@@ -109,14 +109,18 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
 
     const toggleShield = () => {
         if (!selectedShield || !content) return;
-        onUpdateCharacter(refreshCharacterAutomation(shieldEquipped ? unequipShield(data, selectedShield) : equipShield(data, selectedShield), content));
+        onUpdateCharacter(refreshCharacterAutomation(shieldEquipped ? unequipShield(data, selectedShield) : equipShield(data, selectedShield, content), content));
     };
 
     // Off-hand weapon
     const selectedOffHand = weaponOptions.find(w => w.id === offHandWeaponId) || weaponOptions[0];
     const offHandEquipped = selectedOffHand ? isOffHandWeaponEquipped(data, selectedOffHand) : false;
+    const offHandBlockReason = selectedOffHand && content && !offHandEquipped
+        ? getOffHandWeaponEquipBlockReason(data, selectedOffHand, content)
+        : '';
     const toggleOffHand = () => {
         if (!selectedOffHand || !content) return;
+        if (!offHandEquipped && offHandBlockReason) return;
         onUpdateCharacter(refreshCharacterAutomation(
             offHandEquipped ? unequipOffHandWeapon(data, selectedOffHand) : equipOffHandWeapon(data, selectedOffHand, content),
             content
@@ -124,25 +128,36 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
     };
 
     // Backpack/inventory
-    const addItemToInventory = (itemName: string, itemSource: string) => {
-        const existing = data.inventory.find(i => i.name === itemName && i.source === itemSource);
-        if (existing) {
-            onUpdateCharacter(applyCharacterAdjustments(data, {
-                id: `inv-${itemName}|${itemSource}`,
-                sourceId: `inv-${itemName}|${itemSource}`,
-                sourceName: itemName,
-                operations: [{ type: 'addItem', item: { ...existing, count: existing.count + 1 } }],
-            }));
-        } else {
-            onUpdateCharacter(applyCharacterAdjustments(data, {
-                id: `inv-${itemName}|${itemSource}`,
-                sourceId: `inv-${itemName}|${itemSource}`,
-                sourceName: itemName,
-                operations: [{
-                    type: 'addItem',
-                    item: { id: `${itemName}|${itemSource}`, name: itemName, source: itemSource, count: 1 },
-                }],
-            }));
+    const addItemToInventory = (itemName: string, itemSource: string, quantity = 1) => {
+        const name = itemName.trim();
+        const source = itemSource.trim() || '手动';
+        const count = Math.max(1, Math.floor(quantity));
+        if (!name) return;
+
+        const itemId = `${name}|${source}`;
+        const existing = data.inventory.find(i => i.name === name && i.source === source);
+        onUpdateCharacter(applyCharacterAdjustments(data, {
+            id: `inv-${itemId}`,
+            sourceId: `inv-${itemId}`,
+            sourceName: name,
+            operations: [{
+                type: 'addItem',
+                item: {
+                    id: itemId,
+                    name,
+                    source,
+                    count: existing ? existing.count + count : count,
+                },
+            }],
+        }));
+    };
+
+    const addManualItemToInventory = () => {
+        const quantity = Number.parseInt(manualItemCount, 10);
+        addItemToInventory(manualItemName, manualItemSource, Number.isFinite(quantity) ? quantity : 1);
+        if (manualItemName.trim()) {
+            setManualItemName('');
+            setManualItemCount('1');
         }
     };
 
@@ -260,9 +275,17 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
             if (hasRequires) {
                 // Template weapon: needs a base weapon to apply to
                 const baseName = inventoryBaseChoices[invItem.id];
-                weaponData = baseName
+                const baseWeapon = baseName
                     ? autoBuilderContent.weapons.find(w => w.name === baseName)
                     : autoBuilderContent.weapons[0];
+                weaponData = baseWeapon
+                    ? {
+                        ...baseWeapon,
+                        id: `magic-${invItem.id}-${baseWeapon.id}`,
+                        name: `${detail.name} ${baseWeapon.name}`,
+                        bonusWeapon: detail.bonusWeapon || '0',
+                    }
+                    : undefined;
             } else if (detail.dmg1) {
                 // Standalone weapon: use its own data (e.g. Moon Sickle)
                 weaponData = {
@@ -284,37 +307,16 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
             }
             if (!weaponData) return;
 
-            // Equip with baked-in magic bonus. Use a unique sourceId
-            // so refreshEquippedWeapons (which re-equips by base weapon ID) does NOT overwrite it.
-            const magicSourceId = `equip-magic-${invItem.id}`;
-            const profBonus = calculateProficiencyBonus(getTotalLevel(data.classes));
-            const abilityMod = getAttackAbilityMod(data, weaponData);
             const attackName = hasRequires
-                ? `${detail.name} ${weaponData.name}`
+                ? weaponData.name
                 : detail.name;
-            const attackBonus = abilityMod + magicBonus + (isWeaponProficient(data, weaponData) ? profBonus : 0);
-            const attack: Attack = {
-                id: `${magicSourceId}-attack`,
-                sourceId: magicSourceId,
-                sourceName: attackName,
-                automatic: true,
-                name: attackName,
-                bonus: formatModifier(attackBonus),
-                damage: `${weaponData.dmg1 || ''}${magicBonus + abilityMod === 0 ? '' : formatModifier(magicBonus + abilityMod)} ${weaponData.dmgType ? (DAMAGE_TYPES[weaponData.dmgType] || weaponData.dmgType) : ''}`.trim(),
-                type: formatWeaponType(weaponData),
-                notes: hasRequires ? `魔法武器 +${magicBonus}` : detail.name,
-            };
-            // Unequip any existing main weapon first
-            const existingMain = data.appliedAdjustments.find(a => a.sourceId.startsWith('equip-weapon-') && !a.sourceId.startsWith('equip-weapon-offhand-') && !a.sourceId.startsWith('equip-magic-'));
-            let next = data;
-            if (existingMain) {
-                next = removeCharacterAdjustments(next, existingMain.sourceId);
-            }
-            next = applyCharacterAdjustments(next, {
-                id: magicSourceId,
-                sourceId: magicSourceId,
-                sourceName: attack.sourceName,
-                operations: [{ type: 'addAttack', attack }],
+            let next = equipMagicWeapon(data, weaponData, {
+                inventoryItemId: invItem.id,
+                displayName: attackName,
+                detailName: detail.name,
+                magicBonus,
+                isTemplate: Boolean(hasRequires),
+                baseWeaponId: hasRequires ? weaponData.id.replace(`magic-${invItem.id}-`, '') : undefined,
             });
             // Apply spell bonuses
             next = applySpellBonuses(next, detail);
@@ -433,12 +435,16 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                 </select>
                 <button
                     onClick={toggleOffHand}
-                    disabled={!selectedOffHand}
+                    disabled={!selectedOffHand || Boolean(offHandBlockReason)}
+                    title={offHandBlockReason || undefined}
                     className="px-1.5 py-0.5 text-[9px] uppercase font-bold rounded border border-gray-300 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
                 >
                     {offHandEquipped ? t('equipment.unequip') : t('equipment.equip')}
                 </button>
             </div>
+            {offHandBlockReason && (
+                <div className="mt-1 text-[10px] text-red-600 leading-relaxed">{offHandBlockReason}</div>
+            )}
             {selectedOffHand && offHandEquipped && (
                 <div className="text-[10px] text-gray-500">副手: {selectedOffHand.dmg1} {selectedOffHand.dmgType || ''}</div>
             )}
@@ -514,10 +520,48 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
             </div>
             
             {/* Backpack / Inventory */}
-            <div className="border border-gray-200 rounded p-2 bg-white">
-                <h4 className="text-[10px] text-gray-500 uppercase font-bold text-center border-b pb-1 mb-1">背包</h4>
+            <div className="border border-gray-200 rounded p-2 bg-white flex-1 min-w-0">
+                <h4 className="text-[10px] text-gray-500 uppercase font-bold text-center border-b pb-1 mb-2">背包</h4>
+                <form
+                    className="grid grid-cols-[1fr_3.5rem] gap-1 mb-2"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        addManualItemToInventory();
+                    }}
+                >
+                    <input
+                        type="text"
+                        value={manualItemName}
+                        onChange={(event) => setManualItemName(event.target.value)}
+                        placeholder="物品名称"
+                        className="border border-gray-300 rounded px-2 py-1 text-[10px] bg-white outline-none focus:border-dnd-gold"
+                    />
+                    <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={manualItemCount}
+                        onChange={(event) => setManualItemCount(event.target.value)}
+                        className="border border-gray-300 rounded px-1 py-1 text-[10px] bg-white outline-none text-center focus:border-dnd-gold"
+                        aria-label="数量"
+                    />
+                    <input
+                        type="text"
+                        value={manualItemSource}
+                        onChange={(event) => setManualItemSource(event.target.value)}
+                        placeholder="来源/备注"
+                        className="border border-gray-300 rounded px-2 py-1 text-[10px] bg-white outline-none focus:border-dnd-gold"
+                    />
+                    <button
+                        type="submit"
+                        disabled={!manualItemName.trim()}
+                        className="px-2 py-1 text-[10px] uppercase font-bold rounded border border-dnd-red text-dnd-red hover:bg-red-50 disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        添加
+                    </button>
+                </form>
                 {data.inventory.length === 0 ? (
-                    <p className="text-[10px] text-gray-400 text-center py-2">从右侧搜索面板购买魔法物品以添加到背包</p>
+                    <p className="text-[10px] text-gray-400 text-center py-2">从右侧搜索面板添加魔法物品，或在上方手动添加普通物品</p>
                 ) : (
                     <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                         {data.inventory.map(item => {
@@ -537,7 +581,8 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
 
                             return (
                             <div key={item.id} className="w-full flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5">
-                                <span className="text-[10px] text-gray-800 truncate flex-1">{item.name}</span>
+                                <span className="text-[10px] text-gray-800 truncate flex-1" title={`${item.name} · ${item.source}`}>{item.name}</span>
+                                {item.source && <span className="text-[8px] text-gray-400 shrink-0 max-w-[72px] truncate" title={item.source}>{item.source}</span>}
                                 <span className="text-[9px] text-gray-400 shrink-0">×{item.count}</span>
                                 {isEquippable && hasRequires && baseOptions.length > 0 && (
                                     <select

@@ -25,6 +25,10 @@ export interface Attack {
 	  sourceName?: string;
 	  automatic?: boolean;
 	  offHand?: boolean;
+	  magicBaseWeaponId?: string;
+	  magicBonus?: number;
+	  magicDetailName?: string;
+	  magicTemplate?: boolean;
 	}
 
 	export interface Currency {
@@ -81,6 +85,10 @@ export type AdjustmentPath =
   | 'spellAttackBonus'
   | 'spellSaveDCBonus';
 
+export type TextListAdjustmentPath =
+  | 'damageResistances'
+  | 'senses';
+
 export type AdjustmentOperation =
   | {
       type: 'set';
@@ -128,6 +136,12 @@ export type AdjustmentOperation =
       type: 'addNumber';
       path: AdjustmentPath;
       value: number;
+    }
+  | {
+      type: 'addTextEntry';
+      path: TextListAdjustmentPath;
+      value: string;
+      previousExists?: boolean;
     }
   | {
       type: 'addProficiency';
@@ -289,6 +303,8 @@ export interface CharacterData {
   
   // Features & Traits
   features: string;
+  damageResistances: string[];
+  senses: string[];
   featureEntries: CharacterFeatureEntry[];
   resources: CharacterResource[];
 	  appliedAdjustments: AppliedAdjustment[];
@@ -393,6 +409,8 @@ export const INITIAL_CHARACTER: CharacterData = {
     other: ""
   },
   features: "",
+  damageResistances: [],
+  senses: [],
   featureEntries: [],
   resources: [],
 	  appliedAdjustments: [],

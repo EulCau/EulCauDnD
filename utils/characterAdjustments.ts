@@ -3,6 +3,7 @@ import {
   AdjustmentPath,
   AppliedAdjustment,
   CharacterData,
+  TextListAdjustmentPath,
 } from '../types';
 
 type MutableCharacter = CharacterData;
@@ -47,6 +48,32 @@ const addNumberAtPath = (
   const numericCurrent = typeof current === 'number' ? current : Number(current || 0);
   return setPathValue(character, path, numericCurrent + value);
 };
+
+const getTextListValue = (
+  character: CharacterData,
+  path: TextListAdjustmentPath,
+): string[] => (
+  Array.isArray(character[path]) ? character[path] : []
+);
+
+const addTextEntryAtPath = (
+  character: MutableCharacter,
+  path: TextListAdjustmentPath,
+  value: string,
+): MutableCharacter => {
+  const current = getTextListValue(character, path);
+  if (current.includes(value)) return character;
+  return { ...character, [path]: [...current, value] };
+};
+
+const removeTextEntryAtPath = (
+  character: MutableCharacter,
+  path: TextListAdjustmentPath,
+  value: string,
+): MutableCharacter => ({
+  ...character,
+  [path]: getTextListValue(character, path).filter(entry => entry !== value),
+});
 
 const cloneClasses = (classes: CharacterData['classes']): CharacterData['classes'] => (
   classes.map(cls => ({ ...cls }))
@@ -118,6 +145,11 @@ const withPreviousValue = (character: CharacterData, operation: AdjustmentOperat
         previousResource: previousResource ? cloneResource(previousResource) : undefined,
       };
     }
+    case 'addTextEntry':
+      return {
+        ...operation,
+        previousExists: getTextListValue(character, operation.path).includes(operation.value),
+      };
     case 'addProficiency':
     case 'removeProficiency':
       return {
@@ -196,6 +228,8 @@ const applyOperation = (character: MutableCharacter, operation: AdjustmentOperat
       };
     case 'addNumber':
       return addNumberAtPath(character, operation.path, operation.value);
+    case 'addTextEntry':
+      return addTextEntryAtPath(character, operation.path, operation.value);
     case 'addProficiency': {
       const proficiencies = new Set(character.proficiencies);
       const expertises = new Set(character.expertises);
@@ -298,6 +332,10 @@ const removeOperation = (character: MutableCharacter, operation: AdjustmentOpera
       };
     case 'addNumber':
       return addNumberAtPath(character, operation.path, -operation.value);
+    case 'addTextEntry':
+      return operation.previousExists
+        ? character
+        : removeTextEntryAtPath(character, operation.path, operation.value);
     case 'addProficiency': {
       const proficiencies = new Set(character.proficiencies);
       const expertises = new Set(character.expertises);

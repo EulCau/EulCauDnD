@@ -156,7 +156,7 @@ export type AutoBuilderWeapon = {
   key: string;
   name: string;
   englishName?: string;
-  source: 'PHB' | 'XPHB';
+  source: string;
   ruleSystem: RuleSystem;
   type?: string;
   weaponCategory?: string;
@@ -267,7 +267,7 @@ type AutoBuilderOrigin = {
   source: 'PHB' | 'XPHB';
   ruleSystem: RuleSystem;
   ability?: Array<Record<string, number> | { choose?: unknown }>;
-  speed?: number | Record<string, number>;
+  speed?: number | Record<string, number | boolean>;
   size?: string[];
   darkvision?: number;
   resist?: unknown[];
@@ -283,7 +283,7 @@ type AutoBuilderOrigin = {
     description: string;
   }>;
   raceName?: string;
-  raceSource?: 'PHB' | 'XPHB';
+  raceSource?: string;
 };
 
 export type AutoBuilderContent = {
@@ -295,6 +295,7 @@ export type AutoBuilderContent = {
     fightingStyleSources?: string[];
     metamagicSources?: string[];
     maneuverSources?: string[];
+    raceSources?: string[];
     officialExtensionsEnabled?: boolean;
   }>;
   classes: AutoBuilderClass[];
@@ -427,6 +428,21 @@ const OFFICIAL_FEAT_SOURCES = new Set([
 const FEAT_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
   '5e': ['PHB', 'XGE', 'TCE', 'FTD', 'BGG', 'BMT', 'DSotDQ', 'ERLW', 'EFA', 'FRHoF', 'LFL', 'PSK', 'PSX', 'RHW', 'SCC', 'SatO', 'MTF', 'ABH'],
   '5r': ['XPHB', 'PHB', 'XGE', 'TCE', 'FTD', 'BGG', 'BMT', 'DSotDQ', 'ERLW', 'EFA', 'FRHoF', 'LFL', 'PSK', 'PSX', 'RHW', 'SCC', 'SatO', 'MTF', 'ABH'],
+};
+
+const RACE_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
+  '5e': ['PHB', 'MPMM', 'AAG', 'FTD', 'TCE', 'ERLW', 'EFA', 'EGW', 'GGR', 'MOT', 'VRGR', 'WBtW', 'SCC', 'DSotDQ', 'AI', 'EEPC', 'MTF', 'VGM', 'SCAG', 'PSA', 'PSD', 'PSI', 'PSK', 'PSX', 'PSZ', 'LFL', 'RHW'],
+  '5r': ['XPHB', 'MPMM', 'PHB', 'AAG', 'FTD', 'TCE', 'ERLW', 'EFA', 'EGW', 'GGR', 'MOT', 'VRGR', 'WBtW', 'SCC', 'DSotDQ', 'AI', 'EEPC', 'MTF', 'VGM', 'SCAG', 'PSA', 'PSD', 'PSI', 'PSK', 'PSX', 'PSZ', 'LFL', 'RHW'],
+};
+
+const BACKGROUND_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
+  '5e': ['PHB'],
+  '5r': ['XPHB', 'PHB'],
+};
+
+const SUBCLASS_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
+  '5e': ['PHB', 'DMG', 'SCAG', 'XGE', 'TCE', 'FTD', 'BGG', 'DSotDQ', 'EGW', 'FRHoF', 'PSA', 'PSK', 'RHW', 'VRGR'],
+  '5r': ['XPHB', 'PHB', 'DMG', 'SCAG', 'XGE', 'TCE', 'FTD', 'BGG', 'DSotDQ', 'EGW', 'FRHoF', 'PSA', 'PSK', 'RHW', 'VRGR'],
 };
 
 const OFFICIAL_SPELL_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
@@ -628,16 +644,58 @@ export const getAutoBuilderClass = (
 export const getAutoBuilderRaces = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
-): AutoBuilderOrigin[] => content.races
-  .filter(race => race.source === RULE_SOURCE[ruleSystem])
-  .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+): AutoBuilderOrigin[] => {
+  const priority = content.rules?.[ruleSystem]?.raceSources || RACE_SOURCE_PRIORITY[ruleSystem];
+  const allowedSources = new Set(priority);
+  const byName = new Map<string, AutoBuilderOrigin>();
+  content.races
+    .filter(race => allowedSources.has(race.source))
+    .filter(race => ruleSystem === '5r' || race.source !== 'XPHB')
+    .forEach(race => {
+      const key = normalizeKey(race.englishName || race.key || race.name).toLowerCase();
+      const existing = byName.get(key);
+      if (!existing || priority.indexOf(race.source) < priority.indexOf(existing.source)) {
+        byName.set(key, race);
+      }
+    });
+  return Array.from(byName.values())
+    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+};
+
+const sourcePriorityRank = (priority: string[], source: string): number => {
+  const index = priority.indexOf(source);
+  return index >= 0 ? index : priority.length;
+};
+
+const dedupeByNameAndSourcePriority = <T extends { name: string; englishName?: string; key?: string; source: string }>(
+  items: T[],
+  priority: string[],
+): T[] => {
+  const byName = new Map<string, T>();
+  items.forEach(item => {
+    const key = normalizeKey(item.englishName || item.key || item.name).toLowerCase();
+    const existing = byName.get(key);
+    if (!existing || sourcePriorityRank(priority, item.source) < sourcePriorityRank(priority, existing.source)) {
+      byName.set(key, item);
+    }
+  });
+  return Array.from(byName.values())
+    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+};
 
 export const getAutoBuilderBackgrounds = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
-): AutoBuilderOrigin[] => content.backgrounds
-  .filter(background => background.source === RULE_SOURCE[ruleSystem])
-  .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+): AutoBuilderOrigin[] => {
+  const priority = BACKGROUND_SOURCE_PRIORITY[ruleSystem];
+  const allowedSources = new Set(priority);
+  return dedupeByNameAndSourcePriority(
+    content.backgrounds
+      .filter(background => allowedSources.has(background.source))
+      .filter(background => ruleSystem === '5r' || background.source !== 'XPHB'),
+    priority,
+  );
+};
 
 export const getAutoBuilderSubraces = (
   content: AutoBuilderContent,
@@ -659,9 +717,16 @@ export const getAutoBuilderSubclasses = (
   cls: AutoBuilderClass | undefined,
 ): AutoBuilderSubclass[] => {
   if (!cls) return [];
-  return content.subclasses
-    .filter(subclass => subclass.className === cls.name && subclass.classSource === cls.source)
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+  const ruleSystem: RuleSystem = cls.source === 'XPHB' ? '5r' : '5e';
+  const priority = SUBCLASS_SOURCE_PRIORITY[ruleSystem];
+  const allowedSources = new Set(priority);
+  return dedupeByNameAndSourcePriority(
+    content.subclasses
+      .filter(subclass => subclass.className === cls.name && subclass.classSource === cls.source)
+      .filter(subclass => allowedSources.has(subclass.source))
+      .filter(subclass => ruleSystem === '5r' || subclass.source !== 'XPHB'),
+    priority,
+  );
 };
 
 export const isCharacterClassForDefinition = (item: CharacterData['classes'][number], cls: AutoBuilderClass): boolean => {
@@ -827,8 +892,14 @@ export const getFeatSavingThrowChoiceOptions = (
   const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
   feat?.savingThrowProficiencies?.forEach((entry, index) => {
     Object.entries(entry).forEach(([key, value]) => {
-      if (!value || typeof value !== 'object' || !('choose' in value)) return;
-      const choose = value.choose as { from?: string[]; count?: number };
+      const choose = key === 'choose'
+        ? value as { from?: string[]; count?: number }
+        : (
+            value && typeof value === 'object' && 'choose' in value
+              ? (value.choose as { from?: string[]; count?: number })
+              : null
+          );
+      if (!choose) return;
       const from = (choose.from || [])
         .map(normalizeAbilityName)
         .filter((ability): ability is AbilityName => Boolean(ability));
@@ -3085,6 +3156,107 @@ const getAverageHpGain = (hitDie: number, conModifier: number): number => (
 
 const formatSize = (size: string): string => SIZE_LABELS[size] || size;
 
+const MOVEMENT_LABELS: Record<string, string> = {
+  walk: '步行',
+  fly: '飞行',
+  climb: '攀爬',
+  swim: '游泳',
+  burrow: '掘穴',
+};
+
+const getWalkSpeed = (speed: AutoBuilderOrigin['speed']): number | null => {
+  if (typeof speed === 'number') return speed;
+  if (!speed || typeof speed !== 'object') return null;
+  const walk = speed.walk;
+  return typeof walk === 'number' ? walk : null;
+};
+
+const formatMovementModes = (speed: AutoBuilderOrigin['speed']): string[] => {
+  if (!speed || typeof speed !== 'object') return [];
+  const walk = getWalkSpeed(speed);
+  return Object.entries(speed)
+    .filter(([mode]) => mode !== 'walk')
+    .map(([mode, value]) => {
+      const label = MOVEMENT_LABELS[mode] || mode;
+      if (typeof value === 'number') return `${label}速度 ${value} 尺`;
+      if (value === true && walk) return `${label}速度等同你的步行速度 (${walk} 尺)`;
+      if (value === true) return `${label}速度等同你的步行速度`;
+      return '';
+    })
+    .filter(Boolean);
+};
+
+const getFixedResistances = (entity: AutoBuilderOrigin): string[] => (
+  Array.from(new Set((entity.resist || []).filter((entry): entry is string => typeof entry === 'string')))
+);
+
+const createOriginStructuredFeatureOperations = (
+  entity: AutoBuilderOrigin,
+  kind: 'race' | 'background',
+  ruleSystem: RuleSystem,
+): AdjustmentOperation[] => {
+  const operations: AdjustmentOperation[] = [];
+  const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
+  if (entity.darkvision) {
+    operations.push({
+      type: 'addTextEntry',
+      path: 'senses',
+      value: `黑暗视觉 ${entity.darkvision} 尺`,
+    });
+    operations.push({
+      type: 'addFeature',
+      feature: {
+        id: `${sourceId}-darkvision`,
+        sourceId,
+        sourceName: `${entity.name} ${entity.source}`,
+        name: '黑暗视觉',
+        level: 1,
+        ruleSystem,
+        description: `你拥有 ${entity.darkvision} 尺黑暗视觉.`,
+      } satisfies CharacterFeatureEntry,
+    });
+  }
+
+  const fixedResistances = getFixedResistances(entity);
+  if (fixedResistances.length) {
+    operations.push(...fixedResistances.map(resistance => ({
+      type: 'addTextEntry' as const,
+      path: 'damageResistances' as const,
+      value: resistance,
+    })));
+    operations.push({
+      type: 'addFeature',
+      feature: {
+        id: `${sourceId}-fixed-resistances`,
+        sourceId,
+        sourceName: `${entity.name} ${entity.source}`,
+        name: '伤害抗性',
+        level: 1,
+        ruleSystem,
+        description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
+      } satisfies CharacterFeatureEntry,
+    });
+  }
+
+  const movementModes = formatMovementModes(entity.speed);
+  if (movementModes.length) {
+    operations.push({
+      type: 'addFeature',
+      feature: {
+        id: `${sourceId}-movement-modes`,
+        sourceId,
+        sourceName: `${entity.name} ${entity.source}`,
+        name: '移动速度',
+        level: 1,
+        ruleSystem,
+        description: movementModes.join('\n'),
+      } satisfies CharacterFeatureEntry,
+    });
+  }
+
+  return operations;
+};
+
 const createOriginOperations = (
   entity: AutoBuilderOrigin,
   kind: 'race' | 'background',
@@ -3094,6 +3266,7 @@ const createOriginOperations = (
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
+    ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem),
     ...createAbilityOperations(entity, abilityChoice),
     ...createFixedProficiencyOperations(entity.skillProficiencies, ''),
     ...createFixedProficiencyOperations(entity.toolProficiencies, 'tool'),
@@ -3103,8 +3276,9 @@ const createOriginOperations = (
     ...createFixedProficiencyOperations(entity.armorProficiencies, 'armor'),
   ];
 
-  if (typeof entity.speed === 'number') {
-    operations.push({ type: 'set', path: 'speed', value: String(entity.speed) });
+  const walkSpeed = getWalkSpeed(entity.speed);
+  if (walkSpeed !== null) {
+    operations.push({ type: 'set', path: 'speed', value: String(walkSpeed) });
   }
   if (entity.size?.length === 1) {
     operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(entity.size[0]) });
@@ -3141,6 +3315,11 @@ const createRaceChoiceOperations = (
   }
   if (choices?.resistance) {
     const sourceId = `auto-race-${race.key}-${race.source}-choice-resistance`;
+    operations.push({
+      type: 'addTextEntry',
+      path: 'damageResistances',
+      value: choices.resistance,
+    });
     operations.push({
       type: 'addFeature',
       feature: {
@@ -3356,6 +3535,40 @@ const createFeatOperations = (
       ...featOperations,
     ];
   });
+};
+
+const hasAppliedFeat = (
+  character: CharacterData,
+  key: string,
+  source?: string,
+): boolean => character.featureEntries.some(feature => (
+  source
+    ? feature.sourceId === `auto-feat-${key}-${source}`
+    : feature.sourceId.startsWith(`auto-feat-${key}-`)
+));
+
+const createExistingFeatLevelUpOperations = (
+  character: CharacterData,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+): AdjustmentOperation[] => {
+  const operations: AdjustmentOperation[] = [];
+  const levelDelta = Math.max(0, newCharacterLevel - oldCharacterLevel);
+
+  if (levelDelta > 0 && hasAppliedFeat(character, 'Tough')) {
+    operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta * 2 });
+  }
+
+  if (hasAppliedFeat(character, 'Alert', 'XPHB')) {
+    const oldBonus = calculateProficiencyBonus(Math.max(1, oldCharacterLevel));
+    const newBonus = calculateProficiencyBonus(Math.max(1, newCharacterLevel));
+    const bonusDelta = newBonus - oldBonus;
+    if (bonusDelta > 0) {
+      operations.push({ type: 'addNumber', path: 'initiativeBonus', value: bonusDelta });
+    }
+  }
+
+  return operations;
 };
 
 const createFeatFixedAbilityOperations = (
@@ -3783,6 +3996,8 @@ export const buildLevelUpCharacter = (
         item.id === existingClass.id ? { ...item, name: cls.key, level: newLevel, subclass: item.subclass || options.subclass?.name || '', source: cls.source } : item
       ))
     : [...character.classes, { id: newClassId, name: cls.key, level: 1, subclass: options.subclass?.name || '', source: cls.source }];
+  const oldTotalLevel = character.classes.reduce((total, item) => total + (item.level || 0), 0);
+  const newTotalLevel = Math.max(1, classes.reduce((total, item) => total + (item.level || 0), 0));
 	  const spellcasting = addClassFeatureSpellsToSpellcasting(
 	    updateSpellcastingForLevel(character, content, cls, newLevel, options.spellChoices, selectedSubclass, newClassId, options.replaceSpell),
     content,
@@ -3816,7 +4031,7 @@ export const buildLevelUpCharacter = (
     options.ruleSystem,
     options.classFeatureChoices?.fightingStyle,
     operations,
-    Math.max(1, classes.reduce((total, item) => total + (item.level || 0), 0)),
+    newTotalLevel,
   );
   const fightingStyleFeatureOperations = createFightingStyleFeatureOperations(
     content,
@@ -3846,20 +4061,24 @@ export const buildLevelUpCharacter = (
     character,
     options.ruleSystem,
     options.abilityScoreImprovementChoice,
-    Math.max(1, classes.reduce((total, item) => total + (item.level || 0), 0)),
+    newTotalLevel,
+  );
+  const existingFeatLevelUpOperations = createExistingFeatLevelUpOperations(
+    character,
+    oldTotalLevel,
+    newTotalLevel,
   );
   const classResourceOperations = createClassResourceOperations(
     cls,
     options.ruleSystem,
     newLevel,
     characterWithAbilityDeltas(character, [...operations, ...abilityScoreImprovementOperations], classes),
-    Math.max(1, classes.reduce((total, item) => total + (item.level || 0), 0)),
+    newTotalLevel,
   );
   const oldConModifier = calculateModifier(character.abilities.CON);
   const newConModifier = calculateModifier(
     character.abilities.CON + getAbilityDeltaFromOperations(abilityScoreImprovementOperations, 'CON'),
   );
-  const oldTotalLevel = character.classes.reduce((total, item) => total + (item.level || 0), 0);
   const hitDie = getClassHitDie(content, cls);
   const hpGain = getAverageHpGain(hitDie, newConModifier) + Math.max(0, newConModifier - oldConModifier) * oldTotalLevel;
   const snapshotOperations: AdjustmentOperation[] = [
@@ -3912,6 +4131,7 @@ export const buildLevelUpCharacter = (
 	        ...classExpertiseChoiceOperations,
 	        ...classWeaponMasteryOperations,
 	        ...abilityScoreImprovementOperations,
+	        ...existingFeatLevelUpOperations,
 	        ...classResourceOperations,
 	        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),
 	        ...createSubclassFeatureOperations(selectedSubclass, options.ruleSystem, newLevel),
