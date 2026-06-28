@@ -67,7 +67,8 @@ const formatPropertyNote = (note: string): string => {
 };
 
 const getPropertyLabel = (property: WeaponProperty): string => {
-  const label = PROPERTIES[getPropertyCode(property)] || getPropertyCode(property);
+  const code = getPropertyCode(property);
+  const label = code === 'R' ? '触及 10 尺' : PROPERTIES[code] || code;
   if (typeof property === 'string' || !property.note) return label;
   return `${label} (${formatPropertyNote(property.note)})`;
 };
@@ -254,10 +255,27 @@ export const formatWeaponType = (weapon: AutoBuilderWeapon): string => {
   return `${category}${kind}武器`;
 };
 
+const stripEntryTags = (entry: string): string => (
+  entry
+    .replace(/\{@(?:condition|damage|dice|skill|action|item|creature|spell|dc|hit|filter|sense|status|quickref|variantrule) ([^}|]+)(?:\|[^}]*)?}/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+);
+
+const summarizeEntry = (entry: unknown): string => {
+  if (typeof entry === 'string') return stripEntryTags(entry);
+  if (Array.isArray(entry)) return entry.map(summarizeEntry).filter(Boolean).join(' ');
+  if (!entry || typeof entry !== 'object') return '';
+  const record = entry as { entries?: unknown[]; entry?: unknown; items?: unknown[] };
+  if (Array.isArray(record.entries)) return record.entries.map(summarizeEntry).filter(Boolean).join(' ');
+  if (Array.isArray(record.items)) return record.items.map(summarizeEntry).filter(Boolean).join(' ');
+  return summarizeEntry(record.entry);
+};
+
 const summarizeWeaponEntries = (weapon: AutoBuilderWeapon): string[] => (
   (weapon.entries || [])
-    .filter((entry): entry is string => typeof entry === 'string')
-    .map(entry => entry.replace(/\{@[^}]+ ([^}|]+)(?:\|[^}]*)?}/g, '$1'))
+    .map(summarizeEntry)
+    .filter(Boolean)
 );
 
 const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon): string => {

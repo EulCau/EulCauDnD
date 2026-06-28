@@ -74,12 +74,22 @@ const lightWeapon = weapons.find(weapon => hasProperty(weapon, 'L') && !hasPrope
 const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
 const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
+const thrownWeapon = weapons.find(weapon => hasProperty(weapon, 'T') && weapon.range && weapon.dmg1);
+const loadingAmmunitionWeapon = weapons.find(weapon => hasProperty(weapon, 'A') && hasProperty(weapon, 'LD') && weapon.range && weapon.dmg1);
+const reachWeapon = weapons.find(weapon => hasProperty(weapon, 'R') && !hasProperty(weapon, 'S') && weapon.dmg1);
+const versatileWeapon = weapons.find(weapon => hasProperty(weapon, 'V') && weapon.dmg1 && weapon.dmg2);
+const specialWeapon = weapons.find(weapon => hasProperty(weapon, 'S') && weapon.entries?.length);
 const shield = content.armors.find(armor => String(armor.type || '').split('|')[0] === 'S');
 
 assert(lightWeapon, 'missing light weapon fixture');
 assert(nonLightWeapon, 'missing non-light weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
 assert(rangedWeapon, 'missing ranged weapon fixture');
+assert(thrownWeapon, 'missing thrown weapon fixture');
+assert(loadingAmmunitionWeapon, 'missing ammunition/loading weapon fixture');
+assert(reachWeapon, 'missing reach weapon fixture');
+assert(versatileWeapon, 'missing versatile weapon fixture');
+assert(specialWeapon, 'missing special weapon fixture');
 assert(shield, 'missing shield fixture');
 
 let character = cloneCharacter();
@@ -125,6 +135,55 @@ assert(
 assert(
   duelingAttack.notes.includes('对决 +2 伤害'),
   \`dueling attack notes should mention damage bonus, got \${duelingAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, thrownWeapon, content);
+const thrownAttack = getAttack(character, \`equip-weapon-\${thrownWeapon.id}\`);
+assert(thrownAttack, 'thrown weapon should add attack');
+assert(
+  thrownAttack.notes.includes('投掷射程'),
+  \`thrown weapon notes should mention thrown range, got \${thrownAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, loadingAmmunitionWeapon, content);
+const loadingAmmunitionAttack = getAttack(character, \`equip-weapon-\${loadingAmmunitionWeapon.id}\`);
+assert(loadingAmmunitionAttack, 'ammunition/loading weapon should add attack');
+assert(
+  loadingAmmunitionAttack.notes.includes('弹药') && loadingAmmunitionAttack.notes.includes('装填'),
+  \`ammunition/loading weapon notes should mention both properties, got \${loadingAmmunitionAttack.notes}\`,
+);
+assert(
+  loadingAmmunitionAttack.notes.includes('射程'),
+  \`ammunition/loading weapon notes should mention range, got \${loadingAmmunitionAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, reachWeapon, content);
+const reachAttack = getAttack(character, \`equip-weapon-\${reachWeapon.id}\`);
+assert(reachAttack, 'reach weapon should add attack');
+assert(
+  reachAttack.notes.includes('触及 10 尺'),
+  \`reach weapon notes should mention 10-foot reach, got \${reachAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, versatileWeapon, content);
+const versatileAttack = getAttack(character, \`equip-weapon-\${versatileWeapon.id}\`);
+assert(versatileAttack, 'versatile weapon should add attack');
+assert(
+  versatileAttack.damage.includes(versatileWeapon.dmg2) && versatileAttack.damage.includes('双手'),
+  \`versatile weapon damage should show two-handed damage option, got \${versatileAttack.damage}\`,
+);
+
+character = cloneCharacter();
+character = equipWeapon(character, specialWeapon, content);
+const specialAttack = getAttack(character, \`equip-weapon-\${specialWeapon.id}\`);
+assert(specialAttack, 'special weapon should add attack');
+assert(
+  specialAttack.notes.includes('特殊') && specialAttack.notes.length > '特殊'.length,
+  \`special weapon notes should include special entry summary, got \${specialAttack.notes}\`,
 );
 
 character = cloneCharacter();
@@ -324,6 +383,11 @@ export default {
   nonLightWeapon: nonLightWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
   rangedWeapon: rangedWeapon.name,
+  thrownWeapon: thrownWeapon.name,
+  loadingAmmunitionWeapon: loadingAmmunitionWeapon.name,
+  reachWeapon: reachWeapon.name,
+  versatileWeapon: versatileWeapon.name,
+  specialWeapon: specialWeapon.name,
   shield: shield.name,
 };
 `;
@@ -359,6 +423,11 @@ console.log(JSON.stringify({
     'ordinary weapon attack bonus and damage',
     'archery ranged attack bonus and notes',
     'dueling melee damage and notes',
+    'thrown weapon notes include thrown range',
+    'ammunition and loading weapon notes include properties and range',
+    'reach weapon notes include 10-foot reach',
+    'versatile weapon damage includes two-handed option',
+    'special weapon notes include entry summary',
     'non-light off-hand reports light requirement',
     'light off-hand adds off-hand attack',
     'non-light main removes off-hand',
