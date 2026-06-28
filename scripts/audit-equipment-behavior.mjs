@@ -79,6 +79,18 @@ const loadingAmmunitionWeapon = weapons.find(weapon => hasProperty(weapon, 'A') 
 const reachWeapon = weapons.find(weapon => hasProperty(weapon, 'R') && !hasProperty(weapon, 'S') && weapon.dmg1);
 const versatileWeapon = weapons.find(weapon => hasProperty(weapon, 'V') && weapon.dmg1 && weapon.dmg2);
 const specialWeapon = weapons.find(weapon => hasProperty(weapon, 'S') && weapon.entries?.length);
+const heavyMelee5eWeapon = weapons.find(weapon => (
+  weapon.source === 'PHB'
+  && hasProperty(weapon, 'H')
+  && String(weapon.type || '').split('|')[0] === 'M'
+  && weapon.dmg1
+));
+const heavyRanged5rWeapon = weapons.find(weapon => (
+  weapon.source === 'XPHB'
+  && hasProperty(weapon, 'H')
+  && String(weapon.type || '').split('|')[0] === 'R'
+  && weapon.dmg1
+));
 const shield = content.armors.find(armor => String(armor.type || '').split('|')[0] === 'S');
 
 assert(lightWeapon, 'missing light weapon fixture');
@@ -90,6 +102,8 @@ assert(loadingAmmunitionWeapon, 'missing ammunition/loading weapon fixture');
 assert(reachWeapon, 'missing reach weapon fixture');
 assert(versatileWeapon, 'missing versatile weapon fixture');
 assert(specialWeapon, 'missing special weapon fixture');
+assert(heavyMelee5eWeapon, 'missing PHB heavy melee weapon fixture');
+assert(heavyRanged5rWeapon, 'missing XPHB heavy ranged weapon fixture');
 assert(shield, 'missing shield fixture');
 
 let character = cloneCharacter();
@@ -184,6 +198,30 @@ assert(specialAttack, 'special weapon should add attack');
 assert(
   specialAttack.notes.includes('特殊') && specialAttack.notes.length > '特殊'.length,
   \`special weapon notes should include special entry summary, got \${specialAttack.notes}\`,
+);
+
+character = {
+  ...cloneCharacter(),
+  bodyType: '小型',
+};
+character = equipWeapon(character, heavyMelee5eWeapon, content);
+const heavyMelee5eAttack = getAttack(character, \`equip-weapon-\${heavyMelee5eWeapon.id}\`);
+assert(heavyMelee5eAttack, 'PHB heavy melee weapon should add attack');
+assert(
+  heavyMelee5eAttack.notes.includes('当前体型') && heavyMelee5eAttack.notes.includes('劣势'),
+  \`PHB heavy weapon notes should mention current small size disadvantage, got \${heavyMelee5eAttack.notes}\`,
+);
+
+character = {
+  ...cloneCharacter(),
+  abilities: { ...cloneCharacter().abilities, DEX: 12 },
+};
+character = equipWeapon(character, heavyRanged5rWeapon, content);
+const heavyRanged5rAttack = getAttack(character, \`equip-weapon-\${heavyRanged5rWeapon.id}\`);
+assert(heavyRanged5rAttack, 'XPHB heavy ranged weapon should add attack');
+assert(
+  heavyRanged5rAttack.notes.includes('敏捷低于 13') && heavyRanged5rAttack.notes.includes('劣势'),
+  \`XPHB heavy ranged weapon notes should mention Dexterity 13 disadvantage, got \${heavyRanged5rAttack.notes}\`,
 );
 
 character = cloneCharacter();
@@ -454,6 +492,8 @@ export default {
   reachWeapon: reachWeapon.name,
   versatileWeapon: versatileWeapon.name,
   specialWeapon: specialWeapon.name,
+  heavyMelee5eWeapon: heavyMelee5eWeapon.name,
+  heavyRanged5rWeapon: heavyRanged5rWeapon.name,
   shield: shield.name,
 };
 `;
@@ -494,6 +534,8 @@ console.log(JSON.stringify({
     'reach weapon notes include 10-foot reach',
     'versatile weapon damage includes two-handed option',
     'special weapon notes include entry summary',
+    'PHB heavy weapon notes include small size disadvantage',
+    'XPHB heavy weapon notes include ability threshold disadvantage',
     'non-light off-hand reports light requirement',
     'light off-hand adds off-hand attack',
     'non-light main removes off-hand',

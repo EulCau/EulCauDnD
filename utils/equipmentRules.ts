@@ -139,6 +139,25 @@ const isRangedWeapon = (weapon: AutoBuilderWeapon): boolean => {
   return getItemType(weapon) === 'R';
 };
 
+const isSmallOrSmaller = (bodyType: string): boolean => {
+  const normalized = bodyType.trim().toLowerCase();
+  return ['小型', '超小型', 'small', 'tiny'].some(size => normalized.includes(size.toLowerCase()));
+};
+
+const getHeavyWeaponRuleNote = (character: CharacterData, weapon: AutoBuilderWeapon): string => {
+  if (!hasProperty(weapon, 'H')) return '';
+  if (weapon.source === 'XPHB' || weapon.ruleSystem === '5r') {
+    const requiredAbility = isRangedWeapon(weapon) ? 'DEX' : 'STR';
+    const abilityName = requiredAbility === 'DEX' ? '敏捷' : '力量';
+    if (character.abilities[requiredAbility] < 13) {
+      return `重型: 当前${abilityName}低于 13, 攻击检定具有劣势`;
+    }
+    return `重型: ${isRangedWeapon(weapon) ? '远程' : '近战'}武器需${abilityName} 13`;
+  }
+  if (isSmallOrSmaller(character.bodyType)) return '重型: 当前体型攻击检定具有劣势';
+  return '重型: 小型或更小体型生物攻击检定具有劣势';
+};
+
 const hasHexWarrior = (character: CharacterData): boolean => (
   character.featureEntries.some(feature => feature.name === '巫咒战士')
 );
@@ -320,6 +339,8 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   const properties = (weapon.property || []).map(getPropertyLabel);
   const ability = getAttackAbility(character, weapon);
   properties.push(`${ability.label}攻击`);
+  const heavyRuleNote = getHeavyWeaponRuleNote(character, weapon);
+  if (heavyRuleNote) properties.push(heavyRuleNote);
   const attackCount = getAttackActionCount(character);
   if (attackCount > 1) properties.push(`攻击动作 ${attackCount} 次`);
   if (!isRangedWeapon(weapon) && ability.label === '力量' && hasRage(character)) {
