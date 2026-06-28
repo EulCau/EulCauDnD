@@ -110,12 +110,13 @@
   - Wizard: PHB/XPHB 均按 spellbook 学法术处理, 不按全职业法表 prepared-all 处理
 - `audit-spell-behavior` 已验证 Warlock pact slots 可正确推导可选法术环阶。
 - `audit-spell-behavior` 已验证职业和子职额外准备法术会进入法表并标记 `prepared = true`。
+- `audit:feat-spell-behavior` 已通过真实 1 级建卡路径验证专长赠法术会进入专长法术 profile 并标记 `prepared = true`。
 
 需要继续验证和补齐的点:
 
 - prepared-all 职业的 1 级建卡与多次升级后的法表已有脚本级不变量覆盖, 但仍需要 UI 实测。
 - 法师升级学法术的 UI 已有选择机制, 但需要继续确认固定环阶组 UI 与 spellbook 行为是否足够明确。
-- 专长法术和完整 UI 流程仍需要继续测试 prepared 标记。
+- 完整 UI 流程仍需要继续测试 prepared 标记。
 
 ### 4. 装备与攻击
 
@@ -543,6 +544,33 @@
 - 本阶段没有修改运行时施法逻辑, 因为现有 `createSpellcastingProfile` 已通过 `additionalIds.has(spell.id)` 标记额外准备法术。
 - 专长法术和完整 UI 流程仍需要后续测试。
 
+## 阶段 5c 记录
+
+状态: 已完成。
+
+范围: 专长赠法术 prepared 标记审计。
+
+改动:
+
+- 新增 `scripts/audit-feat-spell-behavior.mjs`。
+- 新增 `npm run audit:feat-spell-behavior`。
+- 审计脚本通过 Vite 临时打包测试入口, 调用真实 `buildLevelOneCharacter` 和 `getFeatSpellChoiceState`。
+- 当前覆盖 XPHB `Magic Initiate` / `魔法学徒`:
+  - 选择 `牧师法术` block。
+  - 选择 1 个 1 环法术和 2 个戏法。
+  - 断言生成专长法术 profile。
+  - 断言 profile 使用所选施法属性。
+  - 断言所有专长赠法术均 `prepared = true`。
+
+已通过验证:
+
+- `npm run audit:feat-spell-behavior`
+
+说明:
+
+- 本阶段没有修改运行时施法逻辑, 因为真实建卡路径已经满足 prepared 标记要求。
+- 后续仍应补 UI 层手动流程测试, 但核心建卡函数路径已有审计覆盖。
+
 ## 阶段 6a 记录
 
 状态: 已完成。
@@ -686,13 +714,13 @@
 
 目标: prepared-all 和 known-selection 行为符合 5e/5r。
 
-状态: 进行中。阶段 5a 已完成分类和 prepared 标记的脚本级审计增强, 阶段 5b 已完成职业和子职额外准备法术审计。
+状态: 进行中。阶段 5a 已完成分类和 prepared 标记的脚本级审计增强, 阶段 5b 已完成职业和子职额外准备法术审计, 阶段 5c 已完成专长赠法术 prepared 标记审计。
 
 任务:
 
 1. 已明确并审计主要职业在 5e/5r 下的 `preparationMode`: Cleric, Druid, Paladin, Wizard, Bard, Ranger, Sorcerer, Warlock。
 2. 已对 Cleric, Druid, Paladin, XPHB Ranger 等 prepared-all 验证所有可用环阶法术自动加入法表, 但普通环阶法术不全自动 prepared。
-3. 已对职业和子职额外准备法术验证 `prepared = true`。未完成: 专长法术 prepared 标记和完整 UI 流程。
+3. 已对职业, 子职额外准备法术, 以及专长赠法术验证 `prepared = true`。未完成: 完整 UI 流程。
 4. 已对 Bard, Sorcerer, Warlock, PHB Ranger 等 known-selection 验证选择法术会默认 prepared。
 5. 已对 PHB/XPHB Wizard 验证法术书学习数量和 prepared-all 排除规则。
 6. 已补强法术行为审计脚本。未完成: 覆盖完整 UI 弹窗流程和多次升级节点。

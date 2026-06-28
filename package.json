@@ -12,6 +12,7 @@
     "audit:character-data": "node scripts/audit-character-data.mjs",
     "audit:spell-behavior": "node scripts/audit-spell-behavior.mjs",
     "audit:equipment-behavior": "node scripts/audit-equipment-behavior.mjs",
+    "audit:feat-spell-behavior": "node scripts/audit-feat-spell-behavior.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
