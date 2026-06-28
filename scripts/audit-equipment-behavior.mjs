@@ -308,6 +308,72 @@ assert(
   'non-light template magic main hand should block light off-hand weapon',
 );
 
+character = cloneCharacter();
+const standaloneMagicWeapon = {
+  ...lightWeapon,
+  id: \`magic-standalone-\${lightWeapon.id}\`,
+  key: \`magic-standalone-\${lightWeapon.key}\`,
+  name: \`独立 +1 \${lightWeapon.name}\`,
+  bonusWeapon: '+1',
+};
+character = equipMagicWeapon(character, standaloneMagicWeapon, {
+  inventoryItemId: 'audit-magic-standalone-light',
+  displayName: standaloneMagicWeapon.name,
+  detailName: standaloneMagicWeapon.name,
+  magicBonus: 1,
+  isTemplate: false,
+});
+let standaloneMagicAttack = getAttack(character, 'equip-magic-audit-magic-standalone-light');
+assert(standaloneMagicAttack, 'standalone magic weapon should add attack');
+assert(
+  standaloneMagicAttack.magicWeaponSnapshot?.id === standaloneMagicWeapon.id,
+  'standalone magic weapon attack should keep weapon snapshot metadata',
+);
+assert(
+  getOffHandWeaponEquipBlockReason(character, lightWeapon, content) === '',
+  'light standalone magic main hand should allow light off-hand weapon',
+);
+character = {
+  ...character,
+  abilities: { ...character.abilities, STR: 18 },
+};
+character = refreshCharacterAutomation(character, content);
+standaloneMagicAttack = getAttack(character, 'equip-magic-audit-magic-standalone-light');
+assert(standaloneMagicAttack, 'standalone magic weapon should keep attack after refresh');
+assert(
+  standaloneMagicAttack.bonus === '+8',
+  \`standalone magic weapon attack bonus should refresh after STR change to +8, got \${standaloneMagicAttack.bonus}\`,
+);
+assert(
+  standaloneMagicAttack.damage.includes('+5'),
+  \`standalone magic weapon damage should refresh after STR change to +5, got \${standaloneMagicAttack.damage}\`,
+);
+
+character = cloneCharacter();
+character = equipOffHandWeapon(character, lightWeapon, content);
+const standaloneNonLightMagicWeapon = {
+  ...nonLightWeapon,
+  id: \`magic-standalone-\${nonLightWeapon.id}\`,
+  key: \`magic-standalone-\${nonLightWeapon.key}\`,
+  name: \`独立 +1 \${nonLightWeapon.name}\`,
+  bonusWeapon: '+1',
+};
+character = equipMagicWeapon(character, standaloneNonLightMagicWeapon, {
+  inventoryItemId: 'audit-magic-standalone-non-light',
+  displayName: standaloneNonLightMagicWeapon.name,
+  detailName: standaloneNonLightMagicWeapon.name,
+  magicBonus: 1,
+  isTemplate: false,
+});
+assert(
+  !character.appliedAdjustments.some(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-')),
+  'non-light standalone magic weapon should remove existing off-hand weapon',
+);
+assert(
+  getOffHandWeaponEquipBlockReason(character, lightWeapon, content).includes('基础武器不具有轻型属性'),
+  'non-light standalone magic main hand should block light off-hand weapon using snapshot metadata',
+);
+
 const secondMagicWeapon = {
   ...lightWeapon,
   id: \`magic-audit-2-\${lightWeapon.id}\`,
@@ -437,6 +503,9 @@ console.log(JSON.stringify({
     'light template magic weapon allows off-hand',
     'magic weapon refreshes after ability change',
     'non-light template magic weapon removes and blocks off-hand',
+    'standalone magic weapon stores snapshot metadata',
+    'standalone magic weapon refreshes after ability change',
+    'standalone magic weapon snapshot controls off-hand conflicts',
     'second magic weapon replaces first magic weapon',
     'main weapon refreshes after ability change',
     'ranged weapon refreshes after adding archery',

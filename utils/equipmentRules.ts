@@ -1,4 +1,4 @@
-import { Attack, CharacterData, RuleSystem } from '../types';
+import { Attack, AttackWeaponSnapshot, CharacterData, RuleSystem } from '../types';
 import { calculateModifier, calculateProficiencyBonus, formatModifier, getTotalLevel } from './dndCalculations';
 import { applyCharacterAdjustments, removeCharacterAdjustments } from './characterAdjustments';
 import type { AutoBuilderArmor, AutoBuilderContent, AutoBuilderWeapon } from './autoBuilderRules';
@@ -54,6 +54,44 @@ type MagicWeaponEquipOptions = {
   isTemplate: boolean;
   baseWeaponId?: string;
 };
+
+const toAttackWeaponSnapshot = (weapon: AutoBuilderWeapon): AttackWeaponSnapshot => ({
+  id: weapon.id,
+  key: weapon.key,
+  name: weapon.name,
+  englishName: weapon.englishName,
+  source: weapon.source,
+  ruleSystem: weapon.ruleSystem,
+  weaponCategory: weapon.weaponCategory,
+  type: weapon.type,
+  property: weapon.property?.map(property => (typeof property === 'string' ? property : { ...property })),
+  mastery: weapon.mastery ? [...weapon.mastery] : undefined,
+  dmg1: weapon.dmg1,
+  dmg2: weapon.dmg2,
+  dmgType: weapon.dmgType,
+  bonusWeapon: weapon.bonusWeapon,
+  range: weapon.range,
+  entries: weapon.entries ? [...weapon.entries] : undefined,
+});
+
+const fromAttackWeaponSnapshot = (snapshot: AttackWeaponSnapshot): AutoBuilderWeapon => ({
+  id: snapshot.id,
+  key: snapshot.key,
+  name: snapshot.name,
+  englishName: snapshot.englishName,
+  source: snapshot.source as AutoBuilderWeapon['source'],
+  ruleSystem: snapshot.ruleSystem,
+  weaponCategory: snapshot.weaponCategory,
+  type: snapshot.type,
+  property: snapshot.property,
+  mastery: snapshot.mastery,
+  dmg1: snapshot.dmg1,
+  dmg2: snapshot.dmg2,
+  dmgType: snapshot.dmgType,
+  bonusWeapon: snapshot.bonusWeapon,
+  range: snapshot.range,
+  entries: snapshot.entries,
+});
 
 const getPropertyUid = (property: WeaponProperty): string => (
   typeof property === 'string' ? property : property.uid || ''
@@ -606,9 +644,12 @@ export const equipWeapon = (
 	  const attack = createWeaponAttack(next, weapon, sourceId, options.displayName, options.displayName, notes);
 	  if (options.baseWeaponId) {
 	    attack.magicBaseWeaponId = options.baseWeaponId;
-	    attack.magicBonus = options.magicBonus;
-	    attack.magicDetailName = options.detailName;
 	    attack.magicTemplate = options.isTemplate;
+	  }
+	  attack.magicBonus = options.magicBonus;
+	  attack.magicDetailName = options.detailName;
+	  if (!options.baseWeaponId) {
+	    attack.magicWeaponSnapshot = toAttackWeaponSnapshot(weapon);
 	  }
 
 	  return applyCharacterAdjustments(next, {
@@ -639,7 +680,9 @@ export const equipWeapon = (
 	    const magicAttack = character.attacks.find(attack => attack.sourceId === magicSourceId);
 	    const magicBaseWeapon = magicAttack?.magicBaseWeaponId
 	      ? content.weapons.find(item => item.id === magicAttack.magicBaseWeaponId)
-	      : undefined;
+	      : magicAttack?.magicWeaponSnapshot
+	        ? fromAttackWeaponSnapshot(magicAttack.magicWeaponSnapshot)
+	        : undefined;
 	    if (!magicBaseWeapon) {
 	      return '已装备魔法主手武器, 且无法判断其基础武器属性, 请先卸下后再装备副手武器.';
 	    }
@@ -732,17 +775,26 @@ export const refreshEquippedMagicWeapons = (
 	  content: AutoBuilderContent,
 	): CharacterData => {
 	  const magicAttacks = character.attacks
-	    .filter(attack => attack.sourceId?.startsWith('equip-magic-') && attack.magicBaseWeaponId);
+	    .filter(attack => (
+	      attack.sourceId?.startsWith('equip-magic-')
+	      && (attack.magicBaseWeaponId || attack.magicWeaponSnapshot)
+	    ));
 
 	  return magicAttacks.reduce((next, attack) => {
 	    const sourceId = attack.sourceId;
 	    const inventoryItemId = sourceId?.replace(/^equip-magic-/, '');
-	    const baseWeapon = content.weapons.find(item => item.id === attack.magicBaseWeaponId);
-	    if (!sourceId || !inventoryItemId || !baseWeapon) return next;
+	    const baseWeapon = attack.magicBaseWeaponId
+	      ? content.weapons.find(item => item.id === attack.magicBaseWeaponId)
+	      : undefined;
+	    const snapshotWeapon = attack.magicWeaponSnapshot
+	      ? fromAttackWeaponSnapshot(attack.magicWeaponSnapshot)
+	      : undefined;
+	    const baseOrSnapshotWeapon = baseWeapon || snapshotWeapon;
+	    if (!sourceId || !inventoryItemId || !baseOrSnapshotWeapon) return next;
 	    const magicBonus = attack.magicBonus || 0;
 	    const weapon: AutoBuilderWeapon = {
-	      ...baseWeapon,
-	      id: `magic-${inventoryItemId}-${baseWeapon.id}`,
+	      ...baseOrSnapshotWeapon,
+	      id: attack.magicBaseWeaponId ? `magic-${inventoryItemId}-${baseOrSnapshotWeapon.id}` : baseOrSnapshotWeapon.id,
 	      name: attack.name,
 	      bonusWeapon: magicBonus ? formatModifier(magicBonus) : '0',
 	    };
@@ -752,7 +804,7 @@ export const refreshEquippedMagicWeapons = (
 	      detailName: attack.magicDetailName || attack.sourceName || attack.name,
 	      magicBonus,
 	      isTemplate: Boolean(attack.magicTemplate),
-	      baseWeaponId: baseWeapon.id,
+	      baseWeaponId: attack.magicBaseWeaponId ? baseOrSnapshotWeapon.id : undefined,
 	    });
 	  }, character);
 	};

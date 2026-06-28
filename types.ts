@@ -29,7 +29,27 @@ export interface Attack {
 	  magicBonus?: number;
 	  magicDetailName?: string;
 	  magicTemplate?: boolean;
+	  magicWeaponSnapshot?: AttackWeaponSnapshot;
 	}
+
+export interface AttackWeaponSnapshot {
+  id: string;
+  key: string;
+  name: string;
+  englishName?: string;
+  source: string;
+  ruleSystem: RuleSystem;
+  weaponCategory?: string;
+  type?: string;
+  property?: Array<string | { uid?: string; note?: string }>;
+  mastery?: string[];
+  dmg1?: string;
+  dmg2?: string;
+  dmgType?: string;
+  bonusWeapon?: string;
+  range?: string;
+  entries?: unknown[];
+}
 
 	export interface Currency {
 	  cp: string;
