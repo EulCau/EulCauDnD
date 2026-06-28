@@ -41,16 +41,75 @@ const TYPE_LABELS = {
   undead: '不死生物',
 };
 
+const ABILITY_LABELS = {
+  str: '力量',
+  dex: '敏捷',
+  con: '体质',
+  int: '智力',
+  wis: '感知',
+  cha: '魅力',
+};
+
 const readJson = file => JSON.parse(fs.readFileSync(path.join(BESTIARY_DIR, file), 'utf8'));
 
 const stripTags = value => {
   if (typeof value !== 'string') return '';
   return value
-    .replace(/\{@(?:creature|spell|item|condition|damage|dice|filter|skill|action|sense|book|quickref|5etools) ([^}|]+)(?:\|[^}]*)?}/g, '$1')
+    .replace(/\{@atk ([^}]+)}/g, '$1')
+    .replace(/\{@atkr ([^}]+)}/g, '$1')
+    .replace(/\{@(?:creature|spell|item|condition|damage|dice|filter|skill|action|sense|book|quickref|5etools|status|variantrule|adventure|class|deity|hazard|note|scaledice|scaledamage) ([^}|]+)(?:\|[^}]*)?}/g, '$1')
     .replace(/\{@(?:hit|dc|chance|recharge) ([^}]+)}/g, '$1')
+    .replace(/\{@h}/g, '命中: ')
     .replace(/\s+/g, ' ')
     .trim();
 };
+
+const abilityMod = score => Math.floor((score - 10) / 2);
+
+const formatModifier = score => {
+  if (typeof score !== 'number') return '';
+  const mod = abilityMod(score);
+  return `${score} (${mod >= 0 ? '+' : ''}${mod})`;
+};
+
+const formatRecord = record => {
+  if (!record || typeof record !== 'object') return '';
+  return Object.entries(record)
+    .map(([key, value]) => `${ABILITY_LABELS[key] || key} ${value}`)
+    .join(', ');
+};
+
+const formatStringArray = value => {
+  if (Array.isArray(value)) return value.map(stripTags).filter(Boolean).join(', ');
+  if (typeof value === 'string') return stripTags(value);
+  return '';
+};
+
+const formatEntry = entry => {
+  if (typeof entry === 'string') return stripTags(entry);
+  if (Array.isArray(entry)) return entry.map(formatEntry).filter(Boolean).join(' ');
+  if (!entry || typeof entry !== 'object') return '';
+  if (entry.type === 'list' && Array.isArray(entry.items)) return entry.items.map(formatEntry).filter(Boolean).join(' ');
+  if (entry.type === 'entries' && Array.isArray(entry.entries)) return entry.entries.map(formatEntry).filter(Boolean).join(' ');
+  if (entry.type === 'item') return [stripTags(entry.name), formatEntry(entry.entry || entry.entries)].filter(Boolean).join(': ');
+  if (Array.isArray(entry.entries)) return entry.entries.map(formatEntry).filter(Boolean).join(' ');
+  if (entry.entry) return formatEntry(entry.entry);
+  return '';
+};
+
+const truncateText = (text, maxLength = 1200) => (
+  text.length > maxLength ? `${text.slice(0, maxLength).trim()}...` : text
+);
+
+const formatSection = entries => (
+  Array.isArray(entries)
+    ? entries.map((entry, index) => ({
+      name: stripTags(entry?.name) || `条目 ${index + 1}`,
+      englishName: entry?.ENG_name,
+      entries: truncateText(formatEntry(entry?.entries || entry?.entry || entry)),
+    })).filter(entry => entry.entries)
+    : []
+);
 
 const formatType = type => {
   if (typeof type === 'string') return TYPE_LABELS[type] || type;
@@ -108,6 +167,30 @@ const formatCr = cr => {
   return '';
 };
 
+const createStatblock = monster => ({
+  abilities: {
+    STR: formatModifier(monster.str),
+    DEX: formatModifier(monster.dex),
+    CON: formatModifier(monster.con),
+    INT: formatModifier(monster.int),
+    WIS: formatModifier(monster.wis),
+    CHA: formatModifier(monster.cha),
+  },
+  saves: formatRecord(monster.save),
+  skills: monster.skill && typeof monster.skill === 'object'
+    ? Object.entries(monster.skill).map(([key, value]) => `${key} ${value}`).join(', ')
+    : '',
+  senses: formatStringArray(monster.senses),
+  passive: monster.passive ?? null,
+  languages: formatStringArray(monster.languages),
+  traits: formatSection(monster.trait),
+  spellcasting: formatSection(monster.spellcasting),
+  actions: formatSection(monster.action),
+  bonusActions: formatSection(monster.bonus),
+  reactions: formatSection(monster.reaction),
+  legendaryActions: formatSection(monster.legendary),
+});
+
 const files = fs.readdirSync(BESTIARY_DIR)
   .filter(file => /^bestiary-.*\.json$/.test(file))
   .sort();
@@ -139,6 +222,7 @@ const monsters = files.flatMap(file => {
         ...(monster.languageTags || []),
         ...(monster.miscTags || []),
       ],
+      statblock: createStatblock(monster),
     };
   });
 });

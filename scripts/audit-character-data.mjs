@@ -56,6 +56,21 @@ assert(
   bestiary.data.monsters.every(monster => monster.id && monster.name && monster.source),
   'bestiary index has monsters missing id, name, or source',
 );
+assert(
+  bestiary.data.monsters.some(monster => (
+    monster.statblock?.abilities?.STR
+      && monster.statblock?.abilities?.DEX
+      && monster.statblock?.actions?.length
+  )),
+  'bestiary index is missing monster statblock ability and action metadata',
+);
+assert(
+  bestiary.data.monsters.some(monster => (
+    monster.statblock?.traits?.some(entry => entry.name && entry.entries)
+      || monster.statblock?.spellcasting?.some(entry => entry.name && entry.entries)
+  )),
+  'bestiary index is missing monster trait or spellcasting metadata',
+);
 
 const coreSpellSources = countBy(core.data.spells, spell => spell.source);
 const autoBuilderSpellSources = countBy(autoBuilder.data.spells, spell => spell.source);

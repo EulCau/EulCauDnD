@@ -15,6 +15,26 @@ export interface BestiaryMonsterData {
   speed: string;
   environment: string[];
   tags: string[];
+  statblock?: {
+    abilities?: Record<string, string>;
+    saves?: string;
+    skills?: string;
+    senses?: string;
+    passive?: number | null;
+    languages?: string;
+    traits?: BestiaryStatblockEntry[];
+    spellcasting?: BestiaryStatblockEntry[];
+    actions?: BestiaryStatblockEntry[];
+    bonusActions?: BestiaryStatblockEntry[];
+    reactions?: BestiaryStatblockEntry[];
+    legendaryActions?: BestiaryStatblockEntry[];
+  };
+}
+
+export interface BestiaryStatblockEntry {
+  name: string;
+  englishName?: string;
+  entries: string;
 }
 
 export interface BestiaryIndexContent {

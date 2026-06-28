@@ -59,6 +59,26 @@ export interface SearchableMonster {
   speed: string;
   environment: string[];
   tags: string[];
+  statblock?: {
+    abilities?: Record<string, string>;
+    saves?: string;
+    skills?: string;
+    senses?: string;
+    passive?: number | null;
+    languages?: string;
+    traits?: SearchableMonsterStatblockEntry[];
+    spellcasting?: SearchableMonsterStatblockEntry[];
+    actions?: SearchableMonsterStatblockEntry[];
+    bonusActions?: SearchableMonsterStatblockEntry[];
+    reactions?: SearchableMonsterStatblockEntry[];
+    legendaryActions?: SearchableMonsterStatblockEntry[];
+  };
+}
+
+export interface SearchableMonsterStatblockEntry {
+  name: string;
+  englishName?: string;
+  entries: string;
 }
 
 interface SearchPanelProps {
@@ -87,6 +107,63 @@ const uniqueSorted = (values: Array<string | undefined | null>) => Array.from(ne
     .map(value => (value || '').trim())
     .filter(Boolean)
 )).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+
+const getMonsterSearchText = (monster: SearchableMonster): string => {
+  const statblock = monster.statblock;
+  const sections = [
+    statblock?.traits,
+    statblock?.spellcasting,
+    statblock?.actions,
+    statblock?.bonusActions,
+    statblock?.reactions,
+    statblock?.legendaryActions,
+  ];
+  return [
+    monster.name,
+    monster.englishName,
+    monster.source,
+    monster.type,
+    monster.cr,
+    monster.size,
+    monster.alignment,
+    monster.ac,
+    monster.hpFormula,
+    monster.speed,
+    ...monster.environment,
+    ...monster.tags,
+    statblock?.saves,
+    statblock?.skills,
+    statblock?.senses,
+    statblock?.languages,
+    ...sections.flatMap(section => (section || []).flatMap(entry => [entry.name, entry.englishName, entry.entries])),
+  ].filter(Boolean).join(' ').toLowerCase();
+};
+
+const MONSTER_ABILITY_LABELS: Record<string, string> = {
+  STR: 'STR',
+  DEX: 'DEX',
+  CON: 'CON',
+  INT: 'INT',
+  WIS: 'WIS',
+  CHA: 'CHA',
+};
+
+const renderMonsterSection = (title: string, entries: SearchableMonsterStatblockEntry[] | undefined) => {
+  if (!entries?.length) return null;
+  return (
+    <div className="pt-2 border-t border-gray-200">
+      <div className="text-[10px] font-bold uppercase text-gray-500 mb-1">{title}</div>
+      <div className="space-y-1.5">
+        {entries.map((entry, index) => (
+          <div key={`${title}-${entry.name}-${index}`}>
+            <div className="font-bold text-gray-700">{entry.name}</div>
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{entry.entries}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const compareByNameAndSource = <T extends { name: string; source?: string }>(
   a: T,
@@ -213,16 +290,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
       isSearchSourceAllowedForRuleSystem(monster.source, ruleSystem, sourceFilter)
       && (!monsterTypeFilter || monster.type === monsterTypeFilter)
       && (!monsterCrFilter || monster.cr === monsterCrFilter)
-      && (
-        !normalizedQuery
-        || monster.name.toLowerCase().includes(normalizedQuery)
-        || (monster.englishName && monster.englishName.toLowerCase().includes(normalizedQuery))
-        || monster.source.toLowerCase().includes(normalizedQuery)
-        || monster.type.toLowerCase().includes(normalizedQuery)
-        || monster.cr.toLowerCase().includes(normalizedQuery)
-        || monster.environment.some(env => env.toLowerCase().includes(normalizedQuery))
-        || monster.tags.some(tag => tag.toLowerCase().includes(normalizedQuery))
-      )
+      && (!normalizedQuery || getMonsterSearchText(monster).includes(normalizedQuery))
       ),
       ruleSystem,
       monster => monster.name,
@@ -382,22 +450,61 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
 
         {type === 'monster' && (
           <div className="space-y-1 text-xs">
+            {(() => {
+              const monster = data as SearchableMonster;
+              const statblock = monster.statblock;
+              const abilities = statblock?.abilities || {};
+              return (
+                <>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-              <div><span className="font-bold text-gray-600">{t('search.cr')}:</span> {(data as SearchableMonster).cr || '-'}</div>
-              <div><span className="font-bold text-gray-600">{t('search.size')}:</span> {(data as SearchableMonster).size || '-'}</div>
-              <div><span className="font-bold text-gray-600">AC:</span> {(data as SearchableMonster).ac || '-'}</div>
-              <div><span className="font-bold text-gray-600">HP:</span> {(data as SearchableMonster).hp ?? '-'} {(data as SearchableMonster).hpFormula ? `(${(data as SearchableMonster).hpFormula})` : ''}</div>
-              <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.type')}:</span> {(data as SearchableMonster).type || '-'}</div>
-              <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.speed')}:</span> {(data as SearchableMonster).speed || '-'}</div>
-              {(data as SearchableMonster).environment.length ? (
-                <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.environment')}:</span> {(data as SearchableMonster).environment.join(', ')}</div>
+              <div><span className="font-bold text-gray-600">{t('search.cr')}:</span> {monster.cr || '-'}</div>
+              <div><span className="font-bold text-gray-600">{t('search.size')}:</span> {monster.size || '-'}</div>
+              <div><span className="font-bold text-gray-600">AC:</span> {monster.ac || '-'}</div>
+              <div><span className="font-bold text-gray-600">HP:</span> {monster.hp ?? '-'} {monster.hpFormula ? `(${monster.hpFormula})` : ''}</div>
+              <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.type')}:</span> {monster.type || '-'}</div>
+              <div className="col-span-2"><span className="font-bold text-gray-600">阵营:</span> {monster.alignment || '-'}</div>
+              <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.speed')}:</span> {monster.speed || '-'}</div>
+              {monster.environment.length ? (
+                <div className="col-span-2"><span className="font-bold text-gray-600">{t('search.environment')}:</span> {monster.environment.join(', ')}</div>
               ) : null}
             </div>
-            {(data as SearchableMonster).tags.length ? (
-              <div className="pt-2 border-t border-gray-200 text-[10px] text-gray-500">
-                {(data as SearchableMonster).tags.slice(0, 12).join(', ')}
+
+            {Object.keys(abilities).length ? (
+              <div className="grid grid-cols-6 gap-1 text-center pt-2 border-t border-gray-200">
+                {Object.entries(MONSTER_ABILITY_LABELS).map(([key, label]) => (
+                  <div key={key} className="bg-white border border-gray-200 rounded px-1 py-1">
+                    <div className="text-[9px] font-bold text-gray-500">{label}</div>
+                    <div className="text-[10px] text-gray-800">{abilities[key] || '-'}</div>
+                  </div>
+                ))}
               </div>
             ) : null}
+
+            {(statblock?.saves || statblock?.skills || statblock?.senses || statblock?.passive || statblock?.languages) ? (
+              <div className="space-y-1 pt-2 border-t border-gray-200">
+                {statblock.saves ? <div><span className="font-bold text-gray-600">豁免:</span> {statblock.saves}</div> : null}
+                {statblock.skills ? <div><span className="font-bold text-gray-600">技能:</span> {statblock.skills}</div> : null}
+                {statblock.senses ? <div><span className="font-bold text-gray-600">感官:</span> {statblock.senses}</div> : null}
+                {statblock.passive ? <div><span className="font-bold text-gray-600">被动察觉:</span> {statblock.passive}</div> : null}
+                {statblock.languages ? <div><span className="font-bold text-gray-600">语言:</span> {statblock.languages}</div> : null}
+              </div>
+            ) : null}
+
+            {renderMonsterSection('特性', statblock?.traits)}
+            {renderMonsterSection('施法', statblock?.spellcasting)}
+            {renderMonsterSection('动作', statblock?.actions)}
+            {renderMonsterSection('附赠动作', statblock?.bonusActions)}
+            {renderMonsterSection('反应', statblock?.reactions)}
+            {renderMonsterSection('传奇动作', statblock?.legendaryActions)}
+
+            {monster.tags.length ? (
+              <div className="pt-2 border-t border-gray-200 text-[10px] text-gray-500">
+                {monster.tags.slice(0, 12).join(', ')}
+              </div>
+            ) : null}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

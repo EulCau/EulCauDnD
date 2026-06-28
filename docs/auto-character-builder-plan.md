@@ -181,7 +181,7 @@
 主要缺口:
 
 - 搜索结果没有复用 5etools 的 `search/index.json` 或 `omnidexer` 元数据, 当前是应用内数组过滤。
-- 怪物详情仍是摘要, 未显示完整 statblock。
+- 怪物详情已显示 statblock 摘要字段, 但未复用 5etools 原站的完整渲染器。
 - 搜索筛选控件已按当前规则版本处理 5e/5r 来源优先级, 同名搜索结果已按来源优先级去重。
 
 ## 当前验证状态
@@ -678,7 +678,7 @@
 
 - 总数: 4528
 - 来源数: 106
-- 体积: 约 2.22 MiB
+- 阶段 6a 体积: 约 2.22 MiB
 - 包含 `MM` 与 `XMM`, 可用于 5e/5r 资料检索。
 
 已通过验证:
@@ -816,6 +816,43 @@
 - 本阶段只去重结果列表, 不删除详情中的来源选择能力.
 - 搜索仍未接入 5etools 的 `search/index.json` 或 `omnidexer`.
 
+## 阶段 6c 记录
+
+状态: 已完成.
+
+范围: 怪物图鉴详情加入 statblock 摘要.
+
+改动:
+
+- `scripts/extract-bestiary-metadata.mjs` 从 5etools 怪物数据中抽取能力值, 豁免, 技能, 感官, 被动察觉, 语言.
+- 同一脚本抽取特性, 施法, 动作, 附赠动作, 反应, 传奇动作, 并将 5etools tag 转为纯文本.
+- `public/data/bestiary-index.json` 已重新生成, 每个怪物可携带 `statblock` 摘要.
+- `utils/bestiary.ts` 与 `components/SearchPanel.tsx` 同步新增 statblock 类型.
+- 怪物详情现在显示属性表, 豁免/技能/感官/语言, 以及特性和动作分节.
+- 怪物搜索现在会匹配 statblock 中的条目名称和正文.
+- `scripts/audit-character-data.mjs` 新增 statblock 能力值, 动作, 特性/施法字段断言.
+
+当前怪物索引:
+
+- 总数: 4528
+- 来源数: 106
+- 体积: 约 9.46 MiB
+- 包含 `MM` 与 `XMM`, 并包含动作/特性文本用于详情展示和搜索匹配.
+
+已通过验证:
+
+- `npm run extract:bestiary`
+- `npm run audit:character-data`
+- `npm run audit:search-source-behavior`
+- `npm run build`
+
+说明:
+
+- 本阶段仍使用现有 `bestiary-index.json`, 没有新增独立懒加载详情文件.
+- 为控制索引体积, 单个 trait/action 条目会截断到固定长度.
+- 这不是 5etools 原站完整渲染器, 但已经让搜索详情从轻量摘要提升到可读 statblock 摘要.
+- 索引体积显著增加, 后续搜索阶段应优先考虑怪物详情按需加载或拆分索引.
+
 ## 后续阶段计划
 
 ### 阶段 1: 稳定数据与验证入口
@@ -915,7 +952,7 @@
 
 目标: 搜索从当前应用内搜索扩展为轻量资料检索。
 
-状态: 进行中。阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重。
+状态: 进行中。阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重。
 
 任务:
 
@@ -923,8 +960,8 @@
 2. 已输出 `public/data/bestiary-index.json`, 字段包括 id, name, englishName, source, cr, type, size, alignment, environment, ac, hp, speed, tags。
 3. 已在 `SearchPanel` 新增 monsters tab。
 4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR。
-5. 已保持怪物详情为摘要, 避免加载完整怪物正文。
-6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。未完成: 搜索数据懒加载和完整怪物 statblock。
+5. 已让怪物详情显示 statblock 摘要, 包含属性, 豁免/技能, 感官/语言, 特性, 施法, 动作等分节。
+6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。未完成: 搜索数据懒加载和 5etools 原站级完整怪物渲染。
 
 ### 阶段 7: 来源优先级和同名去重
 
