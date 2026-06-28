@@ -316,6 +316,7 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
                 detailName: detail.name,
                 magicBonus,
                 isTemplate: Boolean(hasRequires),
+                baseWeaponId: hasRequires ? weaponData.id.replace(`magic-${invItem.id}-`, '') : undefined,
             });
             // Apply spell bonuses
             next = applySpellBonuses(next, detail);

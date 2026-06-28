@@ -25,6 +25,10 @@ export interface Attack {
 	  sourceName?: string;
 	  automatic?: boolean;
 	  offHand?: boolean;
+	  magicBaseWeaponId?: string;
+	  magicBonus?: number;
+	  magicDetailName?: string;
+	  magicTemplate?: boolean;
 	}
 
 	export interface Currency {

@@ -52,6 +52,7 @@ type MagicWeaponEquipOptions = {
   detailName: string;
   magicBonus: number;
   isTemplate: boolean;
+  baseWeaponId?: string;
 };
 
 const getPropertyUid = (property: WeaponProperty): string => (
@@ -580,6 +581,12 @@ export const equipWeapon = (
 	    ? `${formatWeaponNotes(next, weapon)}, 魔法武器 ${formatModifier(options.magicBonus)}`
 	    : `${options.detailName}, ${formatWeaponNotes(next, weapon)}`.replace(/, $/, '');
 	  const attack = createWeaponAttack(next, weapon, sourceId, options.displayName, options.displayName, notes);
+	  if (options.baseWeaponId) {
+	    attack.magicBaseWeaponId = options.baseWeaponId;
+	    attack.magicBonus = options.magicBonus;
+	    attack.magicDetailName = options.detailName;
+	    attack.magicTemplate = options.isTemplate;
+	  }
 
 	  return applyCharacterAdjustments(next, {
 	    id: sourceId,
@@ -687,6 +694,36 @@ export const refreshEquippedWeapons = (
 	  }, character);
 	};
 
+export const refreshEquippedMagicWeapons = (
+	  character: CharacterData,
+	  content: AutoBuilderContent,
+	): CharacterData => {
+	  const magicAttacks = character.attacks
+	    .filter(attack => attack.sourceId?.startsWith('equip-magic-') && attack.magicBaseWeaponId);
+
+	  return magicAttacks.reduce((next, attack) => {
+	    const sourceId = attack.sourceId;
+	    const inventoryItemId = sourceId?.replace(/^equip-magic-/, '');
+	    const baseWeapon = content.weapons.find(item => item.id === attack.magicBaseWeaponId);
+	    if (!sourceId || !inventoryItemId || !baseWeapon) return next;
+	    const magicBonus = attack.magicBonus || 0;
+	    const weapon: AutoBuilderWeapon = {
+	      ...baseWeapon,
+	      id: `magic-${inventoryItemId}-${baseWeapon.id}`,
+	      name: attack.name,
+	      bonusWeapon: magicBonus ? formatModifier(magicBonus) : '0',
+	    };
+	    return equipMagicWeapon(next, weapon, {
+	      inventoryItemId,
+	      displayName: attack.name,
+	      detailName: attack.magicDetailName || attack.sourceName || attack.name,
+	      magicBonus,
+	      isTemplate: Boolean(attack.magicTemplate),
+	      baseWeaponId: baseWeapon.id,
+	    });
+	  }, character);
+	};
+
 export const refreshEquippedOffHandWeapons = (
 	  character: CharacterData,
 	  content: AutoBuilderContent,
@@ -707,9 +744,12 @@ export const refreshEquippedOffHandWeapons = (
 	): CharacterData => (
 	  refreshAutomaticStyleAttacks(
 	    refreshEquippedOffHandWeapons(
-	      refreshEquippedWeapons(
-	        refreshEquippedArmor(
-	          refreshAutomaticArmorClass(character),
+	      refreshEquippedMagicWeapons(
+	        refreshEquippedWeapons(
+	          refreshEquippedArmor(
+	            refreshAutomaticArmorClass(character),
+	            content,
+	          ),
 	          content,
 	        ),
 	        content,

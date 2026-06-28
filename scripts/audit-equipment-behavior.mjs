@@ -171,6 +171,7 @@ character = equipMagicWeapon(character, magicWeapon, {
   detailName: '+1 Weapon',
   magicBonus: 1,
   isTemplate: true,
+  baseWeaponId: lightWeapon.id,
 });
 assert(
   !character.appliedAdjustments.some(adjustment => adjustment.sourceId === \`equip-weapon-\${nonLightWeapon.id}\`),
@@ -191,6 +192,25 @@ assert(
   getOffHandWeaponEquipBlockReason(character, lightWeapon, content).includes('魔法主手武器'),
   'magic main hand should block off-hand equip until its base weapon can be tracked',
 );
+character = {
+  ...character,
+  abilities: { ...character.abilities, STR: 18 },
+};
+character = refreshCharacterAutomation(character, content);
+const refreshedMagicAttack = getAttack(character, 'equip-magic-audit-magic-1');
+assert(refreshedMagicAttack, 'refreshed magic weapon should keep attack');
+assert(
+  refreshedMagicAttack.bonus === '+8',
+  \`+1 magic melee weapon attack bonus should refresh after STR change to +8, got \${refreshedMagicAttack.bonus}\`,
+);
+assert(
+  refreshedMagicAttack.damage.includes('+5'),
+  \`+1 magic melee weapon damage should refresh after STR change to +5, got \${refreshedMagicAttack.damage}\`,
+);
+assert(
+  refreshedMagicAttack.magicBaseWeaponId === lightWeapon.id,
+  'refreshed magic weapon attack should keep base weapon metadata',
+);
 
 const secondMagicWeapon = {
   ...lightWeapon,
@@ -204,6 +224,7 @@ character = equipMagicWeapon(character, secondMagicWeapon, {
   detailName: '+2 Weapon',
   magicBonus: 2,
   isTemplate: true,
+  baseWeaponId: lightWeapon.id,
 });
 assert(
   !character.appliedAdjustments.some(adjustment => adjustment.sourceId === 'equip-magic-audit-magic-1')
@@ -308,6 +329,7 @@ console.log(JSON.stringify({
     'magic weapon replaces ordinary main',
     'magic weapon attack bonus and damage',
     'magic weapon blocks off-hand',
+    'magic weapon refreshes after ability change',
     'second magic weapon replaces first magic weapon',
     'main weapon refreshes after ability change',
     'ranged weapon refreshes after adding archery',
