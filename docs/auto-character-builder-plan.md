@@ -331,6 +331,39 @@
 - 当前仍使用已有数值字段 `hpMaxBonus`, `initiativeBonus`, `speedBonus`, 没有新增角色卡字段。
 - 后续若要完整支持更多专长, 建议继续按“数据结构字段优先, 文本规则谨慎转写”的方式推进。
 
+## 阶段 3c 记录
+
+状态: 已完成.
+
+范围: 专长选择型熟练的可撤销应用审计.
+
+已有基础:
+
+- 专长固定技能, 工具, 语言, 武器, 护甲熟练已通过 `createFixedProficiencyOperations` 写入 `addProficiency`.
+- 专长选择型技能, 工具, 语言, 豁免, 专精已通过对应 choice operations 写入 `addProficiency`.
+
+本次改动:
+
+- 修正 `getFeatSavingThrowChoiceOptions`, 现在支持 5etools 直接 `savingThrowProficiencies: [{ choose: ... }]` 形态.
+- 新增 `scripts/audit-feat-behavior.mjs`.
+- 新增 `npm run audit:feat-behavior`.
+- 审计脚本通过真实 `buildLevelUpCharacter` 路径验证:
+  - XPHB `Lightly Armored` 会应用 +1 DEX, 轻甲熟练, 盾牌熟练.
+  - XPHB `Resilient` 会暴露豁免选择组, 并应用 +1 CON 与所选 CON 豁免熟练.
+  - XPHB `Skill Expert` 会应用 +1 DEX, 所选技能熟练, 以及对新选技能的专精.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+- `npm run audit:feat-spell-behavior`
+- `npm run audit:character-data`
+- `npm run build`
+
+说明:
+
+- 本阶段修复的是 UI 选择模型到建卡函数之间的明确数据形态缺口.
+- 本阶段没有新增独立角色卡字段, 继续复用已有的能力值, 熟练集合和专精集合.
+
 ## 阶段 4a 记录
 
 状态: 已完成。
@@ -706,7 +739,7 @@
 
 目标: 每个特性, 专长, 武器, 物品尽量通过统一接口调整角色卡, 且可撤销。
 
-状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放。
+状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复。
 
 任务:
 
@@ -727,6 +760,12 @@
 - `Tough` 后续升级每级 +2 HP。
 - XPHB `Alert` 后续升级时随熟练加值提高补先攻增量。
 - 专长数据存在性由审计脚本覆盖。
+
+阶段 3c 已完成的部分:
+
+- `Resilient` 等直接 `choose` 形态的专长豁免熟练选择可以在 UI 选择模型中暴露。
+- XPHB `Lightly Armored`, `Resilient`, `Skill Expert` 的能力值, 护甲, 盾牌, 豁免, 技能, 专精调整已由真实升级路径审计覆盖。
+- 新增 `npm run audit:feat-behavior`。
 
 阶段 3 后续建议:
 

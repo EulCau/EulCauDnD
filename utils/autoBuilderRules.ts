@@ -892,8 +892,14 @@ export const getFeatSavingThrowChoiceOptions = (
   const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
   feat?.savingThrowProficiencies?.forEach((entry, index) => {
     Object.entries(entry).forEach(([key, value]) => {
-      if (!value || typeof value !== 'object' || !('choose' in value)) return;
-      const choose = value.choose as { from?: string[]; count?: number };
+      const choose = key === 'choose'
+        ? value as { from?: string[]; count?: number }
+        : (
+            value && typeof value === 'object' && 'choose' in value
+              ? (value.choose as { from?: string[]; count?: number })
+              : null
+          );
+      if (!choose) return;
       const from = (choose.from || [])
         .map(normalizeAbilityName)
         .filter((ability): ability is AbilityName => Boolean(ability));
