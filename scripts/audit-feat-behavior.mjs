@@ -61,6 +61,9 @@ const xphbLucky = getFeat('Lucky', 'XPHB');
 const tceChef = getFeat('Chef', 'TCE');
 const xphbChef = getFeat('Chef', 'XPHB');
 const squireOfSolamnia = getFeat('Squire of Solamnia', 'DSotDQ');
+const knightOfTheCrown = getFeat('Knight of the Crown', 'DSotDQ');
+const knightOfTheRose = getFeat('Knight of the Rose', 'DSotDQ');
+const knightOfTheSword = getFeat('Knight of the Sword', 'DSotDQ');
 const cartomancer = getFeat('Cartomancer', 'BMT');
 const planarWanderer = getFeat('Planar Wanderer', 'SatO');
 const runeShaper = getFeat('Rune Shaper', 'BGG');
@@ -390,6 +393,24 @@ assertProficiencyFeatResource({
   resistance: '寒冷',
 });
 assertProficiencyFeatResource({
+  featId: 'Knight of the Crown|DSotDQ',
+  ability: 'STR',
+  resourceId: 'auto-resource-feat-Knight of the Crown-DSotDQ-commanding-rally',
+  label: 'Knight of the Crown',
+});
+assertProficiencyFeatResource({
+  featId: 'Knight of the Rose|DSotDQ',
+  ability: 'CHA',
+  resourceId: 'auto-resource-feat-Knight of the Rose-DSotDQ-bolstering-rally',
+  label: 'Knight of the Rose',
+});
+assertProficiencyFeatResource({
+  featId: 'Knight of the Sword|DSotDQ',
+  ability: 'WIS',
+  resourceId: 'auto-resource-feat-Knight of the Sword-DSotDQ-demoralizing-strike',
+  label: 'Knight of the Sword',
+});
+assertProficiencyFeatResource({
   featId: 'Guile of the Cloud Giant|BGG',
   ability: 'CHA',
   resourceId: 'auto-resource-feat-Guile of the Cloud Giant-BGG-cloudy-escape',
@@ -550,6 +571,9 @@ export default {
     tceChef.name,
     xphbChef.name,
     squireOfSolamnia.name,
+    knightOfTheCrown.name,
+    knightOfTheRose.name,
+    knightOfTheSword.name,
     cartomancer.name,
     planarWanderer.name,
     runeShaper.name,
@@ -579,6 +603,7 @@ export default {
     'TCE Chef adds cook utensils and refreshes proficiency-based treat resource',
     'XPHB Chef adds cook utensils and refreshes proficiency-based treat resource',
     'Squire of Solamnia refreshes proficiency-based Precise Strike resource',
+    'Solamnia knight feats refresh proficiency-based resources',
     'Cartomancer adds Hidden Ace resource and Prestidigitation profile',
     'Planar Wanderer adds Portal Sense long-rest resource',
     'Rune Shaper adds Rune Magic resource and Comprehend Languages profile',

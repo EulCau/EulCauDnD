@@ -3924,6 +3924,39 @@ const getFeatResourceOperations = (
       ),
     ];
   }
+  if (feat.key === 'Knight of the Crown') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'commanding-rally',
+      '号令集结',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Knight of the Rose') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'bolstering-rally',
+      '振奋集结',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Knight of the Sword') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'demoralizing-strike',
+      '丧志打击',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,
@@ -4054,6 +4087,30 @@ const createExistingFeatLevelUpOperations = (
   if (hasAppliedFeat(character, 'Squire of Solamnia', 'DSotDQ')) {
     operations.push(...getFeatResourceOperations(
       { key: 'Squire of Solamnia', name: '索拉尼亚侍从', source: 'DSotDQ' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Knight of the Crown', 'DSotDQ')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Knight of the Crown', name: '皇冠骑士', source: 'DSotDQ' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Knight of the Rose', 'DSotDQ')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Knight of the Rose', name: '蔷薇骑士', source: 'DSotDQ' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Knight of the Sword', 'DSotDQ')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Knight of the Sword', name: '圣剑骑士', source: 'DSotDQ' },
       '5e',
       newCharacterLevel,
     ));
