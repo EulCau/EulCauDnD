@@ -3507,15 +3507,16 @@ const createOriginStructuredFeatureOperations = (
 };
 
 const createOriginResourceOperations = (
-  entity: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'>,
+  entity: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'> & Partial<Pick<AutoBuilderOrigin, 'features'>>,
   kind: 'race' | 'background',
   ruleSystem: RuleSystem,
   characterLevel = 1,
 ): AdjustmentOperation[] => {
   if (kind !== 'race') return [];
+  const operations: AdjustmentOperation[] = [];
   const profBonus = calculateProficiencyBonus(Math.max(1, characterLevel));
   if (entity.key === 'Orc' && entity.source === 'XPHB') {
-    return [makeOriginResource(
+    operations.push(makeOriginResource(
       entity,
       ruleSystem,
       'adrenaline-rush',
@@ -3523,10 +3524,10 @@ const createOriginResourceOperations = (
       profBonus,
       'shortRest',
       '次数等于熟练加值. 使用时获得等同熟练加值的临时生命值.',
-    )];
+    ));
   }
   if (entity.key === 'Orc' && entity.source === 'MPMM') {
-    return [makeOriginResource(
+    operations.push(makeOriginResource(
       entity,
       ruleSystem,
       'adrenaline-rush',
@@ -3534,9 +3535,20 @@ const createOriginResourceOperations = (
       profBonus,
       'longRest',
       '次数等于熟练加值. 使用时获得等同熟练加值的临时生命值.',
-    )];
+    ));
   }
-  return [];
+  if ((entity.features || []).some(feature => feature.englishName === 'Relentless Endurance' || feature.name === '坚韧不屈')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'relentless-endurance',
+      '坚韧不屈',
+      1,
+      'longRest',
+      '生命值降至 0 且未立即死亡时, 可改为降至 1.',
+    ));
+  }
+  return operations;
 };
 
 const createOriginOperations = (

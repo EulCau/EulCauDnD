@@ -34,6 +34,7 @@ const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source ===
 const xphbDwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'XPHB');
 const xphbOrc = content.races.find(item => item.key === 'Orc' && item.source === 'XPHB');
 const mpmmOrc = content.races.find(item => item.key === 'Orc' && item.source === 'MPMM');
+const halfOrc = content.races.find(item => item.key === 'Half-Orc' && item.source === 'PHB');
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
 const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
@@ -52,6 +53,7 @@ assert(dwarf, 'missing PHB Dwarf fixture');
 assert(xphbDwarf, 'missing XPHB Dwarf fixture');
 assert(xphbOrc, 'missing XPHB Orc fixture');
 assert(mpmmOrc, 'missing MPMM Orc fixture');
+assert(halfOrc, 'missing PHB Half-Orc fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(autognome, 'missing AAG Autognome fixture');
 assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
@@ -159,8 +161,11 @@ const xphbOrcCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, figh
 const xphbOrcResource = getResource(xphbOrcCharacter, xphbOrcResourceId);
 assert(xphbOrcResource, 'XPHB Orc should add Adrenaline Rush resource');
 assert(xphbOrcResource.max === 2 && xphbOrcResource.reset === 'shortRest', 'XPHB Orc Adrenaline Rush should use proficiency bonus and reset on short rest');
+const xphbOrcEnduranceResource = getResource(xphbOrcCharacter, 'auto-resource-race-Orc-XPHB-relentless-endurance');
+assert(xphbOrcEnduranceResource?.max === 1 && xphbOrcEnduranceResource.reset === 'longRest', 'XPHB Orc should add Relentless Endurance long-rest resource');
 const removedXphbOrc = removeCharacterAdjustments(xphbOrcCharacter, 'auto-character-5r');
 assert(!getResource(removedXphbOrc, xphbOrcResourceId), 'removing auto-character should remove XPHB Orc Adrenaline Rush resource');
+assert(!getResource(removedXphbOrc, 'auto-resource-race-Orc-XPHB-relentless-endurance'), 'removing auto-character should remove XPHB Orc Relentless Endurance resource');
 let leveledXphbOrc = xphbOrcCharacter;
 for (let index = 0; index < 4; index += 1) {
   leveledXphbOrc = buildLevelUpCharacter(leveledXphbOrc, content, fighter, {
@@ -179,6 +184,16 @@ const mpmmOrcCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, figh
 const mpmmOrcResource = getResource(mpmmOrcCharacter, mpmmOrcResourceId);
 assert(mpmmOrcResource, 'MPMM Orc should add Adrenaline Rush resource');
 assert(mpmmOrcResource.max === 2 && mpmmOrcResource.reset === 'longRest', 'MPMM Orc Adrenaline Rush should use proficiency bonus and reset on long rest');
+
+const halfOrcCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: halfOrc,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const halfOrcEnduranceResource = getResource(halfOrcCharacter, 'auto-resource-race-Half-Orc-PHB-relentless-endurance');
+assert(halfOrcEnduranceResource?.max === 1 && halfOrcEnduranceResource.reset === 'longRest', 'PHB Half-Orc should add Relentless Endurance long-rest resource');
 
 const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
 assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
@@ -268,7 +283,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, dragonborn.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, dragonborn.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -277,6 +292,7 @@ export default {
     'fixed race weapon proficiencies normalize source suffixes and affect attacks',
     'XPHB Dwarf adds reversible HP max bonus and scales it on level up',
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
+    'Relentless Endurance adds reversible long-rest race resources',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
