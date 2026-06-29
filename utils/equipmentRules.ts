@@ -550,7 +550,6 @@ const refreshAutomaticDefenseArmorBonus = (character: CharacterData): CharacterD
 };
 
 const getUnarmoredDefenseBase = (character: CharacterData): { value: number; label: string } | null => {
-  if (!hasUnarmoredDefense(character)) return null;
   const dexMod = calculateModifier(character.abilities.DEX);
   const conMod = calculateModifier(character.abilities.CON);
   const wisMod = calculateModifier(character.abilities.WIS);
@@ -561,10 +560,20 @@ const getUnarmoredDefenseBase = (character: CharacterData): { value: number; lab
   const isDanceBard = character.classes.some(cls => (
     (cls.name === 'Bard' || cls.name === '吟游诗人') && cls.subclass.includes('舞')
   ));
+  const raceName = `${character.race} ${character.subrace}`;
+  const hasNaturalArmorFeature = (names: string[]): boolean => (
+    character.featureEntries.some(feature => names.includes(feature.name))
+  );
   const options = [
-    isBarbarian ? { value: 10 + dexMod + conMod, label: '野蛮人无甲防御: 10 + 敏捷调整值 + 体质调整值' } : null,
-    isMonk ? { value: 10 + dexMod + wisMod, label: '武僧无甲防御: 10 + 敏捷调整值 + 感知调整值' } : null,
-    isDanceBard ? { value: 10 + dexMod + chaMod, label: '舞蹈学院无甲防御: 10 + 敏捷调整值 + 魅力调整值' } : null,
+    hasUnarmoredDefense(character) && isBarbarian ? { value: 10 + dexMod + conMod, label: '野蛮人无甲防御: 10 + 敏捷调整值 + 体质调整值' } : null,
+    hasUnarmoredDefense(character) && isMonk ? { value: 10 + dexMod + wisMod, label: '武僧无甲防御: 10 + 敏捷调整值 + 感知调整值' } : null,
+    hasUnarmoredDefense(character) && isDanceBard ? { value: 10 + dexMod + chaMod, label: '舞蹈学院无甲防御: 10 + 敏捷调整值 + 魅力调整值' } : null,
+    hasNaturalArmorFeature(['装甲外壳', 'Armored Casing']) ? { value: 13 + dexMod, label: '自动侏儒装甲外壳: 13 + 敏捷调整值' } : null,
+    hasNaturalArmorFeature(['变色甲壳', 'Chameleon Carapace']) ? { value: 13 + dexMod, label: '螳螂人变色甲壳: 13 + 敏捷调整值' } : null,
+    raceName.includes('蜥蜴人') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 13 + dexMod, label: '蜥蜴人天生护甲: 13 + 敏捷调整值' } : null,
+    raceName.includes('象族') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 12 + conMod, label: '象族天生护甲: 12 + 体质调整值' } : null,
+    raceName.includes('龟人') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 17, label: '龟人天生护甲: 17' } : null,
+    raceName.includes('地精') && hasNaturalArmorFeature(['坚毅']) ? { value: 11 + dexMod, label: '地精坚毅: 11 + 敏捷调整值' } : null,
   ].filter((option): option is { value: number; label: string } => Boolean(option));
   return options.sort((a, b) => b.value - a.value)[0] || null;
 };

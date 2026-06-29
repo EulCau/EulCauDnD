@@ -33,6 +33,9 @@ const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source ===
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
 const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
+const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
+const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
+const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
 
 assert(fighter, 'missing XPHB Fighter');
@@ -45,6 +48,9 @@ assert(dwarf, 'missing PHB Dwarf fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(autognome, 'missing AAG Autognome fixture');
 assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
+assert(loxodon, 'missing GGR Loxodon fixture');
+assert(tortle, 'missing MPMM Tortle fixture');
+assert(warforged, 'missing ERLW Warforged fixture');
 assert(battleaxe, 'missing PHB Battleaxe fixture');
 
 const baseOptions = {
@@ -183,8 +189,36 @@ assert(
   'Yuan-ti should still add damage immunity feature description',
 );
 
+assert(autognomeCharacter.armorBase === 13, \`Autognome armored casing should set armor base 13 with DEX 10, got \${autognomeCharacter.armorBase}\`);
+
+const loxodonCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: loxodon,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+assert(loxodonCharacter.armorBase === 13, \`Loxodon natural armor should set armor base 13 with CON 12, got \${loxodonCharacter.armorBase}\`);
+
+const tortleCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: tortle,
+});
+assert(tortleCharacter.armorBase === 17, \`Tortle natural armor should set armor base 17, got \${tortleCharacter.armorBase}\`);
+
+const warforgedCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: warforged,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+assert(warforgedCharacter.armorBonus === 1, \`Warforged integrated protection should add +1 armor bonus, got \${warforgedCharacter.armorBonus}\`);
+const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-character-5e');
+assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
+
 export default {
-  races: [aasimar.name, dragonborn.name, dwarf.name, hobgoblin.name, autognome.name, yuanTi.name],
+  races: [aasimar.name, dragonborn.name, dwarf.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -194,6 +228,8 @@ export default {
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
+    'constant racial armor formulas update armor class',
+    'Warforged integrated protection adds reversible armor bonus',
   ],
 };
 `;

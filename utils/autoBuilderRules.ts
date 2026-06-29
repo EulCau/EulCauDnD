@@ -3331,6 +3331,9 @@ const createOriginStructuredFeatureOperations = (
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [];
   const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
+  if (kind === 'race' && entity.key === 'Warforged') {
+    operations.push({ type: 'addNumber', path: 'armorBonus', value: 1 });
+  }
   if (entity.darkvision) {
     addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${entity.darkvision} 尺`], {
       sourceId: `${sourceId}-darkvision`,
