@@ -61,6 +61,7 @@ const xphbLucky = getFeat('Lucky', 'XPHB');
 const tceChef = getFeat('Chef', 'TCE');
 const xphbChef = getFeat('Chef', 'XPHB');
 const squireOfSolamnia = getFeat('Squire of Solamnia', 'DSotDQ');
+const cartomancer = getFeat('Cartomancer', 'BMT');
 const martialAdept = getFeat('Martial Adept', 'PHB');
 const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
@@ -172,6 +173,24 @@ const squireLevelFive = buildLevelUpCharacter(squireCharacter, content, phbWizar
 });
 const squireLevelFiveResource = squireLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Squire of Solamnia-DSotDQ-precise-strike');
 assert(squireLevelFiveResource?.max === 3, \`Squire of Solamnia at total level 5 should refresh Precise Strike to proficiency bonus 3, got \${squireLevelFiveResource?.max}\`);
+
+const cartomancerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Cartomancer|BMT',
+  },
+});
+const cartomancerResource = cartomancerCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Cartomancer-BMT-hidden-ace');
+assert(cartomancerResource?.max === 1, \`Cartomancer should add one Hidden Ace resource, got \${cartomancerResource?.max}\`);
+assert(cartomancerResource?.reset === 'longRest', \`Cartomancer Hidden Ace should recover on long rest, got \${cartomancerResource?.reset}\`);
+assert(cartomancerResource?.note?.includes('8 小时'), \`Cartomancer resource note should mention 8-hour duration, got \${cartomancerResource?.note}\`);
+const cartomancerProfile = cartomancerCharacter.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Cartomancer-BMT-spells');
+assert(
+  cartomancerProfile?.spells.some(spell => spell.name === '魔法伎俩' && spell.prepared),
+  'Cartomancer should add prepared Prestidigitation feat spell',
+);
 
 const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
 assert(martialAdeptChoices?.needed === 2, \`Martial Adept should require two maneuvers, got \${martialAdeptChoices?.needed}\`);
@@ -454,6 +473,7 @@ export default {
     tceChef.name,
     xphbChef.name,
     squireOfSolamnia.name,
+    cartomancer.name,
     martialAdept.name,
     metamagicAdept.name,
     chromaticGift.name,
@@ -476,6 +496,7 @@ export default {
     'TCE Chef adds cook utensils and refreshes proficiency-based treat resource',
     'XPHB Chef adds cook utensils and refreshes proficiency-based treat resource',
     'Squire of Solamnia refreshes proficiency-based Precise Strike resource',
+    'Cartomancer adds Hidden Ace resource and Prestidigitation profile',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',

@@ -3738,6 +3738,17 @@ const getFeatResourceOperations = (
       '次数等于熟练加值, 仅在攻击命中时消耗.',
     )];
   }
+  if (feat.key === 'Cartomancer') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'hidden-ace',
+      '隐藏王牌',
+      1,
+      'longRest',
+      '完成长休后可注入一张卡牌, 魔力持续 8 小时.',
+    )];
+  }
   if (feat.key === 'Gift of the Chromatic Dragon') {
     return [
       makeFeatResource(
