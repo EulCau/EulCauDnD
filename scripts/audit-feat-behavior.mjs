@@ -13,6 +13,7 @@ import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
   buildLevelUpCharacter,
   getFeatExpertiseChoiceOptions,
+  getFeatLanguageChoiceOptions,
   getFeatManeuverChoiceState,
   getFeatMetamagicChoiceState,
   getFeatSavingThrowChoiceOptions,
@@ -64,6 +65,7 @@ const martialWeaponTraining = getFeat('Martial Weapon Training', 'XPHB');
 const phbTavernBrawler = getFeat('Tavern Brawler', 'PHB');
 const xphbTavernBrawler = getFeat('Tavern Brawler', 'XPHB');
 const gunner = getFeat('Gunner', 'TCE');
+const linguist = getFeat('Linguist', 'PHB');
 const phbLucky = getFeat('Lucky', 'PHB');
 const xphbLucky = getFeat('Lucky', 'XPHB');
 const tceChef = getFeat('Chef', 'TCE');
@@ -213,6 +215,25 @@ const gunnerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, p
 });
 assert(gunnerCharacter.abilities.DEX === 14, 'TCE Gunner should add +1 DEX, got ' + gunnerCharacter.abilities.DEX);
 assert(gunnerCharacter.proficiencies.has('weapon:firearms'), 'TCE Gunner should add firearms proficiency');
+
+const linguistLanguageChoices = getFeatLanguageChoiceOptions(linguist);
+assert(linguistLanguageChoices.length === 1, 'PHB Linguist should expose one language choice group');
+assert(linguistLanguageChoices[0].count === 3, 'PHB Linguist should require three language choices');
+const linguistCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Linguist|PHB',
+    featLanguageChoices: {
+      [linguistLanguageChoices[0].id]: ['draconic', 'infernal', 'sylvan'],
+    },
+  },
+});
+assert(linguistCharacter.abilities.INT === 17, 'PHB Linguist should add +1 INT, got ' + linguistCharacter.abilities.INT);
+assert(linguistCharacter.proficiencies.has('language:draconic'), 'PHB Linguist should add selected Draconic language proficiency');
+assert(linguistCharacter.proficiencies.has('language:infernal'), 'PHB Linguist should add selected Infernal language proficiency');
+assert(linguistCharacter.proficiencies.has('language:sylvan'), 'PHB Linguist should add selected Sylvan language proficiency');
 
 const phbLuckyCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
   ruleSystem: '5e',
@@ -991,6 +1012,7 @@ export default {
     phbTavernBrawler.name,
     xphbTavernBrawler.name,
     gunner.name,
+    linguist.name,
     phbLucky.name,
     xphbLucky.name,
     tceChef.name,
@@ -1041,6 +1063,7 @@ export default {
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'armor and weapon training feats apply fixed proficiencies',
+    'PHB Linguist exposes and applies three selected language proficiencies',
     'PHB Lucky adds fixed long-rest luck point resource',
     'XPHB Lucky adds and refreshes proficiency-based luck point resource',
     'TCE Chef adds cook utensils and refreshes proficiency-based treat resource',
