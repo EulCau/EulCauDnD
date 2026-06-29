@@ -4111,6 +4111,9 @@ const createFeatOperations = (
     if (feat.key === 'Mobile' || feat.key === 'Speedy' || feat.name === '移动' || feat.name === '迅捷') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 10 });
     }
+    if (feat.key === 'Squat Nimbleness') {
+      featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 5 });
+    }
     if (feat.key === 'Boon of Fortitude') {
       featOperations.push({ type: 'addNumber', path: 'hpMaxBonus', value: 40 });
     }

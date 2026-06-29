@@ -89,6 +89,8 @@ const boonOfFate = getFeat('Boon of Fate', 'XPHB');
 const boonOfFortitude = getFeat('Boon of Fortitude', 'XPHB');
 const boonOfSpeed = getFeat('Boon of Speed', 'XPHB');
 const boonOfTruesight = getFeat('Boon of Truesight', 'XPHB');
+const boonOfSkill = getFeat('Boon of Skill', 'XPHB');
+const squatNimbleness = getFeat('Squat Nimbleness', 'XGE');
 const ritualCaster = getFeat('Ritual Caster', 'XPHB');
 const tceFeyTouched = getFeat('Fey Touched', 'TCE');
 const xphbFeyTouched = getFeat('Fey-Touched', 'XPHB');
@@ -595,6 +597,58 @@ assert(
   \`XPHB Boon of Truesight should add 60-foot truesight, got \${boonOfTruesightCharacter.senses.join(', ')}\`,
 );
 
+const allSkillKeys = [
+  'Acrobatics',
+  'Animal Handling',
+  'Arcana',
+  'Athletics',
+  'Deception',
+  'History',
+  'Insight',
+  'Intimidation',
+  'Investigation',
+  'Medicine',
+  'Nature',
+  'Perception',
+  'Performance',
+  'Persuasion',
+  'Religion',
+  'Sleight of Hand',
+  'Stealth',
+  'Survival',
+];
+const boonOfSkillCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Skill|XPHB',
+    featAbility: 'INT',
+  },
+});
+assert(
+  allSkillKeys.every(skill => boonOfSkillCharacter.proficiencies.has(skill)),
+  \`XPHB Boon of Skill should add all skill proficiencies, got \${Array.from(boonOfSkillCharacter.proficiencies).join(', ')}\`,
+);
+
+const squatSkillChoices = getFeatSkillChoiceOptions(squatNimbleness);
+assert(squatSkillChoices.length === 1, 'Squat Nimbleness should expose one skill choice group, got ' + squatSkillChoices.length);
+assert(squatSkillChoices[0].from.includes('特技'), 'Squat Nimbleness skill choices should include Acrobatics');
+const squatNimblenessCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Squat Nimbleness|XGE',
+    featAbility: 'DEX',
+    featSkillChoices: {
+      [squatSkillChoices[0].id]: ['特技'],
+    },
+  },
+});
+assert(squatNimblenessCharacter.speedBonus === 5, \`Squat Nimbleness should add +5 speed bonus, got \${squatNimblenessCharacter.speedBonus}\`);
+assert(squatNimblenessCharacter.proficiencies.has('特技'), 'Squat Nimbleness should add selected Acrobatics proficiency');
+
 const boonOfFateCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -860,6 +914,8 @@ export default {
     boonOfFortitude.name,
     boonOfSpeed.name,
     boonOfTruesight.name,
+    boonOfSkill.name,
+    squatNimbleness.name,
     boonOfFate.name,
     ritualCaster.name,
     tceFeyTouched.name,
@@ -900,6 +956,8 @@ export default {
     'XPHB Telepathic adds Detect Thoughts resource and spell profile',
     'XPHB Boon of Recovery adds Last Stand and recovery dice resources',
     'XPHB fixed boon effects add HP, speed, and truesight adjustments',
+    'XPHB Boon of Skill adds all skill proficiencies',
+    'Squat Nimbleness adds speed and selected skill proficiency',
     'XPHB Boon of Fate adds Fate resource',
     'XPHB Ritual Caster adds Quick Ritual resource',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
