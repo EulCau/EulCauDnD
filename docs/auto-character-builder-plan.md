@@ -1001,6 +1001,31 @@
 - 本阶段没有修改运行时施法逻辑, 因为真实建卡路径已经满足 prepared 标记要求。
 - 后续仍应补 UI 层手动流程测试, 但核心建卡函数路径已有审计覆盖。
 
+## 阶段 5d 记录
+
+状态: 已完成.
+
+范围: 真实升级路径的施法审计.
+
+改动:
+
+- 新增 `scripts/audit-spell-levelup-behavior.mjs`.
+- 新增 `npm run audit:spell-levelup-behavior`.
+- 审计脚本通过 Vite 临时打包测试入口, 直接调用真实 `buildLevelOneCharacter`, `buildLevelUpCharacter`, `getSpellChoiceState`.
+- 当前覆盖:
+  - PHB Wizard 从 1 级到 3 级的 spellbook 学法术路径, 验证 6, 2, 2 的新增学法术数量, 且 3 级可以选择 2 环法术.
+  - PHB Sorcerer 从 1 级到 2 级的 known-selection 路径, 验证升级需要并加入 1 个新的已知环阶法术, 且已知法术默认 prepared.
+  - PHB Cleric 从 1 级到 2 级的 prepared-all 路径, 验证升级不要求环阶法术选择, 并避免重复加入法术.
+
+已通过验证:
+
+- `npm run audit:spell-levelup-behavior`
+
+说明:
+
+- PHB Wizard 当前使用 spellbook 数量选择, 而不是固定环阶组 UI. 审计明确验证真实选择数量和 3 级 2 环法术可选.
+- 本阶段仍是函数级真实路径审计, 不替代后续浏览器 UI 手动流程测试.
+
 ## 阶段 6a 记录
 
 状态: 已完成。
@@ -1325,7 +1350,7 @@
 
 目标: prepared-all 和 known-selection 行为符合 5e/5r。
 
-状态: 进行中。阶段 5a 已完成分类和 prepared 标记的脚本级审计增强, 阶段 5b 已完成职业和子职额外准备法术审计, 阶段 5c 已完成专长赠法术 prepared 标记审计。
+状态: 进行中。阶段 5a 已完成分类和 prepared 标记的脚本级审计增强, 阶段 5b 已完成职业和子职额外准备法术审计, 阶段 5c 已完成专长赠法术 prepared 标记审计, 阶段 5d 已完成真实升级路径施法审计。
 
 任务:
 
@@ -1333,8 +1358,8 @@
 2. 已对 Cleric, Druid, Paladin, XPHB Ranger 等 prepared-all 验证所有可用环阶法术自动加入法表, 但普通环阶法术不全自动 prepared。
 3. 已对职业, 子职额外准备法术, 以及专长赠法术验证 `prepared = true`。未完成: 完整 UI 流程。
 4. 已对 Bard, Sorcerer, Warlock, PHB Ranger 等 known-selection 验证选择法术会默认 prepared。
-5. 已对 PHB/XPHB Wizard 验证法术书学习数量和 prepared-all 排除规则。
-6. 已补强法术行为审计脚本。未完成: 覆盖完整 UI 弹窗流程和多次升级节点。
+5. 已对 PHB/XPHB Wizard 验证法术书学习数量和 prepared-all 排除规则, 并通过真实升级路径验证 PHB Wizard 1 到 3 级 spellbook 选择数量.
+6. 已补强法术行为审计脚本。未完成: 覆盖完整浏览器 UI 弹窗流程。
 
 ### 阶段 6: 搜索和怪物图鉴
 
