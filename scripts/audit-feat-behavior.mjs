@@ -64,6 +64,10 @@ const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
 const gemGift = getFeat('Gift of the Gem Dragon', 'FTD');
 const metallicGift = getFeat('Gift of the Metallic Dragon', 'FTD');
 const emberFireGiant = getFeat('Ember of the Fire Giant', 'BGG');
+const frostGiantFury = getFeat('Fury of the Frost Giant', 'BGG');
+const cloudGiantGuile = getFeat('Guile of the Cloud Giant', 'BGG');
+const stoneGiantKeenness = getFeat('Keenness of the Stone Giant', 'BGG');
+const stormGiantSoul = getFeat('Soul of the Storm Giant', 'BGG');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -235,6 +239,56 @@ const emberFireGiantLevelFive = buildLevelUpCharacter(emberFireGiantCharacter, c
 const emberLevelFiveResource = emberFireGiantLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Ember of the Fire Giant-BGG-searing-ignition');
 assert(emberLevelFiveResource?.max === 3, \`Ember of the Fire Giant at total level 5 should refresh Searing Ignition to proficiency bonus 3, got \${emberLevelFiveResource?.max}\`);
 
+const assertProficiencyFeatResource = ({ featId, ability = 'WIS', resourceId, label, resistance }) => {
+  const characterWithFeat = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+    ruleSystem: '5e',
+    spellChoices: { cantrips: [], leveled: [] },
+    abilityScoreImprovementChoice: {
+      mode: 'feat',
+      featId,
+      featAbility: ability,
+    },
+  });
+  if (resistance) {
+    assert(
+      characterWithFeat.damageResistances.includes(resistance),
+      \`\${label} should add \${resistance} resistance, got \${characterWithFeat.damageResistances.join(', ')}\`,
+    );
+  }
+  const levelFourResource = characterWithFeat.resources.find(resource => resource.id === resourceId);
+  assert(levelFourResource?.max === 2, \`\${label} at total level 4 should add proficiency bonus uses, got \${levelFourResource?.max}\`);
+  const levelFiveCharacter = buildLevelUpCharacter(characterWithFeat, content, phbWizard, {
+    ruleSystem: '5e',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+  const levelFiveResource = levelFiveCharacter.resources.find(resource => resource.id === resourceId);
+  assert(levelFiveResource?.max === 3, \`\${label} at total level 5 should refresh to proficiency bonus 3, got \${levelFiveResource?.max}\`);
+};
+
+assertProficiencyFeatResource({
+  featId: 'Fury of the Frost Giant|BGG',
+  resourceId: 'auto-resource-feat-Fury of the Frost Giant-BGG-frigid-retaliation',
+  label: 'Fury of the Frost Giant',
+  resistance: '寒冷',
+});
+assertProficiencyFeatResource({
+  featId: 'Guile of the Cloud Giant|BGG',
+  ability: 'CHA',
+  resourceId: 'auto-resource-feat-Guile of the Cloud Giant-BGG-cloudy-escape',
+  label: 'Guile of the Cloud Giant',
+});
+assertProficiencyFeatResource({
+  featId: 'Keenness of the Stone Giant|BGG',
+  resourceId: 'auto-resource-feat-Keenness of the Stone Giant-BGG-stone-throw',
+  label: 'Keenness of the Stone Giant',
+});
+assertProficiencyFeatResource({
+  featId: 'Soul of the Storm Giant|BGG',
+  ability: 'CHA',
+  resourceId: 'auto-resource-feat-Soul of the Storm Giant-BGG-maelstrom-aura',
+  label: 'Soul of the Storm Giant',
+});
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -332,7 +386,25 @@ assert(
 );
 
 export default {
-  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, martialAdept.name, metamagicAdept.name, chromaticGift.name, gemGift.name, metallicGift.name, emberFireGiant.name, xphbMageSlayer.name, resilient.name, skillExpert.name, weaponMaster.name],
+  feats: [
+    lightlyArmored.name,
+    phbLucky.name,
+    xphbLucky.name,
+    martialAdept.name,
+    metamagicAdept.name,
+    chromaticGift.name,
+    gemGift.name,
+    metallicGift.name,
+    emberFireGiant.name,
+    frostGiantFury.name,
+    cloudGiantGuile.name,
+    stoneGiantKeenness.name,
+    stormGiantSoul.name,
+    xphbMageSlayer.name,
+    resilient.name,
+    skillExpert.name,
+    weaponMaster.name,
+  ],
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'PHB Lucky adds fixed long-rest luck point resource',
@@ -343,6 +415,10 @@ export default {
     'Gift of the Gem Dragon adds and refreshes proficiency-based resource',
     'Gift of the Metallic Dragon adds prepared Cure Wounds and refreshes proficiency-based resource',
     'Ember of the Fire Giant adds fire resistance and refreshes proficiency-based resource',
+    'Fury of the Frost Giant adds cold resistance and refreshes proficiency-based resource',
+    'Guile of the Cloud Giant refreshes proficiency-based resource',
+    'Keenness of the Stone Giant refreshes proficiency-based resource',
+    'Soul of the Storm Giant refreshes proficiency-based resource',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',

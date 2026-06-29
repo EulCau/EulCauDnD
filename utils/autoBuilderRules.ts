@@ -3770,6 +3770,50 @@ const getFeatResourceOperations = (
       '次数等于熟练加值.',
     )];
   }
+  if (feat.key === 'Fury of the Frost Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'frigid-retaliation',
+      '霜寒回击',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Guile of the Cloud Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'cloudy-escape',
+      '迷云逃逸',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Keenness of the Stone Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'stone-throw',
+      '投掷石块',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Soul of the Storm Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'maelstrom-aura',
+      '旋涡灵光',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,
@@ -3806,6 +3850,9 @@ const createFeatOperations = (
     }
     if (feat.key === 'Ember of the Fire Giant') {
       featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '火焰' });
+    }
+    if (feat.key === 'Fury of the Frost Giant') {
+      featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '寒冷' });
     }
     featOperations.push(...getFeatResourceOperations(feat, ruleSystem, characterLevel));
     const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
@@ -3905,6 +3952,38 @@ const createExistingFeatLevelUpOperations = (
   if (hasAppliedFeat(character, 'Ember of the Fire Giant', 'BGG')) {
     operations.push(...getFeatResourceOperations(
       { key: 'Ember of the Fire Giant', name: '火巨人之余烬', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Fury of the Frost Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Fury of the Frost Giant', name: '霜巨人之狂怒', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Guile of the Cloud Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Guile of the Cloud Giant', name: '云巨人之诡诈', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Keenness of the Stone Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Keenness of the Stone Giant', name: '石巨人之敏锐', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Soul of the Storm Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Soul of the Storm Giant', name: '风暴巨人之灵魂', source: 'BGG' },
       '5e',
       newCharacterLevel,
     ));
