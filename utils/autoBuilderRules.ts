@@ -3163,6 +3163,38 @@ const createSkillChoiceOperations = (
   ));
 };
 
+const hasProficiencyAfterOperations = (
+  character: CharacterData,
+  operations: AdjustmentOperation[],
+  key: string,
+): boolean => {
+  let proficient = character.proficiencies.has(key);
+  for (const operation of operations) {
+    if (operation.type === 'addProficiency' && operation.key === key) proficient = true;
+    if (operation.type === 'removeProficiency' && operation.key === key) proficient = false;
+  }
+  return proficient;
+};
+
+const createFeatSkillChoiceOperations = (
+  feat: AutoBuilderFeat,
+  character: CharacterData,
+  choices?: AutoBuilderSkillChoiceSelection,
+  previousOperations: AdjustmentOperation[] = [],
+): AdjustmentOperation[] => {
+  if (feat.key !== 'Observant' || feat.source !== 'XPHB') return createSkillChoiceOperations(choices);
+  return Object.values(choices || {}).flatMap(skills => (
+    skills.map(skill => {
+      const normalized = normalizeSkillName(skill);
+      return {
+        type: 'addProficiency',
+        key: normalized,
+        expertise: hasProficiencyAfterOperations(character, previousOperations, normalized),
+      } satisfies AdjustmentOperation;
+    })
+  ));
+};
+
 const createExpertiseChoiceOperations = (
   choices?: AutoBuilderSkillChoiceSelection,
 ): AdjustmentOperation[] => {
@@ -3551,7 +3583,7 @@ const createChosenFeatOperations = (
   return [
     ...createFeatOperations([feat], ruleSystem, characterLevel),
     ...createFeatFixedAbilityOperations(feat, abilitiesAfterPreviousOperations, choices.featAbility),
-    ...createSkillChoiceOperations(choices.featSkillChoices),
+    ...createFeatSkillChoiceOperations(feat, character, choices.featSkillChoices, previousOperations),
     ...createToolChoiceOperations(choices.featToolChoices),
     ...createWeaponChoiceOperations(content, choices.featWeaponChoices),
     ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
@@ -4412,7 +4444,7 @@ const createAbilityScoreImprovementOperations = (
     return feat ? [
       ...createFeatOperations([feat], ruleSystem, characterLevel),
       ...createFeatFixedAbilityOperations(feat, character.abilities, choice.featAbility),
-      ...createSkillChoiceOperations(choice.featSkillChoices),
+      ...createFeatSkillChoiceOperations(feat, character, choice.featSkillChoices),
       ...createToolChoiceOperations(choice.featToolChoices),
       ...createWeaponChoiceOperations(content, choice.featWeaponChoices),
       ...createExpertiseChoiceOperations(choice.featExpertiseChoices),

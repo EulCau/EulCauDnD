@@ -66,6 +66,7 @@ const phbTavernBrawler = getFeat('Tavern Brawler', 'PHB');
 const xphbTavernBrawler = getFeat('Tavern Brawler', 'XPHB');
 const gunner = getFeat('Gunner', 'TCE');
 const linguist = getFeat('Linguist', 'PHB');
+const xphbObservant = getFeat('Observant', 'XPHB');
 const phbLucky = getFeat('Lucky', 'PHB');
 const xphbLucky = getFeat('Lucky', 'XPHB');
 const tceChef = getFeat('Chef', 'TCE');
@@ -234,6 +235,29 @@ assert(linguistCharacter.abilities.INT === 17, 'PHB Linguist should add +1 INT, 
 assert(linguistCharacter.proficiencies.has('language:draconic'), 'PHB Linguist should add selected Draconic language proficiency');
 assert(linguistCharacter.proficiencies.has('language:infernal'), 'PHB Linguist should add selected Infernal language proficiency');
 assert(linguistCharacter.proficiencies.has('language:sylvan'), 'PHB Linguist should add selected Sylvan language proficiency');
+
+const observantSkillChoices = getFeatSkillChoiceOptions(xphbObservant);
+assert(observantSkillChoices.length === 1, 'XPHB Observant should expose one skill choice group');
+assert(observantSkillChoices[0].from.includes('Perception'), 'XPHB Observant skill choices should include Perception');
+const observantBaseCharacter = {
+  ...makeLevelThreeWizard(),
+  proficiencies: new Set(['INT', 'WIS', 'Perception']),
+};
+const observantCharacter = buildLevelUpCharacter(observantBaseCharacter, content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Observant|XPHB',
+    featAbility: 'WIS',
+    featSkillChoices: {
+      [observantSkillChoices[0].id]: ['Perception'],
+    },
+  },
+});
+assert(observantCharacter.abilities.WIS === 13, 'XPHB Observant should add +1 WIS, got ' + observantCharacter.abilities.WIS);
+assert(observantCharacter.proficiencies.has('Perception'), 'XPHB Observant should preserve selected skill proficiency');
+assert(observantCharacter.expertises.has('Perception'), 'XPHB Observant should add expertise when selected skill is already proficient');
 
 const phbLuckyCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
   ruleSystem: '5e',
@@ -1013,6 +1037,7 @@ export default {
     xphbTavernBrawler.name,
     gunner.name,
     linguist.name,
+    xphbObservant.name,
     phbLucky.name,
     xphbLucky.name,
     tceChef.name,
@@ -1064,6 +1089,7 @@ export default {
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'armor and weapon training feats apply fixed proficiencies',
     'PHB Linguist exposes and applies three selected language proficiencies',
+    'XPHB Observant upgrades an already proficient selected skill to expertise',
     'PHB Lucky adds fixed long-rest luck point resource',
     'XPHB Lucky adds and refreshes proficiency-based luck point resource',
     'TCE Chef adds cook utensils and refreshes proficiency-based treat resource',
