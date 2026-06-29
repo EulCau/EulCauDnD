@@ -139,6 +139,10 @@ const isRangedWeapon = (weapon: AutoBuilderWeapon): boolean => {
   return getItemType(weapon) === 'R';
 };
 
+const isOneHandedMeleeWeapon = (weapon: AutoBuilderWeapon): boolean => (
+  getItemType(weapon) === 'M' && !hasProperty(weapon, '2H')
+);
+
 const isSmallOrSmaller = (bodyType: string): boolean => {
   const normalized = bodyType.trim().toLowerCase();
   return ['小型', '超小型', 'small', 'tiny'].some(size => normalized.includes(size.toLowerCase()));
@@ -198,6 +202,9 @@ const hasRage = (character: CharacterData): boolean => hasFeature(character, ['�
 const hasSneakAttack = (character: CharacterData): boolean => hasFeature(character, ['偷袭', 'Sneak Attack']);
 const hasDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['至圣斩', 'Divine Smite', '圣武斩', "Paladin's Smite"]);
 const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['精通至圣斩', 'Improved Divine Smite', '光耀打击', 'Radiant Strikes']);
+const hasPhbDualWielder = (character: CharacterData): boolean => (
+  character.featureEntries.some(feature => feature.sourceId === 'auto-feat-Dual Wielder-PHB')
+);
 
 const getClassLevel = (character: CharacterData, classNames: string[]): number => (
   character.classes.find(cls => classNames.includes(cls.name))?.level || 0
@@ -512,6 +519,12 @@ const removeAutomaticDefenseArmorBonus = (character: CharacterData): CharacterDa
     .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);
 };
 
+const removeAutomaticDualWielderArmorBonus = (character: CharacterData): CharacterData => {
+  return character.appliedAdjustments
+    .filter(adjustment => adjustment.sourceId === 'auto-dual-wielder-armor-bonus')
+    .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);
+};
+
 const getEquippedArmorId = (character: CharacterData): string | undefined => (
   character.appliedAdjustments
     .map(adjustment => adjustment.sourceId)
@@ -525,6 +538,53 @@ const getEquippedShieldId = (character: CharacterData): string | undefined => (
     .find(sourceId => sourceId.startsWith('equip-shield-'))
     ?.replace(/^equip-shield-/, '')
 );
+
+const getEquippedMainHandWeapon = (
+  character: CharacterData,
+  content: AutoBuilderContent,
+): AutoBuilderWeapon | undefined => {
+  const mainHandId = getEquippedMainHandWeaponId(character);
+  if (mainHandId) return content.weapons.find(weapon => weapon.id === mainHandId);
+
+  const magicSourceId = getEquippedMagicWeaponSourceId(character);
+  const magicAttack = magicSourceId ? character.attacks.find(attack => attack.sourceId === magicSourceId) : undefined;
+  if (magicAttack?.magicBaseWeaponId) return content.weapons.find(item => item.id === magicAttack.magicBaseWeaponId);
+  if (magicAttack?.magicWeaponSnapshot) return fromAttackWeaponSnapshot(magicAttack.magicWeaponSnapshot);
+  return undefined;
+};
+
+const refreshAutomaticDualWielderArmorBonus = (
+  character: CharacterData,
+  content: AutoBuilderContent,
+): CharacterData => {
+  const next = removeAutomaticDualWielderArmorBonus(character);
+  if (!hasPhbDualWielder(next) || getEquippedShieldId(next)) return next;
+
+  const offHandId = getEquippedOffHandWeaponId(next);
+  const offHandWeapon = offHandId ? content.weapons.find(weapon => weapon.id === offHandId) : undefined;
+  const mainHandWeapon = getEquippedMainHandWeapon(next, content);
+  if (!mainHandWeapon || !offHandWeapon) return next;
+  if (!isOneHandedMeleeWeapon(mainHandWeapon) || !isOneHandedMeleeWeapon(offHandWeapon)) return next;
+
+  return applyCharacterAdjustments(next, {
+    id: 'auto-dual-wielder-armor-bonus',
+    sourceId: 'auto-dual-wielder-armor-bonus',
+    sourceName: '双持客',
+    operations: [
+      { type: 'addNumber', path: 'armorBonus', value: 1 },
+      {
+        type: 'addFeature',
+        feature: {
+          id: 'auto-dual-wielder-armor-bonus-feature',
+          sourceId: 'auto-dual-wielder-armor-bonus',
+          sourceName: '双持客',
+          name: '双持客护甲加值',
+          description: '当你两手各持用一把单手近战武器时, 护甲等级 +1.',
+        },
+      },
+    ],
+  });
+};
 
 const refreshAutomaticDefenseArmorBonus = (character: CharacterData): CharacterData => {
   const next = removeAutomaticDefenseArmorBonus(character);
@@ -624,7 +684,7 @@ export const equipWeapon = (
 	    if (shieldSrcId) next = removeCharacterAdjustments(next, shieldSrcId);
 	  }
 	  // Conflict: unequip off-hand if main weapon doesn't have Light property
-	  if (!hasProperty(weapon, 'L')) {
+	  if (!hasProperty(weapon, 'L') && !(hasPhbDualWielder(next) && isOneHandedMeleeWeapon(weapon))) {
 	    const offId = getEquippedOffHandWeaponId(next);
 	    if (offId) {
 	      next = next.appliedAdjustments
@@ -636,7 +696,7 @@ export const equipWeapon = (
 	  const sourceId = `equip-weapon-${weapon.id}`;
 	  const attack = createWeaponAttack(next, weapon, sourceId);
 
-	  return applyCharacterAdjustments(next, {
+	  const equipped = applyCharacterAdjustments(next, {
 	    id: sourceId,
 	    sourceId,
 	    sourceName: weapon.name,
@@ -644,13 +704,14 @@ export const equipWeapon = (
 	      { type: 'addAttack', attack },
 	    ],
 	  });
+	  return content ? refreshAutomaticDualWielderArmorBonus(equipped, content) : equipped;
 	};
 
 	export const unequipWeapon = (
 	  character: CharacterData,
 	  weapon: AutoBuilderWeapon,
 	): CharacterData => {
-	  return removeCharacterAdjustments(character, `equip-weapon-${weapon.id}`);
+	  return removeAutomaticDualWielderArmorBonus(removeCharacterAdjustments(character, `equip-weapon-${weapon.id}`));
 	};
 
 	export const equipMagicWeapon = (
@@ -666,7 +727,7 @@ export const equipWeapon = (
 	      || sourceId.startsWith('equip-magic-')
 	    ));
 	  next = existingMainSourceIds.reduce((current, sourceId) => removeCharacterAdjustments(current, sourceId), next);
-	  if (!hasProperty(weapon, 'L')) {
+	  if (!hasProperty(weapon, 'L') && !(hasPhbDualWielder(next) && isOneHandedMeleeWeapon(weapon))) {
 	    next = next.appliedAdjustments
 	      .filter(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-'))
 	      .reduce((current, adjustment) => removeCharacterAdjustments(current, adjustment.sourceId), next);
@@ -687,7 +748,7 @@ export const equipWeapon = (
 	    attack.magicWeaponSnapshot = toAttackWeaponSnapshot(weapon);
 	  }
 
-	  return applyCharacterAdjustments(next, {
+	  return applyCharacterAdjustments(removeAutomaticDualWielderArmorBonus(next), {
 	    id: sourceId,
 	    sourceId,
 	    sourceName: options.displayName,
@@ -702,11 +763,12 @@ export const equipWeapon = (
 	  weapon: AutoBuilderWeapon,
 	  content: AutoBuilderContent,
 	): string => {
-	  if (!hasProperty(weapon, 'L')) return '副手武器必须具有轻型属性.';
+	  const canUseDualWielderOffHand = hasPhbDualWielder(character) && isOneHandedMeleeWeapon(weapon);
+	  if (!hasProperty(weapon, 'L') && !canUseDualWielderOffHand) return '副手武器必须具有轻型属性.';
 
 	  const mainHandId = getEquippedMainHandWeaponId(character);
 	  const mainHandWeapon = mainHandId ? content.weapons.find(w => w.id === mainHandId) : undefined;
-	  if (mainHandWeapon && !hasProperty(mainHandWeapon, 'L')) {
+	  if (mainHandWeapon && !hasProperty(mainHandWeapon, 'L') && !(canUseDualWielderOffHand && isOneHandedMeleeWeapon(mainHandWeapon))) {
 	    return '主手武器不具有轻型属性, 不能进行双武器战斗.';
 	  }
 
@@ -721,7 +783,7 @@ export const equipWeapon = (
 	    if (!magicBaseWeapon) {
 	      return '已装备魔法主手武器, 且无法判断其基础武器属性, 请先卸下后再装备副手武器.';
 	    }
-	    if (!hasProperty(magicBaseWeapon, 'L')) {
+	    if (!hasProperty(magicBaseWeapon, 'L') && !(canUseDualWielderOffHand && isOneHandedMeleeWeapon(magicBaseWeapon))) {
 	      return '魔法主手武器的基础武器不具有轻型属性, 不能进行双武器战斗.';
 	    }
 	  }
@@ -773,7 +835,7 @@ export const equipWeapon = (
 	    notes: notes.join(', '),
 	  };
 
-	  return applyCharacterAdjustments(next, {
+	  const equipped = applyCharacterAdjustments(next, {
 	    id: sourceId,
 	    sourceId,
 	    sourceName: weapon.name,
@@ -781,13 +843,14 @@ export const equipWeapon = (
 	      { type: 'addAttack', attack },
 	    ],
 	  });
+	  return refreshAutomaticDualWielderArmorBonus(equipped, content);
 	};
 
 	export const unequipOffHandWeapon = (
 	  character: CharacterData,
 	  weapon: AutoBuilderWeapon,
 	): CharacterData => {
-	  return removeCharacterAdjustments(character, `equip-weapon-offhand-${weapon.id}`);
+	  return removeAutomaticDualWielderArmorBonus(removeCharacterAdjustments(character, `equip-weapon-offhand-${weapon.id}`));
 	};
 
 export const refreshEquippedWeapons = (
@@ -863,11 +926,14 @@ export const refreshEquippedOffHandWeapons = (
 	  content: AutoBuilderContent,
 	): CharacterData => (
 	  refreshAutomaticStyleAttacks(
-	    refreshEquippedOffHandWeapons(
-	      refreshEquippedMagicWeapons(
-	        refreshEquippedWeapons(
-	          refreshEquippedArmor(
-	            refreshAutomaticArmorClass(character),
+	    refreshAutomaticDualWielderArmorBonus(
+	      refreshEquippedOffHandWeapons(
+	        refreshEquippedMagicWeapons(
+	          refreshEquippedWeapons(
+	            refreshEquippedArmor(
+	              refreshAutomaticArmorClass(character),
+	              content,
+	            ),
 	            content,
 	          ),
 	          content,
@@ -1015,7 +1081,7 @@ export const equipShield = (
 
 	  const sourceId = `equip-shield-${shield.id}`;
 	  const bonus = Number(shield.ac) || 2;
-	  next = removeAutomaticArmorClass(removeEquippedShields(next));
+	  next = removeAutomaticDualWielderArmorBonus(removeAutomaticArmorClass(removeEquippedShields(next)));
 	  return refreshAutomaticArmorClass(applyCharacterAdjustments(next, {
 	    id: sourceId,
 	    sourceId,
@@ -1041,5 +1107,5 @@ export const unequipShield = (
   character: CharacterData,
   shield: AutoBuilderArmor,
 ): CharacterData => {
-  return refreshAutomaticArmorClass(removeCharacterAdjustments(character, `equip-shield-${shield.id}`));
+  return refreshAutomaticArmorClass(removeAutomaticDualWielderArmorBonus(removeCharacterAdjustments(character, `equip-shield-${shield.id}`)));
 };
