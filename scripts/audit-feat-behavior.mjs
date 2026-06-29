@@ -62,6 +62,7 @@ const tceChef = getFeat('Chef', 'TCE');
 const xphbChef = getFeat('Chef', 'XPHB');
 const squireOfSolamnia = getFeat('Squire of Solamnia', 'DSotDQ');
 const cartomancer = getFeat('Cartomancer', 'BMT');
+const planarWanderer = getFeat('Planar Wanderer', 'SatO');
 const martialAdept = getFeat('Martial Adept', 'PHB');
 const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
@@ -191,6 +192,19 @@ assert(
   cartomancerProfile?.spells.some(spell => spell.name === '魔法伎俩' && spell.prepared),
   'Cartomancer should add prepared Prestidigitation feat spell',
 );
+
+const planarWandererCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Planar Wanderer|SatO',
+  },
+});
+const planarWandererResource = planarWandererCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Planar Wanderer-SatO-portal-sense');
+assert(planarWandererResource?.max === 1, \`Planar Wanderer should add one Portal Sense resource, got \${planarWandererResource?.max}\`);
+assert(planarWandererResource?.reset === 'longRest', \`Planar Wanderer Portal Sense should recover on long rest, got \${planarWandererResource?.reset}\`);
+assert(planarWandererResource?.note?.includes('30 尺'), \`Planar Wanderer resource note should mention 30-foot range, got \${planarWandererResource?.note}\`);
 
 const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
 assert(martialAdeptChoices?.needed === 2, \`Martial Adept should require two maneuvers, got \${martialAdeptChoices?.needed}\`);
@@ -474,6 +488,7 @@ export default {
     xphbChef.name,
     squireOfSolamnia.name,
     cartomancer.name,
+    planarWanderer.name,
     martialAdept.name,
     metamagicAdept.name,
     chromaticGift.name,
@@ -497,6 +512,7 @@ export default {
     'XPHB Chef adds cook utensils and refreshes proficiency-based treat resource',
     'Squire of Solamnia refreshes proficiency-based Precise Strike resource',
     'Cartomancer adds Hidden Ace resource and Prestidigitation profile',
+    'Planar Wanderer adds Portal Sense long-rest resource',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',

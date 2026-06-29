@@ -3749,6 +3749,17 @@ const getFeatResourceOperations = (
       '完成长休后可注入一张卡牌, 魔力持续 8 小时.',
     )];
   }
+  if (feat.key === 'Planar Wanderer') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'portal-sense',
+      '传送门感知',
+      1,
+      'longRest',
+      '以动作侦测 30 尺内传送门, 长休后恢复.',
+    )];
+  }
   if (feat.key === 'Gift of the Chromatic Dragon') {
     return [
       makeFeatResource(
