@@ -60,6 +60,7 @@ const phbLucky = getFeat('Lucky', 'PHB');
 const xphbLucky = getFeat('Lucky', 'XPHB');
 const tceChef = getFeat('Chef', 'TCE');
 const xphbChef = getFeat('Chef', 'XPHB');
+const squireOfSolamnia = getFeat('Squire of Solamnia', 'DSotDQ');
 const martialAdept = getFeat('Martial Adept', 'PHB');
 const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
@@ -153,6 +154,24 @@ const xphbChefLevelFive = buildLevelUpCharacter(xphbChefCharacter, content, wiza
 });
 const xphbChefLevelFiveResource = xphbChefLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Chef-XPHB-chef-treats');
 assert(xphbChefLevelFiveResource?.max === 3, \`XPHB Chef at total level 5 should refresh treats to proficiency bonus 3, got \${xphbChefLevelFiveResource?.max}\`);
+
+const squireCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Squire of Solamnia|DSotDQ',
+  },
+});
+const squireResource = squireCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Squire of Solamnia-DSotDQ-precise-strike');
+assert(squireResource?.max === 2, \`Squire of Solamnia at total level 4 should add proficiency bonus Precise Strike uses, got \${squireResource?.max}\`);
+assert(squireResource?.note?.includes('命中'), \`Squire of Solamnia resource note should mention hit-only consumption, got \${squireResource?.note}\`);
+const squireLevelFive = buildLevelUpCharacter(squireCharacter, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const squireLevelFiveResource = squireLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Squire of Solamnia-DSotDQ-precise-strike');
+assert(squireLevelFiveResource?.max === 3, \`Squire of Solamnia at total level 5 should refresh Precise Strike to proficiency bonus 3, got \${squireLevelFiveResource?.max}\`);
 
 const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
 assert(martialAdeptChoices?.needed === 2, \`Martial Adept should require two maneuvers, got \${martialAdeptChoices?.needed}\`);
@@ -434,6 +453,7 @@ export default {
     xphbLucky.name,
     tceChef.name,
     xphbChef.name,
+    squireOfSolamnia.name,
     martialAdept.name,
     metamagicAdept.name,
     chromaticGift.name,
@@ -455,6 +475,7 @@ export default {
     'XPHB Lucky adds and refreshes proficiency-based luck point resource',
     'TCE Chef adds cook utensils and refreshes proficiency-based treat resource',
     'XPHB Chef adds cook utensils and refreshes proficiency-based treat resource',
+    'Squire of Solamnia refreshes proficiency-based Precise Strike resource',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',

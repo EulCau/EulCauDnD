@@ -3727,6 +3727,17 @@ const getFeatResourceOperations = (
       '数量等于熟练加值, 做好后持续 8 小时.',
     )];
   }
+  if (feat.key === 'Squire of Solamnia') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'precise-strike',
+      '精准打击',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值, 仅在攻击命中时消耗.',
+    )];
+  }
   if (feat.key === 'Gift of the Chromatic Dragon') {
     return [
       makeFeatResource(
@@ -3948,6 +3959,14 @@ const createExistingFeatLevelUpOperations = (
     operations.push(...getFeatResourceOperations(
       { key: 'Chef', name: '大厨', source: 'XPHB' },
       '5r',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Squire of Solamnia', 'DSotDQ')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Squire of Solamnia', name: '索拉尼亚侍从', source: 'DSotDQ' },
+      '5e',
       newCharacterLevel,
     ));
   }
