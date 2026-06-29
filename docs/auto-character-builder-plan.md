@@ -91,6 +91,7 @@
 - 种族伤害免疫, 伤害易伤, 状态免疫, 特殊感官会写入结构化列表, 同时保留特性描述
 - 种族固定武器熟练会去除 5etools 来源后缀后写入 `proficiencies`, 可被装备攻击熟练判断复用
 - 种族和专长的选择型武器熟练会从 5etools `weaponProficiencies.choose` 生成选择项, 并通过 `addProficiency` 应用
+- 明确常驻的种族 AC 规则会进入自动 AC 计算或 `armorBonus`
 
 当前实现遵循“不可直接改散字段, 通过调整操作生成最终角色卡”的方向, 但还没有覆盖每个特性或专长的全部数值效果。
 
@@ -485,6 +486,820 @@
 - 当前官方白名单内没有伤害易伤或特殊感官样例, 但运行时和抽取字段已接入; 后续若来源白名单加入对应数据, 会自动进入结构化路径.
 - 本阶段只处理固定字符串条目, 不自动解析复杂 choose 或条件性免疫文本.
 
+## 阶段 3h 记录
+
+状态: 已完成.
+
+范围: 常驻种族 AC 规则.
+
+改动:
+
+- `utils/equipmentRules.ts` 的自动 AC 刷新现在会把常驻自然护甲与未穿甲/无甲防御一起比较, 取最高可用基础 AC.
+- 已接入的自然护甲:
+  - 自动侏儒 `装甲外壳`: 13 + 敏捷调整值.
+  - 蜥蜴人 `天生护甲`: 13 + 敏捷调整值.
+  - 螳螂人 `变色甲壳`: 13 + 敏捷调整值.
+  - 象族 `天生护甲`: 12 + 体质调整值.
+  - 龟人 `天生护甲`: 17.
+  - PSZ 地精 `坚毅`: 11 + 敏捷调整值.
+- 战俑 `集成防护` 通过 `addNumber armorBonus +1` 接入, 可随自动车卡调整撤销.
+- 扩展 `audit-origin-structured-behavior`, 验证自动侏儒, 象族, 龟人和战俑的 AC 结果.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+- `npm run audit:equipment-behavior`
+- `npm run audit:character-data`
+- `npm run build`
+
+说明:
+
+- 本阶段只处理常驻 AC 规则.
+- 化兽者化形, 兽皮化形, 龟壳防御等临时或主动状态没有自动常驻应用, 后续需要状态/资源开关后再接.
+
+## 阶段 3i 记录
+
+状态: 已完成.
+
+范围: 专长资源型数值效果.
+
+改动:
+
+- 新增专长资源调整 helper, 复用 `upsertResource`, 让专长也能写入可撤销资源.
+- `Lucky|PHB` 会加入 `幸运点` 资源, 最大值 3, 长休恢复.
+- `Lucky|XPHB` 会加入 `幸运点` 资源, 最大值等于角色总等级对应的熟练加值, 长休恢复.
+- 角色升级时, 已拥有 `Lucky|XPHB` 的角色会按新总等级刷新幸运点最大值.
+- 扩展 `audit-feat-behavior`, 验证 PHB Lucky 固定资源, XPHB Lucky 初次获得和 5 级熟练加值刷新.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段只处理 Lucky 的明确资源数值. 其他专长中的临时优势, 反应触发, 伤害减免等仍只保留描述, 等有状态/触发接口后再结构化.
+
+## 阶段 3j 记录
+
+状态: 已完成.
+
+范围: 专长授予战技/超魔的资源型数值效果.
+
+改动:
+
+- `Martial Adept|PHB` 会加入 `卓越骰` 资源, 最大值 1, 短休恢复, 备注说明 d6 且短休或长休后恢复.
+- `Metamagic Adept|TCE` 会加入 `专长术法点` 资源, 最大值 2, 长休恢复, 备注说明只能用于超魔法.
+- 扩展 `audit-feat-behavior`, 验证 `Martial Adept` 暴露并应用 2 个战技, 且写入卓越骰资源.
+- 扩展 `audit-feat-behavior`, 验证 `Metamagic Adept` 暴露并应用 2 个超魔, 且写入专长术法点资源.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 术法点目前作为专长独立资源显示, 不与术士职业术法点合并. 这样可以保留“只能用于超魔法”的限制说明, 也避免和职业资源撤销路径互相污染.
+
+## 阶段 3k 记录
+
+状态: 已完成.
+
+范围: 按熟练加值或固定次数的专长资源.
+
+改动:
+
+- 集中新增 `getFeatResourceOperations`, 初次获得专长和升级刷新复用同一套资源定义.
+- `Gift of the Chromatic Dragon|FTD` 会加入 `繁彩注魔` 资源, 最大值 1, 长休恢复.
+- `Gift of the Chromatic Dragon|FTD` 会加入 `反应抗性` 资源, 最大值等于熟练加值, 长休恢复, 升级时刷新.
+- `Gift of the Gem Dragon|FTD` 会加入 `念力报复` 资源, 最大值等于熟练加值, 长休恢复, 升级时刷新.
+- `Mage Slayer|XPHB` 会加入 `审慎护心` 资源, 最大值 1, 以 `shortRest` 表示短休或长休后恢复, 并在备注中说明.
+- 扩展 `audit-feat-behavior`, 验证上述资源的初次获得和熟练加值刷新.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段只处理使用次数资源. 这些专长的反应触发, 伤害类型选择, DC 公式等仍保留在特性描述中, 后续若加入状态/触发接口再结构化.
+
+## 阶段 3l 记录
+
+状态: 已完成.
+
+范围: `Gift of the Metallic Dragon|FTD` 专长资源.
+
+改动:
+
+- `Gift of the Metallic Dragon|FTD` 会加入 `庇护之翼` 资源, 最大值等于熟练加值, 长休恢复.
+- 已拥有 `Gift of the Metallic Dragon|FTD` 的角色升级时, `庇护之翼` 资源会按新总等级刷新.
+- 扩展 `audit-feat-behavior`, 验证该专长会加入 prepared 的 `疗伤术` 专长法术 profile, 并验证 `庇护之翼` 从 4 级的 2 次刷新到 5 级的 3 次.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段只结构化庇护之翼的使用次数. 反应触发, AC 加值是否使命中变未命中等判定仍保留在特性描述中.
+
+## 阶段 3m 记录
+
+状态: 已完成.
+
+范围: `Ember of the Fire Giant|BGG` 专长结构化效果.
+
+改动:
+
+- `Ember of the Fire Giant|BGG` 会通过 `addTextEntry` 写入 `damageResistances: 火焰`.
+- `Ember of the Fire Giant|BGG` 会加入 `炽热灼烧` 资源, 最大值等于熟练加值, 长休恢复.
+- 已拥有 `Ember of the Fire Giant|BGG` 的角色升级时, `炽热灼烧` 资源会按新总等级刷新.
+- 扩展 `audit-feat-behavior`, 验证火焰抗性, 4 级 2 次资源, 以及 5 级刷新到 3 次.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段没有结构化 `炽热灼烧` 的 DC 公式, 目盲状态和伤害骰, 这些仍保留在专长描述中.
+
+## 阶段 3n 记录
+
+状态: 已完成.
+
+范围: BGG 其他巨人后续专长的资源效果.
+
+改动:
+
+- `Fury of the Frost Giant|BGG` 会通过 `addTextEntry` 写入 `damageResistances: 寒冷`, 并加入 `霜寒回击` 资源, 最大值等于熟练加值, 长休恢复.
+- `Guile of the Cloud Giant|BGG` 会加入 `迷云逃逸` 资源, 最大值等于熟练加值, 长休恢复.
+- `Keenness of the Stone Giant|BGG` 会加入 `投掷石块` 资源, 最大值等于熟练加值, 长休恢复.
+- `Soul of the Storm Giant|BGG` 会加入 `旋涡灵光` 资源, 最大值等于熟练加值, 长休恢复.
+- 已拥有上述专长的角色升级时, 对应资源会按新总等级刷新.
+- 扩展 `audit-feat-behavior`, 验证上述资源 4 级为 2 次, 5 级刷新到 3 次, 并验证霜巨人的寒冷抗性.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 石巨人之敏锐的黑暗视觉有“若已有黑暗视觉则距离增加 60 尺”的叠加语义, 当前 `senses` 字符串列表无法可靠表达叠加, 暂时保留在描述中.
+- 风暴巨人之灵魂的闪电/雷鸣抗性只在灵光激活期间生效, 不写入常驻 `damageResistances`.
+- 本阶段没有结构化这些专长的 DC 公式, 伤害骰, 传送, 倒地或速度变化等触发效果.
+
+## 阶段 3o 记录
+
+状态: 已完成.
+
+范围: `Chef|TCE` 与 `Chef|XPHB` 专长资源.
+
+改动:
+
+- `Chef|TCE` 会加入 `餐点` 资源, 最大值等于熟练加值, 长休恢复.
+- `Chef|XPHB` 会加入 `应急零嘴` 资源, 最大值等于熟练加值, 长休恢复.
+- 已拥有上述专长的角色升级时, 对应资源会按新总等级刷新.
+- 扩展 `audit-feat-behavior`, 验证两个版本的大厨都会加入厨师工具熟练, 资源 4 级为 2 次, 5 级刷新到 3 次.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 短休料理可服务 `4 + 熟练加值` 个生物, 但这不是角色自身的可消耗资源, 目前仍保留在专长描述中.
+- XPHB 零嘴和 TCE 餐点做好后持续 8 小时, 该时效写入资源备注.
+
+## 阶段 3p 记录
+
+状态: 已完成.
+
+范围: `Squire of Solamnia|DSotDQ` 专长资源.
+
+改动:
+
+- `Squire of Solamnia|DSotDQ` 会加入 `精准打击` 资源, 最大值等于熟练加值, 长休恢复.
+- 资源备注说明该次数只在攻击命中时消耗.
+- 已拥有该专长的角色升级时, `精准打击` 会按新总等级刷新.
+- 扩展 `audit-feat-behavior`, 验证 4 级资源为 2 次, 5 级刷新到 3 次, 并验证资源备注包含命中消耗条件.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段没有结构化优势开关和额外 `1d8` 伤害, 因为当前攻击条目还没有按资源消耗切换的战斗内状态接口.
+
+## 阶段 3q 记录
+
+状态: 已完成.
+
+范围: `Cartomancer|BMT` 专长资源.
+
+改动:
+
+- `Cartomancer|BMT` 会加入 `隐藏王牌` 资源, 最大值 1, 长休恢复.
+- 资源备注说明完成长休后可注入一张卡牌, 魔力持续 8 小时.
+- 扩展 `audit-feat-behavior`, 验证 `隐藏王牌` 资源, 长休恢复, 8 小时备注, 以及 `魔法伎俩` 专长法术 profile.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段没有实现从职业法术列表选择隐藏王牌法术的界面; 当前只把每日注入次数作为资源呈现, 具体选择仍保留在描述中.
+
+## 阶段 3r 记录
+
+状态: 已完成.
+
+范围: `Planar Wanderer|SatO` 专长资源.
+
+改动:
+
+- `Planar Wanderer|SatO` 会加入 `传送门感知` 资源, 最大值 1, 长休恢复.
+- 资源备注说明可用动作侦测 30 尺内传送门.
+- 扩展 `audit-feat-behavior`, 验证 `传送门感知` 资源, 长休恢复和 30 尺备注.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- `位面适应` 是长休后选择临时抗性, 当前没有“临时可选抗性”接口, 暂不写入常驻 `damageResistances`.
+- `传送门骇客` 只有检定失败后才锁定到长休, 不适合直接作为固定可消耗资源.
+
+## 阶段 3s 记录
+
+状态: 已完成.
+
+范围: `Rune Shaper|BGG` 专长资源.
+
+改动:
+
+- `Rune Shaper|BGG` 会加入 `符文魔法` 资源, 最大值 1, 长休恢复.
+- 资源备注说明可不消耗法术位且无需材料成分施展一个刻印符文关联法术.
+- 扩展 `audit-feat-behavior`, 验证资源, 长休恢复, 备注, 以及 `通晓语言` 专长法术 profile.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+- `npm run audit:feat-spell-behavior`
+
+说明:
+
+- 本阶段不实现“已知符文数量等于熟练加值一半”和升级替换符文的选择 UI.
+- 当前只结构化每日免费施法次数, 具体刻印符文和临时习得法术仍保留描述和现有专长法术 profile.
+
+## 阶段 3t 记录
+
+状态: 已完成.
+
+范围: SatO 外层位面后续专长资源.
+
+改动:
+
+- `Agent of Order|SatO` 会加入 `凝滞打击` 资源, 最大值等于熟练加值, 长休恢复.
+- `Baleful Scion|SatO` 会加入 `贪婪之攫` 资源, 最大值等于熟练加值, 长休恢复.
+- `Righteous Heritor|SatO` 会加入 `舒缓伤痛` 资源, 最大值等于熟练加值, 长休恢复.
+- 已拥有上述专长的角色升级时, 对应资源会按新总等级刷新.
+- 扩展 `audit-feat-behavior`, 验证上述资源 4 级为 2 次, 5 级刷新到 3 次.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段没有结构化凝滞打击的 DC 公式, 束缚状态, 贪婪之攫的伤害/治疗, 或舒缓伤痛的伤害减免公式; 这些仍保留在专长描述中.
+
+## 阶段 3u 记录
+
+状态: 已完成.
+
+范围: `Outlands Envoy|SatO` 专长免费施法资源.
+
+改动:
+
+- `Outlands Envoy|SatO` 会加入 `交路使者: 迷踪步` 资源, 最大值 1, 长休恢复.
+- `Outlands Envoy|SatO` 会加入 `交路使者: 巧言术` 资源, 最大值 1, 长休恢复.
+- `巧言术` 资源备注说明不消耗法术位且无需材料成分.
+- 扩展 `audit-feat-behavior`, 验证两个资源, 长休恢复, 备注, 以及 `迷踪步` 和 `巧言术` 专长法术 profile.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+- `npm run audit:feat-spell-behavior`
+
+说明:
+
+- 本阶段只结构化各一次的免费施法次数. 施法属性继承自 `Scion of the Outer Planes|SatO` 的选择, 当前仍由专长法术 profile 的选择参数承载.
+
+## 阶段 3v 记录
+
+状态: 已完成.
+
+范围: DSotDQ 索拉尼亚后续专长资源.
+
+改动:
+
+- `Knight of the Crown|DSotDQ` 会加入 `号令集结` 资源, 最大值等于熟练加值, 长休恢复.
+- `Knight of the Rose|DSotDQ` 会加入 `振奋集结` 资源, 最大值等于熟练加值, 长休恢复.
+- `Knight of the Sword|DSotDQ` 会加入 `丧志打击` 资源, 最大值等于熟练加值, 长休恢复.
+- 已拥有上述专长的角色升级时, 对应资源会按新总等级刷新.
+- 扩展 `audit-feat-behavior`, 验证上述资源 4 级为 2 次, 5 级刷新到 3 次.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段没有结构化皇冠骑士的友军反应攻击, 蔷薇骑士的临时生命公式, 或圣剑骑士的 DC 与恐慌/劣势效果; 这些仍保留在专长描述中.
+
+## 阶段 3w 记录
+
+状态: 已完成.
+
+范围: XPHB 固定专长资源.
+
+改动:
+
+- `Telepathic|XPHB` 会加入 `侦测思想` 资源, 最大值 1, 长休恢复.
+- `侦测思想` 资源备注说明不消耗法术位且无需法术成分.
+- `Boon of Recovery|XPHB` 会加入 `背水一战` 资源, 最大值 1, 长休恢复.
+- `Boon of Recovery|XPHB` 会加入 `重获生机` 资源, 最大值 10, 长休恢复, 备注说明治疗池为 10 枚 d10.
+- 扩展 `audit-feat-behavior`, 验证上述资源和 `Telepathic|XPHB` 的 `侦测思想` 专长法术 profile.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+- `npm run audit:feat-spell-behavior`
+
+说明:
+
+- 本阶段没有结构化心灵感应的 60 尺沟通能力, 也没有将 `重获生机` 的每枚 d10 拆成单独骰池 UI; 当前用资源最大值 10 表示治疗池余量.
+
+## 阶段 3x 记录
+
+状态: 已完成.
+
+范围: XPHB 史诗恩惠和仪式专长资源.
+
+改动:
+
+- `Boon of Fate|XPHB` 会加入 `时来运转` 资源, 最大值 1.
+- `时来运转` 资源以 `shortRest` 表示短休/长休恢复, 并在备注中说明投掷先攻也会恢复.
+- `Ritual Caster|XPHB` 会加入 `快速仪式` 资源, 最大值 1, 长休恢复.
+- `快速仪式` 资源备注说明可用通常施法时间施展仪式法术且不消耗法术位.
+- 扩展 `audit-feat-behavior`, 验证上述资源, reset 和备注.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 当前资源 reset 枚举没有“投掷先攻恢复”, 因此 `Boon of Fate|XPHB` 使用 `shortRest` 并在备注保留先攻恢复条件.
+- 本阶段不实现 `Ritual Caster|XPHB` 的仪式法术选择和熟练加值提升时新增仪式法术 UI.
+
+## 阶段 3y 记录
+
+状态: 已完成.
+
+范围: 精类/影界触碰固定免费施法资源.
+
+改动:
+
+- `Fey Touched|TCE` 与 `Fey-Touched|XPHB` 会加入 `迷踪步` 资源, 最大值 1, 长休恢复.
+- `Shadow Touched|TCE` 与 `Shadow-Touched|XPHB` 会加入 `隐形术` 资源, 最大值 1, 长休恢复.
+- 资源备注说明对应固定法术可不消耗法术位施展.
+- 扩展 `audit-feat-behavior`, 验证 TCE 和 XPHB 两个版本的资源, 长休恢复, 备注, 以及固定法术已进入专长法术 profile 并准备.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+- `npm run audit:feat-spell-behavior`
+
+说明:
+
+- 本阶段只结构化固定法术 `迷踪步` 与 `隐形术` 的免费施法次数. 另外一道需选择的一环法术及其免费施法次数仍由现有专长法术选择流程承载, 暂不自动生成未知名称的资源.
+
+## 阶段 3z 记录
+
+状态: 已完成.
+
+范围: XGE 固定免费施法专长资源.
+
+改动:
+
+- `Drow High Magic|XGE` 会加入 `浮空术` 资源, 最大值 1, 长休恢复.
+- `Drow High Magic|XGE` 会加入 `解除魔法` 资源, 最大值 1, 长休恢复.
+- `Fey Teleportation|XGE` 会加入 `迷踪步` 资源, 最大值 1, 短休恢复.
+- 扩展 `audit-feat-behavior`, 验证上述资源, reset, 备注, 以及对应专长法术 profile.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+- `npm run audit:feat-spell-behavior`
+
+说明:
+
+- `Drow High Magic|XGE` 的 `侦测魔法` 是随意施展, 本阶段只把它保留在专长法术 profile, 不创建可消耗资源.
+- `Fey Teleportation|XGE` 的短休或长休恢复用现有 `shortRest` 表示.
+
+## 阶段 3aa 记录
+
+状态: 已完成.
+
+范围: `Poisoner|TCE` 与 `Poisoner|XPHB` 专长资源.
+
+改动:
+
+- `Poisoner|TCE` 会加入 `酿毒` 资源, 最大值等于熟练加值, 手动恢复.
+- `Poisoner|XPHB` 会加入 `酿毒` 资源, 最大值等于熟练加值, 手动恢复.
+- 资源备注说明剂数需要花费时间和材料制作.
+- 已拥有上述专长的角色升级时, 对应资源会按新总等级刷新.
+- 扩展 `audit-feat-behavior`, 验证两个版本的毒药工具熟练, 资源 4 级为 2 次, 5 级刷新到 3 次, reset 为 `manual`.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 酿毒并非休息自动恢复的能力, 当前用 `manual` 表示玩家需要在实际完成制作后手动调整剂数.
+- 本阶段没有结构化毒药 DC, 2d8 毒素伤害, 中毒状态, 或“毒素伤害无视抗性”的攻击规则.
+
+## 阶段 3ab 记录
+
+状态: 已完成.
+
+范围: XPHB 固定史诗恩惠数值效果.
+
+改动:
+
+- `Boon of Fortitude|XPHB` 会通过 `addNumber` 写入 `hpMaxBonus +40`.
+- `Boon of Speed|XPHB` 会通过 `addNumber` 写入 `speedBonus +30`.
+- `Boon of Truesight|XPHB` 会通过 `addTextEntry` 写入 `senses: 真实视觉 60 尺`.
+- 扩展 `audit-feat-behavior`, 验证上述固定数值和结构化感官字段.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段没有结构化 `Boon of Fortitude|XPHB` 的治疗额外恢复, `Boon of Speed|XPHB` 的附赠动作撤离/解除受擒, 或真实视觉的更细粒度规则说明; 这些仍保留在专长描述中.
+
+## 阶段 3ac 记录
+
+状态: 已完成.
+
+范围: 固定速度和全技能熟练审计.
+
+改动:
+
+- `Squat Nimbleness|XGE` 会通过 `addNumber` 写入 `speedBonus +5`.
+- 扩展 `audit-feat-behavior`, 验证 `Squat Nimbleness|XGE` 的速度加值和所选技能熟练.
+- 扩展 `audit-feat-behavior`, 验证 `Boon of Skill|XPHB` 已通过通用固定熟练逻辑加入全部 18 项技能熟练.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段没有结构化 `Squat Nimbleness|XGE` 脱离受擒检定优势; 该触发型优势仍保留在专长描述中.
+- `Boon of Skill|XPHB` 的专精选项仍走现有选择型专精流程, 本阶段只验证固定全技能熟练.
+
+## 阶段 3ad 记录
+
+状态: 已完成.
+
+范围: 护甲和武器固定熟练专长审计.
+
+改动:
+
+- `Tavern Brawler|PHB` 会通过 `addProficiency` 写入 `weapon:improvised`, 补齐源数据缺失的临时武器熟练.
+- 扩展 `audit-feat-behavior`, 验证 `Heavily Armored|PHB/XPHB`, `Moderately Armored|PHB/XPHB`, `Martial Weapon Training|XPHB`, `Tavern Brawler|PHB/XPHB`, `Gunner|TCE` 的能力值和固定熟练调整.
+- 这些调整均复用现有 `addNumber` 与 `addProficiency`, 可随 sourceId 撤销.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段不结构化防御式决斗, 重甲大师减伤, 枪手装填忽略等战斗触发规则; 这些仍保留在专长描述中.
+
+## 阶段 3ae 记录
+
+状态: 已完成.
+
+范围: 选择型语言专长审计.
+
+改动:
+
+- 扩展 `audit-feat-behavior`, 验证 `Linguist|PHB` 会暴露 3 门语言选择.
+- 验证通过 ASI 专长选择 `Linguist|PHB` 时, `INT +1` 和所选 `language:draconic`, `language:infernal`, `language:sylvan` 均写入 `proficiencies`.
+- 语言选择继续复用现有 `addProficiency` 调整接口, 可随 sourceId 撤销.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段不结构化密码学文字规则; 该部分仍保留在专长描述中.
+
+## 阶段 3af 记录
+
+状态: 已完成.
+
+范围: XPHB 观察力技能选择规则.
+
+改动:
+
+- `createChosenFeatOperations` 中的专长技能选择改为调用专门 helper, 普通专长仍沿用原有 `addProficiency` 行为.
+- `Observant|XPHB` 选择一个已经熟练的技能时, 会通过 `addProficiency` 加 `expertise: true` 写入专精.
+- 扩展 `audit-feat-behavior`, 验证 `Observant|XPHB` 选择已熟练的 `Perception` 后保留熟练并新增专精.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+
+说明:
+
+- 本阶段不结构化 `Observant|PHB` 的被动察觉/调查 +5, 因为角色卡当前没有被动技能调整字段.
+- 本阶段不结构化 `Observant|XPHB` 的附赠动作搜索, 该动作经济提示仍保留在专长描述中.
+
+## 阶段 3ag 记录
+
+状态: 已完成.
+
+范围: XPHB 矮人刚毅生命值上限规则.
+
+改动:
+
+- `Dwarf|XPHB` 建卡时会通过 `addNumber` 写入 `hpMaxBonus`, 数值等于当前角色总等级.
+- 新增已有种族升级 helper, 检测 `auto-race-Dwarf-XPHB` 后在总等级提升时追加 `hpMaxBonus + levelDelta`.
+- 扩展 `audit-origin-structured-behavior`, 验证 XPHB 矮人 1 级建卡获得 `hpMaxBonus +1`, 移除自动车卡调整后撤销该加值, 升到 2 级后变为 `hpMaxBonus +2`.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只结构化常驻生命值上限加值. XPHB 矮人的震颤感知短时开启仍保留在种族描述中, 等有状态/资源开关后再结构化.
+
+## 阶段 3ah 记录
+
+状态: 已完成.
+
+范围: 兽人激昂冲锋种族资源.
+
+改动:
+
+- 新增种族资源 helper, 通过 `upsertResource` 写入种族特性使用次数.
+- `Orc|XPHB` 会写入 `激昂冲锋` 资源, 次数等于熟练加值, 短休或长休恢复.
+- `Orc|MPMM` 会写入 `激昂冲锋` 资源, 次数等于熟练加值, 长休恢复.
+- 已有种族升级 helper 会在升级后刷新上述资源的最大值.
+- 扩展 `audit-origin-structured-behavior`, 验证 XPHB 兽人资源可撤销, 5 级时刷新到熟练加值 3, MPMM 兽人使用长休恢复.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只结构化使用次数和恢复节奏. 临时生命值的实际获得仍保留在资源备注中, 等角色卡有临时生命值事件接口后再接入.
+- 坚韧不屈仍未结构化为资源, 后续可以按同一 helper 增加 1/长休资源.
+
+## 阶段 3ai 记录
+
+状态: 已完成.
+
+范围: 坚韧不屈种族资源.
+
+改动:
+
+- 种族资源 helper 会识别 `Relentless Endurance`/`坚韧不屈` 特性, 并通过 `upsertResource` 写入 1 次长休资源.
+- 该规则覆盖 PHB 半兽人, XPHB 兽人, MPMM 兽人以及其他数据中带有同名特性的种族来源.
+- 扩展 `audit-origin-structured-behavior`, 验证 XPHB 兽人和 PHB 半兽人的 `坚韧不屈` 资源, 并验证 XPHB 兽人撤销自动车卡调整后资源被移除.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只记录使用次数. 将生命值从 0 改为 1 的实际战斗事件仍需后续事件接口支持.
+
+## 阶段 3aj 记录
+
+状态: 已完成.
+
+范围: 阿斯莫治愈之手种族资源.
+
+改动:
+
+- 种族资源 helper 会识别 `Healing Hands`/`治愈之手` 特性, 并通过 `upsertResource` 写入 1 次长休资源.
+- 该规则覆盖 MPMM, VGM, XPHB 阿斯莫来源.
+- 扩展 `audit-origin-structured-behavior`, 验证 MPMM 阿斯莫的 `治愈之手` 资源, 并验证撤销自动车卡调整后资源被移除.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只记录使用次数和恢复节奏. 实际治疗骰或按等级治疗仍保留在资源备注中, 等后续有治疗动作接口再结构化.
+
+## 阶段 3ak 记录
+
+状态: 已完成.
+
+范围: 歌利亚石之坚韧种族资源.
+
+改动:
+
+- 种族资源 helper 会识别 `Stone's Endurance`/`石之坚韧` 特性, 并通过 `upsertResource` 写入使用次数资源.
+- `Goliath|MPMM` 会写入熟练加值次数, 长休恢复, 并在升级后按熟练加值刷新.
+- `Goliath|VGM` 会写入 1 次, 短休恢复.
+- 扩展 `audit-origin-structured-behavior`, 验证 MPMM 歌利亚 1 级资源, 5 级刷新到熟练加值 3, 以及 VGM 歌利亚短休资源.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段不默认应用 XPHB 歌利亚的巨人先祖选项, 因为该来源需要用户选择巨人祖先. 后续应先补种族特性选择 UI, 再按所选选项写入资源.
+
+## 阶段 3al 记录
+
+状态: 已完成.
+
+范围: 龙裔吐息和 5 级龙裔资源.
+
+改动:
+
+- 种族资源 helper 会识别 `Breath Weapon`/`吐息武器` 特性, 并通过 `upsertResource` 写入吐息武器资源.
+- `Dragonborn|PHB` 会写入 1 次, 短休恢复.
+- `Dragonborn|XPHB` 和 FTD 龙裔会写入熟练加值次数, 长休恢复, 并在升级后按熟练加值刷新.
+- `Dragonborn|XPHB` 到 5 级后会写入 `龙族飞翼` 资源, 1 次, 长休恢复.
+- FTD 色彩, 宝石, 金属龙裔到 5 级后分别会写入 `色彩守护`, `宝石之翼`, `金属吐息武器` 资源, 1 次, 长休恢复.
+- 扩展 `audit-origin-structured-behavior`, 验证 PHB 龙裔吐息资源可撤销, XPHB 龙裔 5 级吐息次数刷新和飞翼资源, FTD 色彩龙裔 5 级吐息次数刷新和色彩守护资源.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只记录使用次数和恢复节奏. 吐息范围, 伤害类型, 伤害骰和豁免 DC 仍保留在种族特性描述中, 等攻击/动作接口支持范围和豁免动作后再结构化.
+
+## 阶段 3am 记录
+
+状态: 已完成.
+
+范围: 常见种族传送, 隐形, 变身和特殊攻击资源.
+
+改动:
+
+- `Aasimar|MPMM` 和 `Aasimar|XPHB` 到 3 级后会写入 `天界启示` 资源, 1 次, 长休恢复.
+- `Astral Elf|AAG` 会写入 `星光步` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Eladrin|MPMM` 会写入 `妖精步伐` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Firbolg|MPMM` 会写入 `神隐步` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Firbolg|VGM` 会写入 `神隐步` 资源, 1 次, 短休恢复.
+- `Lizardfolk|MPMM` 会写入 `饥渴之喉` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Lizardfolk|VGM` 会写入 `饥渴之喉` 资源, 1 次, 短休恢复.
+- 扩展 `audit-origin-structured-behavior`, 覆盖上述资源的初始写入, 等级门槛和升级刷新.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只记录使用次数和恢复节奏. 传送位置, 隐形结束条件, 变身选项, 临时生命值和特殊啃咬攻击仍保留在种族特性描述中, 等后续有动作/状态/临时生命值接口后再结构化.
+
+## 阶段 3an 记录
+
+状态: 已完成.
+
+范围: 地精和大地精检定/伤害加成资源.
+
+改动:
+
+- `Goblin|MPMM` 会写入 `小个子的怒火` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Goblin|VGM` 会写入 `小个子的怒火` 资源, 1 次, 短休恢复.
+- `Hobgoblin|MPMM` 会写入 `集众之运` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Hobgoblin|VGM` 会写入 `挽回颜面` 资源, 1 次, 短休恢复.
+- 扩展 `audit-origin-structured-behavior`, 覆盖上述资源的初始写入和熟练加值刷新.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只记录使用次数和恢复节奏. 具体加值计算, 目标体型限制和盟友数量上限仍保留在种族特性描述中, 等后续有检定/伤害事件接口后再结构化.
+
+## 阶段 3ao 记录
+
+状态: 已完成.
+
+范围: 化兽者化形资源.
+
+改动:
+
+- `Shifter|EFA` 会写入 `化形` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Shifter|MPMM` 会写入 `化形` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Shifter|ERLW` 会写入 `化形` 资源, 1 次, 短休恢复.
+- 扩展 `audit-origin-structured-behavior`, 覆盖上述资源的初始写入和熟练加值刷新.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只记录使用次数和恢复节奏. 临时生命值, AC 加值, 速度加值, 长牙攻击和狩猎感知优势仍保留在种族特性描述中, 等后续有状态开关和临时生命值接口后再结构化.
+
+## 阶段 3ap 记录
+
+状态: 已完成.
+
+范围: 兔人先攻和兔子跳跃资源.
+
+改动:
+
+- `Harengon|MPMM` 和 `Harengon|WBtW` 会写入 `兔子跳跃` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Harengon|MPMM` 和 `Harengon|WBtW` 的 `野兔敏锐` 会通过 `initiativeBonus` 加入熟练加值.
+- 已有兔人升级时, `野兔敏锐` 会按新旧熟练加值差值刷新先攻加值.
+- 扩展 `audit-origin-structured-behavior`, 覆盖 MPMM/WBtW 兔人的初始资源, 初始先攻加值, 5 级资源刷新和 5 级先攻加值刷新.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只结构化固定数值和使用次数. `幸运步法` 的反应 d4 加值没有次数限制, 仍保留在种族特性描述中, 等后续有检定事件接口后再结构化.
+
+## 阶段 3aq 记录
+
+状态: 已完成.
+
+范围: 回想, 鼓舞, 传送和豁免改写类种族资源.
+
+改动:
+
+- `Kender|DSotDQ` 会写入 `无畏` 资源, 1 次, 长休恢复.
+- `Kenku|MPMM` 会写入 `天狗回想` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Kobold|MPMM` 会写入 `龙吼` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Kobold|VGM` 会写入 `摇尾乞怜` 资源, 1 次, 短休恢复.
+- `Reborn|RHW` 和 `Reborn|VRGR` 会写入 `往昔学识` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- `Shadar-Kai|MPMM` 会写入 `鸦后祝福` 资源, 次数等于熟练加值, 长休恢复, 并在升级后按熟练加值刷新.
+- 扩展 `audit-origin-structured-behavior`, 覆盖上述资源的初始写入和熟练加值刷新.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段只记录使用次数和恢复节奏. 优势, 加骰, 攻击优势光环, 传送位置和 3 级后的临时全伤害抗性仍保留在种族特性描述中, 等后续有检定/状态/传送动作接口后再结构化.
+
+## 阶段 3ar 记录
+
+状态: 已完成.
+
+范围: 种族天然武器自动攻击条目.
+
+改动:
+
+- `refreshAutomaticStyleAttacks` 现在会清理并重算 `auto-race-attack-*` 自动攻击, 与职业/战斗风格自动攻击使用同一可撤销调整路径.
+- `Aarakocra|EEPC`, `Aarakocra|MPMM`, `Centaur|GGR`, `Centaur|MPMM`, `Lizardfolk|MPMM`, `Lizardfolk|VGM`, `Minotaur|GGR`, `Minotaur|MPMM`, `Tabaxi|MPMM`, `Tabaxi|VGM`, `Tortle|MPMM` 的天然武器特性会生成攻击栏条目.
+- 攻击条目使用力量调整值和熟练加值计算命中, 伤害按来源写入对应骰和伤害类型, 类型标记为 `徒手打击`, 备注保留天然武器和相关触发提示.
+- 扩展 `audit-origin-structured-behavior`, 覆盖 MPMM 鸟羽人, 人马, 牛头人, 蜥蜴人和龟人的天然武器攻击条目.
+
+已通过验证:
+
+- `npm run audit:origin-structured-behavior`
+
+说明:
+
+- 本阶段不处理 `Dhampir` 吸血啃咬, 因为该攻击使用体质并带有次数和命中后增益分支, 后续应单独作为特殊攻击动作建模.
+- 本阶段只处理来源明确的种族特性. 长牙化兽者等需要状态开关才出现的攻击仍保留在描述中.
+
 ## 阶段 4a 记录
 
 状态: 已完成。
@@ -795,6 +1610,49 @@
 - 本阶段没有改变副手伤害规则; 默认副手伤害仍不加属性调整值, 有双武器战斗风格时才加入.
 - 熟练判断仍以角色的 `proficiencies` 集合为权威来源, 没有新增角色字段.
 
+## 阶段 4m 记录
+
+状态: 已完成.
+
+范围: PHB `Dual Wielder` 装备派生规则.
+
+改动:
+
+- `utils/equipmentRules.ts` 现在识别 PHB `Dual Wielder` 专长的特性来源.
+- 拥有 PHB `Dual Wielder` 时, 副手可以装备非轻型的单手近战武器.
+- 拥有 PHB `Dual Wielder` 时, 主手和副手各持一把单手近战武器会通过独立的 `auto-dual-wielder-armor-bonus` 调整加入 `armorBonus +1`.
+- 卸下主手, 卸下副手, 装备盾牌或刷新自动化时, 该 AC 加值会自动撤销或重算.
+- 扩展 `scripts/audit-equipment-behavior.mjs`, 验证无专长时仍阻止非轻型副手, 有 PHB `Dual Wielder` 时允许非轻型单手近战副手, 且 AC +1 可撤销.
+
+已通过验证:
+
+- `npm run audit:equipment-behavior`
+- `npm run build`
+
+说明:
+
+- 本阶段只实现 PHB/5e 版本的 `Dual Wielder` AC 和非轻型双持规则. XPHB/5r 版本没有常驻 AC +1, 其附赠动作攻击条件仍保留为描述和当前双武器装备逻辑.
+
+## 阶段 4n 记录
+
+状态: 已完成.
+
+范围: 中甲大师护甲计算回归审计.
+
+改动:
+
+- `utils/equipmentRules.ts` 已有中甲大师规则: 装备中甲时, 普通角色的敏捷调整值上限为 +2, 拥有 `中甲大师`/`Medium Armor Master` 后上限提高到 +3.
+- 扩展 `scripts/audit-equipment-behavior.mjs`, 使用 DEX 16 的角色分别验证无专长和有中甲大师时的 `armorBase` 结果.
+
+已通过验证:
+
+- `npm run audit:equipment-behavior`
+- `npm run build`
+
+说明:
+
+- 本阶段没有修改运行时代码, 只为既有装备规则补回归覆盖.
+
 ## 阶段 5a 记录
 
 状态: 已完成。
@@ -879,6 +1737,31 @@
 
 - 本阶段没有修改运行时施法逻辑, 因为真实建卡路径已经满足 prepared 标记要求。
 - 后续仍应补 UI 层手动流程测试, 但核心建卡函数路径已有审计覆盖。
+
+## 阶段 5d 记录
+
+状态: 已完成.
+
+范围: 真实升级路径的施法审计.
+
+改动:
+
+- 新增 `scripts/audit-spell-levelup-behavior.mjs`.
+- 新增 `npm run audit:spell-levelup-behavior`.
+- 审计脚本通过 Vite 临时打包测试入口, 直接调用真实 `buildLevelOneCharacter`, `buildLevelUpCharacter`, `getSpellChoiceState`.
+- 当前覆盖:
+  - PHB Wizard 从 1 级到 3 级的 spellbook 学法术路径, 验证 6, 2, 2 的新增学法术数量, 且 3 级可以选择 2 环法术.
+  - PHB Sorcerer 从 1 级到 2 级的 known-selection 路径, 验证升级需要并加入 1 个新的已知环阶法术, 且已知法术默认 prepared.
+  - PHB Cleric 从 1 级到 2 级的 prepared-all 路径, 验证升级不要求环阶法术选择, 并避免重复加入法术.
+
+已通过验证:
+
+- `npm run audit:spell-levelup-behavior`
+
+说明:
+
+- PHB Wizard 当前使用 spellbook 数量选择, 而不是固定环阶组 UI. 审计明确验证真实选择数量和 3 级 2 环法术可选.
+- 本阶段仍是函数级真实路径审计, 不替代后续浏览器 UI 手动流程测试.
 
 ## 阶段 6a 记录
 
@@ -1136,7 +2019,7 @@
 
 目标: 每个特性, 专长, 武器, 物品尽量通过统一接口调整角色卡, 且可撤销。
 
-状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化, 阶段 3f 已完成选择型武器熟练, 阶段 3g 已完成种族免疫, 易伤和特殊感官结构化。
+状态: 进行中。阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化, 阶段 3f 已完成选择型武器熟练, 阶段 3g 已完成种族免疫, 易伤和特殊感官结构化, 阶段 3h 已完成常驻种族 AC 规则, 阶段 3i 已完成 Lucky 专长资源, 阶段 3j 已完成战技专家和超魔导师资源, 阶段 3k 已完成龙类赠礼和 XPHB 巫师杀手资源, 阶段 3l 已完成金属龙赋礼资源, 阶段 3m 已完成火巨人之余烬结构化效果, 阶段 3n 已完成 BGG 巨人后续专长资源, 阶段 3o 已完成大厨资源, 阶段 3p 已完成索拉尼亚侍从资源, 阶段 3q 已完成卡牌占卜师资源, 阶段 3r 已完成位面漫游者资源, 阶段 3s 已完成符文塑形者资源, 阶段 3t 已完成 SatO 外层位面后续专长资源, 阶段 3u 已完成外域使节免费施法资源, 阶段 3v 已完成索拉尼亚后续专长资源, 阶段 3w 已完成 XPHB 固定专长资源, 阶段 3x 已完成 XPHB 恩惠和仪式资源, 阶段 3y 已完成精类/影界触碰固定免费施法资源, 阶段 3z 已完成 XGE 固定免费施法资源, 阶段 3aa 已完成毒师酿毒资源, 阶段 3ab 已完成 XPHB 固定史诗恩惠数值效果, 阶段 3ac 已完成低身机敏速度和博学多才熟练审计, 阶段 3ad 已完成护甲和武器固定熟练专长审计, 阶段 3ae 已完成选择型语言专长审计, 阶段 3af 已完成 XPHB 观察力已熟练技能转专精规则, 阶段 3ag 已完成 XPHB 矮人刚毅生命值上限规则, 阶段 3ah 已完成兽人激昂冲锋种族资源, 阶段 3ai 已完成坚韧不屈种族资源, 阶段 3aj 已完成阿斯莫治愈之手种族资源, 阶段 3ak 已完成歌利亚石之坚韧种族资源, 阶段 3al 已完成龙裔吐息和 5 级龙裔资源, 阶段 3am 已完成常见种族传送, 隐形, 变身和特殊攻击资源, 阶段 3an 已完成地精和大地精检定/伤害加成资源, 阶段 3ao 已完成化兽者化形资源, 阶段 3ap 已完成兔人先攻和兔子跳跃资源, 阶段 3aq 已完成回想, 鼓舞, 传送和豁免改写类种族资源, 阶段 3ar 已完成种族天然武器自动攻击条目.
 
 任务:
 
@@ -1173,6 +2056,11 @@
 - 种族选择型抗性也写入 `damageResistances`。
 - 固定熟练 key 会去掉 5etools 来源后缀, 如 `battleaxe|phb` 写入为 `weapon:battleaxe`。
 - 选择型武器熟练会显示武器选择 UI, 并通过 `addProficiency` 写入所选武器熟练。
+- 常驻种族 AC 规则会进入自动 AC 计算, 战俑集成防护会写入 `armorBonus`.
+- Lucky 专长会通过 `upsertResource` 写入幸运点, XPHB 版本会随角色总等级熟练加值刷新.
+- 战技专家和超魔导师会通过 `upsertResource` 写入卓越骰和专长术法点, 并由选择型特性路径写入所选战技/超魔描述.
+- 大厨, 索拉尼亚侍从, 卡牌占卜师, 位面漫游者, 色彩龙赋礼, 宝石龙赋礼, 金属龙赋礼, 火巨人之余烬, 霜巨人之狂怒, 云巨人之诡诈, 石巨人之敏锐, 风暴巨人之灵魂, XPHB 巫师杀手会通过 `upsertResource` 写入对应使用次数资源, 熟练加值型资源会随升级刷新.
+- 火巨人之余烬会通过 `addTextEntry` 写入火焰抗性, 霜巨人之狂怒会通过 `addTextEntry` 写入寒冷抗性.
 - 黑暗视觉和抗性仍保留 `featureEntries` 描述, 避免丢失规则文字。
 - `FeaturesBox` 显示结构化抗性和感官。
 - 新增 `npm run audit:origin-structured-behavior`, 通过真实建卡路径验证 MPMM `Aasimar`, PHB `Dragonborn`, PHB `Dwarf` 的结构化字段, 固定武器熟练与撤销行为。
@@ -1186,21 +2074,21 @@
 
 目标: 装备后攻击栏稳定显示正确数值和特性。
 
-状态: 进行中。阶段 4a 已完成基础装备冲突规则, 阶段 4b 已完成魔法武器攻击生成模块化, 阶段 4c 已完成副手装备失败提示, 阶段 4d 已完成装备行为回归审计, 阶段 4e 已完成攻击数值审计增强, 阶段 4f 已完成普通武器刷新重算审计, 阶段 4g 已完成模板魔法武器刷新重算, 阶段 4h 已完成模板魔法武器副手冲突细化, 阶段 4i 已完成武器特性备注和特殊条目摘要, 阶段 4j 已完成独立魔法武器刷新重算, 阶段 4k 已完成重型武器规则提示, 阶段 4l 已完成副手命中公式和武器熟练刷新审计。
+状态: 进行中。阶段 4a 已完成基础装备冲突规则, 阶段 4b 已完成魔法武器攻击生成模块化, 阶段 4c 已完成副手装备失败提示, 阶段 4d 已完成装备行为回归审计, 阶段 4e 已完成攻击数值审计增强, 阶段 4f 已完成普通武器刷新重算审计, 阶段 4g 已完成模板魔法武器刷新重算, 阶段 4h 已完成模板魔法武器副手冲突细化, 阶段 4i 已完成武器特性备注和特殊条目摘要, 阶段 4j 已完成独立魔法武器刷新重算, 阶段 4k 已完成重型武器规则提示, 阶段 4l 已完成副手命中公式和武器熟练刷新审计, 阶段 4m 已完成 PHB Dual Wielder 装备派生规则, 阶段 4n 已完成中甲大师护甲计算回归审计。
 
 任务:
 
 1. 已补主手, 副手, 盾牌, 双手武器冲突检查。
-2. 已按规则限制副手武器为轻型, 且 UI 会显示无法装备的原因。
+2. 已按基础规则限制副手武器为轻型, 且 UI 会显示无法装备的原因; PHB `Dual Wielder` 会放宽为非双手的单手近战武器。
 3. 已将魔法武器攻击生成合并到 `equipmentRules.ts`, 避免 UI 层手写攻击计算。
 4. 已补充投掷, 弹药, 装填, 触及, 两用, 特殊武器, 重型武器的显示和备注审计。
-5. 已添加装备行为审计样例, 覆盖基础互斥, 攻击条目, 熟练加值, 属性加值, 箭术, 对决, 魔法武器加值, 普通武器刷新, 模板魔法武器随属性变化刷新, 独立魔法武器随属性变化刷新, 魔法武器与副手的轻型冲突, 常见武器特性备注, 副手命中公式, 以及武器熟练添加/撤销后的刷新重算。
+5. 已添加装备行为审计样例, 覆盖基础互斥, 攻击条目, 熟练加值, 属性加值, 箭术, 对决, 魔法武器加值, 普通武器刷新, 模板魔法武器随属性变化刷新, 独立魔法武器随属性变化刷新, 魔法武器与副手的轻型冲突, 常见武器特性备注, 副手命中公式, 武器熟练添加/撤销后的刷新重算, PHB `Dual Wielder` 的副手限制放宽和 AC 加值撤销, 以及中甲大师的中甲敏捷上限提升。
 
 ### 阶段 5: 施法职业逐职业核对
 
 目标: prepared-all 和 known-selection 行为符合 5e/5r。
 
-状态: 进行中。阶段 5a 已完成分类和 prepared 标记的脚本级审计增强, 阶段 5b 已完成职业和子职额外准备法术审计, 阶段 5c 已完成专长赠法术 prepared 标记审计。
+状态: 进行中。阶段 5a 已完成分类和 prepared 标记的脚本级审计增强, 阶段 5b 已完成职业和子职额外准备法术审计, 阶段 5c 已完成专长赠法术 prepared 标记审计, 阶段 5d 已完成真实升级路径施法审计。
 
 任务:
 
@@ -1208,8 +2096,8 @@
 2. 已对 Cleric, Druid, Paladin, XPHB Ranger 等 prepared-all 验证所有可用环阶法术自动加入法表, 但普通环阶法术不全自动 prepared。
 3. 已对职业, 子职额外准备法术, 以及专长赠法术验证 `prepared = true`。未完成: 完整 UI 流程。
 4. 已对 Bard, Sorcerer, Warlock, PHB Ranger 等 known-selection 验证选择法术会默认 prepared。
-5. 已对 PHB/XPHB Wizard 验证法术书学习数量和 prepared-all 排除规则。
-6. 已补强法术行为审计脚本。未完成: 覆盖完整 UI 弹窗流程和多次升级节点。
+5. 已对 PHB/XPHB Wizard 验证法术书学习数量和 prepared-all 排除规则, 并通过真实升级路径验证 PHB Wizard 1 到 3 级 spellbook 选择数量.
+6. 已补强法术行为审计脚本。未完成: 覆盖完整浏览器 UI 弹窗流程。
 
 ### 阶段 6: 搜索和怪物图鉴
 

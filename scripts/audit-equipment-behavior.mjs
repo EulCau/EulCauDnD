@@ -19,6 +19,7 @@ import {
   removeCharacterAdjustments,
 } from '${projectImport('utils/characterAdjustments.ts')}';
 import {
+  equipArmor,
   equipMagicWeapon,
   equipOffHandWeapon,
   equipShield,
@@ -76,6 +77,7 @@ const getAttack = (character, sourceId) => character.attacks.find(attack => atta
 const weapons = content.weapons;
 const lightWeapon = weapons.find(weapon => hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
+const nonLightMeleeWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H') && String(weapon.type || '').split('|')[0] === 'M' && weapon.dmg1);
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
 const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
 const thrownWeapon = weapons.find(weapon => hasProperty(weapon, 'T') && weapon.range && weapon.dmg1);
@@ -96,9 +98,11 @@ const heavyRanged5rWeapon = weapons.find(weapon => (
   && weapon.dmg1
 ));
 const shield = content.armors.find(armor => String(armor.type || '').split('|')[0] === 'S');
+const mediumArmor = content.armors.find(armor => String(armor.type || '').split('|')[0] === 'MA' && Number(armor.ac) > 0);
 
 assert(lightWeapon, 'missing light weapon fixture');
 assert(nonLightWeapon, 'missing non-light weapon fixture');
+assert(nonLightMeleeWeapon, 'missing non-light one-handed melee weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
 assert(rangedWeapon, 'missing ranged weapon fixture');
 assert(thrownWeapon, 'missing thrown weapon fixture');
@@ -109,6 +113,7 @@ assert(specialWeapon, 'missing special weapon fixture');
 assert(heavyMelee5eWeapon, 'missing PHB heavy melee weapon fixture');
 assert(heavyRanged5rWeapon, 'missing XPHB heavy ranged weapon fixture');
 assert(shield, 'missing shield fixture');
+assert(mediumArmor, 'missing medium armor fixture');
 
 let character = cloneCharacter();
 character = equipWeapon(character, nonLightWeapon, content);
@@ -250,6 +255,31 @@ assert(
   !character.appliedAdjustments.some(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-')),
   'equipping a non-light main hand should remove existing off-hand weapon',
 );
+
+character = cloneCharacter();
+character = addFeature(character, '双持客', 'auto-feat-Dual Wielder-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+assert(
+  getOffHandWeaponEquipBlockReason(character, nonLightMeleeWeapon, content) === '',
+  'PHB Dual Wielder should allow non-light one-handed melee off-hand weapon',
+);
+character = equipOffHandWeapon(character, nonLightMeleeWeapon, content);
+assert(
+  character.appliedAdjustments.some(adjustment => adjustment.sourceId === \`equip-weapon-offhand-\${nonLightMeleeWeapon.id}\`),
+  'PHB Dual Wielder should equip non-light one-handed melee off-hand weapon',
+);
+assert(
+  character.appliedAdjustments.some(adjustment => adjustment.sourceId === 'auto-dual-wielder-armor-bonus'),
+  'PHB Dual Wielder should add an automatic armor bonus while dual wielding',
+);
+assert(character.armorBonus === 1, \`PHB Dual Wielder should add +1 armor bonus while dual wielding, got \${character.armorBonus}\`);
+character = removeCharacterAdjustments(character, \`equip-weapon-offhand-\${nonLightMeleeWeapon.id}\`);
+character = refreshCharacterAutomation(character, content);
+assert(
+  !character.appliedAdjustments.some(adjustment => adjustment.sourceId === 'auto-dual-wielder-armor-bonus'),
+  'PHB Dual Wielder armor bonus should be removed after unequipping off-hand weapon',
+);
+assert(character.armorBonus === 0, \`PHB Dual Wielder armor bonus should be removed after off-hand unequip, got \${character.armorBonus}\`);
 
 character = cloneCharacter();
 character = equipWeapon(character, twoHandWeapon, content);
@@ -526,9 +556,32 @@ assert(
   \`off-hand damage should refresh after Two-Weapon Fighting to include ability modifier, got \${refreshedOffHandAttack.damage}\`,
 );
 
+character = {
+  ...cloneCharacter(),
+  abilities: { ...cloneCharacter().abilities, DEX: 16 },
+};
+character = equipArmor(character, mediumArmor);
+const mediumArmorBase = Number(mediumArmor.ac);
+assert(
+  character.armorBase === mediumArmorBase + 2,
+  \`medium armor should cap Dexterity modifier at +2 without Medium Armor Master, got \${character.armorBase}\`,
+);
+
+character = {
+  ...cloneCharacter(),
+  abilities: { ...cloneCharacter().abilities, DEX: 16 },
+};
+character = addFeature(character, '中甲大师', 'audit-feat-Medium Armor Master-PHB');
+character = equipArmor(character, mediumArmor);
+assert(
+  character.armorBase === mediumArmorBase + 3,
+  \`Medium Armor Master should raise medium armor Dexterity cap to +3, got \${character.armorBase}\`,
+);
+
 export default {
   lightWeapon: lightWeapon.name,
   nonLightWeapon: nonLightWeapon.name,
+  nonLightMeleeWeapon: nonLightMeleeWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
   rangedWeapon: rangedWeapon.name,
   thrownWeapon: thrownWeapon.name,
@@ -539,6 +592,7 @@ export default {
   heavyMelee5eWeapon: heavyMelee5eWeapon.name,
   heavyRanged5rWeapon: heavyRanged5rWeapon.name,
   shield: shield.name,
+  mediumArmor: mediumArmor.name,
 };
 `;
 
@@ -584,6 +638,7 @@ console.log(JSON.stringify({
     'light off-hand adds off-hand attack',
     'off-hand attack bonus includes ability modifier and proficiency',
     'non-light main removes off-hand',
+    'PHB Dual Wielder allows non-light one-handed melee off-hand and adds removable armor bonus',
     'shield removes two-handed main',
     'magic weapon replaces ordinary main',
     'magic weapon attack bonus and damage',
@@ -598,5 +653,6 @@ console.log(JSON.stringify({
     'main weapon refreshes after adding and removing Chinese weapon-name proficiency',
     'ranged weapon refreshes after adding archery',
     'off-hand weapon refreshes after adding two-weapon fighting',
+    'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
 }, null, 2));

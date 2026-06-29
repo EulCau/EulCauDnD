@@ -54,6 +54,17 @@ type MagicWeaponEquipOptions = {
   isTemplate: boolean;
   baseWeaponId?: string;
 };
+type NaturalAttackDefinition = {
+  raceKey: string;
+  raceSource: string;
+  featureNames: string[];
+  sourceName: string;
+  attackKey: string;
+  name: string;
+  die: string;
+  damageType: string;
+  notes: string;
+};
 
 const toAttackWeaponSnapshot = (weapon: AutoBuilderWeapon): AttackWeaponSnapshot => ({
   id: weapon.id,
@@ -139,6 +150,10 @@ const isRangedWeapon = (weapon: AutoBuilderWeapon): boolean => {
   return getItemType(weapon) === 'R';
 };
 
+const isOneHandedMeleeWeapon = (weapon: AutoBuilderWeapon): boolean => (
+  getItemType(weapon) === 'M' && !hasProperty(weapon, '2H')
+);
+
 const isSmallOrSmaller = (bodyType: string): boolean => {
   const normalized = bodyType.trim().toLowerCase();
   return ['小型', '超小型', 'small', 'tiny'].some(size => normalized.includes(size.toLowerCase()));
@@ -186,6 +201,18 @@ const hasFeature = (character: CharacterData, names: string[]): boolean => (
   character.featureEntries.some(feature => names.includes(feature.name))
 );
 
+const hasOriginFeature = (
+  character: CharacterData,
+  raceKey: string,
+  raceSource: string,
+  names: string[],
+): boolean => (
+  character.featureEntries.some(feature => (
+    feature.sourceId === `auto-race-${raceKey}-${raceSource}`
+    && names.includes(feature.name)
+  ))
+);
+
 const hasDuelingStyle = (character: CharacterData): boolean => hasFeature(character, ['对决', 'Dueling']);
 const hasThrownWeaponStyle = (character: CharacterData): boolean => hasFeature(character, ['投掷武器战斗', 'Thrown Weapon Fighting']);
 const hasTwoWeaponStyle = (character: CharacterData): boolean => hasFeature(character, ['双武器战斗', 'Two-Weapon Fighting']);
@@ -198,6 +225,133 @@ const hasRage = (character: CharacterData): boolean => hasFeature(character, ['�
 const hasSneakAttack = (character: CharacterData): boolean => hasFeature(character, ['偷袭', 'Sneak Attack']);
 const hasDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['至圣斩', 'Divine Smite', '圣武斩', "Paladin's Smite"]);
 const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['精通至圣斩', 'Improved Divine Smite', '光耀打击', 'Radiant Strikes']);
+const hasPhbDualWielder = (character: CharacterData): boolean => (
+  character.featureEntries.some(feature => feature.sourceId === 'auto-feat-Dual Wielder-PHB')
+);
+
+const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
+  {
+    raceKey: 'Aarakocra',
+    raceSource: 'EEPC',
+    featureNames: ['禽爪', 'Talons'],
+    sourceName: '禽爪',
+    attackKey: 'aarakocra-eepc-talons',
+    name: '禽爪',
+    die: '1d4',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Aarakocra',
+    raceSource: 'MPMM',
+    featureNames: ['禽爪', 'Talons'],
+    sourceName: '禽爪',
+    attackKey: 'aarakocra-mpmm-talons',
+    name: '禽爪',
+    die: '1d6',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Centaur',
+    raceSource: 'GGR',
+    featureNames: ['蹄击', 'Hooves'],
+    sourceName: '蹄击',
+    attackKey: 'centaur-ggr-hooves',
+    name: '蹄击',
+    die: '1d4',
+    damageType: '钝击',
+    notes: '天然武器: 可用力量进行徒手打击. 冲锋后可用附赠动作蹄击.',
+  },
+  {
+    raceKey: 'Centaur',
+    raceSource: 'MPMM',
+    featureNames: ['蹄击', 'Hooves'],
+    sourceName: '蹄击',
+    attackKey: 'centaur-mpmm-hooves',
+    name: '蹄击',
+    die: '1d6',
+    damageType: '钝击',
+    notes: '天然武器: 可用力量进行徒手打击. 冲锋后可用附赠动作蹄击.',
+  },
+  {
+    raceKey: 'Lizardfolk',
+    raceSource: 'MPMM',
+    featureNames: ['啃咬', 'Bite'],
+    sourceName: '啃咬',
+    attackKey: 'lizardfolk-mpmm-bite',
+    name: '啃咬',
+    die: '1d6',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击. 饥渴之喉可用该攻击触发额外效果.',
+  },
+  {
+    raceKey: 'Lizardfolk',
+    raceSource: 'VGM',
+    featureNames: ['啃咬', 'Bite'],
+    sourceName: '啃咬',
+    attackKey: 'lizardfolk-vgm-bite',
+    name: '啃咬',
+    die: '1d6',
+    damageType: '穿刺',
+    notes: '天然武器: 可用力量进行徒手打击. 饥渴之喉可用该攻击触发额外效果.',
+  },
+  {
+    raceKey: 'Minotaur',
+    raceSource: 'GGR',
+    featureNames: ['角击', 'Horns'],
+    sourceName: '角击',
+    attackKey: 'minotaur-ggr-horns',
+    name: '角击',
+    die: '1d6',
+    damageType: '穿刺',
+    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击.',
+  },
+  {
+    raceKey: 'Minotaur',
+    raceSource: 'MPMM',
+    featureNames: ['角击', 'Horns'],
+    sourceName: '角击',
+    attackKey: 'minotaur-mpmm-horns',
+    name: '角击',
+    die: '1d6',
+    damageType: '穿刺',
+    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击.',
+  },
+  {
+    raceKey: 'Tabaxi',
+    raceSource: 'MPMM',
+    featureNames: ['猫之利爪', "Cat's Claws"],
+    sourceName: '猫之利爪',
+    attackKey: 'tabaxi-mpmm-cats-claws',
+    name: '猫之利爪',
+    die: '1d6',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Tabaxi',
+    raceSource: 'VGM',
+    featureNames: ['猫之利爪', "Cat's Claws"],
+    sourceName: '猫之利爪',
+    attackKey: 'tabaxi-vgm-cats-claws',
+    name: '猫之利爪',
+    die: '1d4',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Tortle',
+    raceSource: 'MPMM',
+    featureNames: ['爪击', 'Claws'],
+    sourceName: '爪击',
+    attackKey: 'tortle-mpmm-claws',
+    name: '爪击',
+    die: '1d6',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+];
 
 const getClassLevel = (character: CharacterData, classNames: string[]): number => (
   character.classes.find(cls => classNames.includes(cls.name))?.level || 0
@@ -512,6 +666,12 @@ const removeAutomaticDefenseArmorBonus = (character: CharacterData): CharacterDa
     .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);
 };
 
+const removeAutomaticDualWielderArmorBonus = (character: CharacterData): CharacterData => {
+  return character.appliedAdjustments
+    .filter(adjustment => adjustment.sourceId === 'auto-dual-wielder-armor-bonus')
+    .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);
+};
+
 const getEquippedArmorId = (character: CharacterData): string | undefined => (
   character.appliedAdjustments
     .map(adjustment => adjustment.sourceId)
@@ -525,6 +685,53 @@ const getEquippedShieldId = (character: CharacterData): string | undefined => (
     .find(sourceId => sourceId.startsWith('equip-shield-'))
     ?.replace(/^equip-shield-/, '')
 );
+
+const getEquippedMainHandWeapon = (
+  character: CharacterData,
+  content: AutoBuilderContent,
+): AutoBuilderWeapon | undefined => {
+  const mainHandId = getEquippedMainHandWeaponId(character);
+  if (mainHandId) return content.weapons.find(weapon => weapon.id === mainHandId);
+
+  const magicSourceId = getEquippedMagicWeaponSourceId(character);
+  const magicAttack = magicSourceId ? character.attacks.find(attack => attack.sourceId === magicSourceId) : undefined;
+  if (magicAttack?.magicBaseWeaponId) return content.weapons.find(item => item.id === magicAttack.magicBaseWeaponId);
+  if (magicAttack?.magicWeaponSnapshot) return fromAttackWeaponSnapshot(magicAttack.magicWeaponSnapshot);
+  return undefined;
+};
+
+const refreshAutomaticDualWielderArmorBonus = (
+  character: CharacterData,
+  content: AutoBuilderContent,
+): CharacterData => {
+  const next = removeAutomaticDualWielderArmorBonus(character);
+  if (!hasPhbDualWielder(next) || getEquippedShieldId(next)) return next;
+
+  const offHandId = getEquippedOffHandWeaponId(next);
+  const offHandWeapon = offHandId ? content.weapons.find(weapon => weapon.id === offHandId) : undefined;
+  const mainHandWeapon = getEquippedMainHandWeapon(next, content);
+  if (!mainHandWeapon || !offHandWeapon) return next;
+  if (!isOneHandedMeleeWeapon(mainHandWeapon) || !isOneHandedMeleeWeapon(offHandWeapon)) return next;
+
+  return applyCharacterAdjustments(next, {
+    id: 'auto-dual-wielder-armor-bonus',
+    sourceId: 'auto-dual-wielder-armor-bonus',
+    sourceName: '双持客',
+    operations: [
+      { type: 'addNumber', path: 'armorBonus', value: 1 },
+      {
+        type: 'addFeature',
+        feature: {
+          id: 'auto-dual-wielder-armor-bonus-feature',
+          sourceId: 'auto-dual-wielder-armor-bonus',
+          sourceName: '双持客',
+          name: '双持客护甲加值',
+          description: '当你两手各持用一把单手近战武器时, 护甲等级 +1.',
+        },
+      },
+    ],
+  });
+};
 
 const refreshAutomaticDefenseArmorBonus = (character: CharacterData): CharacterData => {
   const next = removeAutomaticDefenseArmorBonus(character);
@@ -550,7 +757,6 @@ const refreshAutomaticDefenseArmorBonus = (character: CharacterData): CharacterD
 };
 
 const getUnarmoredDefenseBase = (character: CharacterData): { value: number; label: string } | null => {
-  if (!hasUnarmoredDefense(character)) return null;
   const dexMod = calculateModifier(character.abilities.DEX);
   const conMod = calculateModifier(character.abilities.CON);
   const wisMod = calculateModifier(character.abilities.WIS);
@@ -561,10 +767,20 @@ const getUnarmoredDefenseBase = (character: CharacterData): { value: number; lab
   const isDanceBard = character.classes.some(cls => (
     (cls.name === 'Bard' || cls.name === '吟游诗人') && cls.subclass.includes('舞')
   ));
+  const raceName = `${character.race} ${character.subrace}`;
+  const hasNaturalArmorFeature = (names: string[]): boolean => (
+    character.featureEntries.some(feature => names.includes(feature.name))
+  );
   const options = [
-    isBarbarian ? { value: 10 + dexMod + conMod, label: '野蛮人无甲防御: 10 + 敏捷调整值 + 体质调整值' } : null,
-    isMonk ? { value: 10 + dexMod + wisMod, label: '武僧无甲防御: 10 + 敏捷调整值 + 感知调整值' } : null,
-    isDanceBard ? { value: 10 + dexMod + chaMod, label: '舞蹈学院无甲防御: 10 + 敏捷调整值 + 魅力调整值' } : null,
+    hasUnarmoredDefense(character) && isBarbarian ? { value: 10 + dexMod + conMod, label: '野蛮人无甲防御: 10 + 敏捷调整值 + 体质调整值' } : null,
+    hasUnarmoredDefense(character) && isMonk ? { value: 10 + dexMod + wisMod, label: '武僧无甲防御: 10 + 敏捷调整值 + 感知调整值' } : null,
+    hasUnarmoredDefense(character) && isDanceBard ? { value: 10 + dexMod + chaMod, label: '舞蹈学院无甲防御: 10 + 敏捷调整值 + 魅力调整值' } : null,
+    hasNaturalArmorFeature(['装甲外壳', 'Armored Casing']) ? { value: 13 + dexMod, label: '自动侏儒装甲外壳: 13 + 敏捷调整值' } : null,
+    hasNaturalArmorFeature(['变色甲壳', 'Chameleon Carapace']) ? { value: 13 + dexMod, label: '螳螂人变色甲壳: 13 + 敏捷调整值' } : null,
+    raceName.includes('蜥蜴人') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 13 + dexMod, label: '蜥蜴人天生护甲: 13 + 敏捷调整值' } : null,
+    raceName.includes('象族') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 12 + conMod, label: '象族天生护甲: 12 + 体质调整值' } : null,
+    raceName.includes('龟人') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 17, label: '龟人天生护甲: 17' } : null,
+    raceName.includes('地精') && hasNaturalArmorFeature(['坚毅']) ? { value: 11 + dexMod, label: '地精坚毅: 11 + 敏捷调整值' } : null,
   ].filter((option): option is { value: number; label: string } => Boolean(option));
   return options.sort((a, b) => b.value - a.value)[0] || null;
 };
@@ -615,7 +831,7 @@ export const equipWeapon = (
 	    if (shieldSrcId) next = removeCharacterAdjustments(next, shieldSrcId);
 	  }
 	  // Conflict: unequip off-hand if main weapon doesn't have Light property
-	  if (!hasProperty(weapon, 'L')) {
+	  if (!hasProperty(weapon, 'L') && !(hasPhbDualWielder(next) && isOneHandedMeleeWeapon(weapon))) {
 	    const offId = getEquippedOffHandWeaponId(next);
 	    if (offId) {
 	      next = next.appliedAdjustments
@@ -627,7 +843,7 @@ export const equipWeapon = (
 	  const sourceId = `equip-weapon-${weapon.id}`;
 	  const attack = createWeaponAttack(next, weapon, sourceId);
 
-	  return applyCharacterAdjustments(next, {
+	  const equipped = applyCharacterAdjustments(next, {
 	    id: sourceId,
 	    sourceId,
 	    sourceName: weapon.name,
@@ -635,13 +851,14 @@ export const equipWeapon = (
 	      { type: 'addAttack', attack },
 	    ],
 	  });
+	  return content ? refreshAutomaticDualWielderArmorBonus(equipped, content) : equipped;
 	};
 
 	export const unequipWeapon = (
 	  character: CharacterData,
 	  weapon: AutoBuilderWeapon,
 	): CharacterData => {
-	  return removeCharacterAdjustments(character, `equip-weapon-${weapon.id}`);
+	  return removeAutomaticDualWielderArmorBonus(removeCharacterAdjustments(character, `equip-weapon-${weapon.id}`));
 	};
 
 	export const equipMagicWeapon = (
@@ -657,7 +874,7 @@ export const equipWeapon = (
 	      || sourceId.startsWith('equip-magic-')
 	    ));
 	  next = existingMainSourceIds.reduce((current, sourceId) => removeCharacterAdjustments(current, sourceId), next);
-	  if (!hasProperty(weapon, 'L')) {
+	  if (!hasProperty(weapon, 'L') && !(hasPhbDualWielder(next) && isOneHandedMeleeWeapon(weapon))) {
 	    next = next.appliedAdjustments
 	      .filter(adjustment => adjustment.sourceId.startsWith('equip-weapon-offhand-'))
 	      .reduce((current, adjustment) => removeCharacterAdjustments(current, adjustment.sourceId), next);
@@ -678,7 +895,7 @@ export const equipWeapon = (
 	    attack.magicWeaponSnapshot = toAttackWeaponSnapshot(weapon);
 	  }
 
-	  return applyCharacterAdjustments(next, {
+	  return applyCharacterAdjustments(removeAutomaticDualWielderArmorBonus(next), {
 	    id: sourceId,
 	    sourceId,
 	    sourceName: options.displayName,
@@ -693,11 +910,12 @@ export const equipWeapon = (
 	  weapon: AutoBuilderWeapon,
 	  content: AutoBuilderContent,
 	): string => {
-	  if (!hasProperty(weapon, 'L')) return '副手武器必须具有轻型属性.';
+	  const canUseDualWielderOffHand = hasPhbDualWielder(character) && isOneHandedMeleeWeapon(weapon);
+	  if (!hasProperty(weapon, 'L') && !canUseDualWielderOffHand) return '副手武器必须具有轻型属性.';
 
 	  const mainHandId = getEquippedMainHandWeaponId(character);
 	  const mainHandWeapon = mainHandId ? content.weapons.find(w => w.id === mainHandId) : undefined;
-	  if (mainHandWeapon && !hasProperty(mainHandWeapon, 'L')) {
+	  if (mainHandWeapon && !hasProperty(mainHandWeapon, 'L') && !(canUseDualWielderOffHand && isOneHandedMeleeWeapon(mainHandWeapon))) {
 	    return '主手武器不具有轻型属性, 不能进行双武器战斗.';
 	  }
 
@@ -712,7 +930,7 @@ export const equipWeapon = (
 	    if (!magicBaseWeapon) {
 	      return '已装备魔法主手武器, 且无法判断其基础武器属性, 请先卸下后再装备副手武器.';
 	    }
-	    if (!hasProperty(magicBaseWeapon, 'L')) {
+	    if (!hasProperty(magicBaseWeapon, 'L') && !(canUseDualWielderOffHand && isOneHandedMeleeWeapon(magicBaseWeapon))) {
 	      return '魔法主手武器的基础武器不具有轻型属性, 不能进行双武器战斗.';
 	    }
 	  }
@@ -764,7 +982,7 @@ export const equipWeapon = (
 	    notes: notes.join(', '),
 	  };
 
-	  return applyCharacterAdjustments(next, {
+	  const equipped = applyCharacterAdjustments(next, {
 	    id: sourceId,
 	    sourceId,
 	    sourceName: weapon.name,
@@ -772,13 +990,14 @@ export const equipWeapon = (
 	      { type: 'addAttack', attack },
 	    ],
 	  });
+	  return refreshAutomaticDualWielderArmorBonus(equipped, content);
 	};
 
 	export const unequipOffHandWeapon = (
 	  character: CharacterData,
 	  weapon: AutoBuilderWeapon,
 	): CharacterData => {
-	  return removeCharacterAdjustments(character, `equip-weapon-offhand-${weapon.id}`);
+	  return removeAutomaticDualWielderArmorBonus(removeCharacterAdjustments(character, `equip-weapon-offhand-${weapon.id}`));
 	};
 
 export const refreshEquippedWeapons = (
@@ -854,11 +1073,14 @@ export const refreshEquippedOffHandWeapons = (
 	  content: AutoBuilderContent,
 	): CharacterData => (
 	  refreshAutomaticStyleAttacks(
-	    refreshEquippedOffHandWeapons(
-	      refreshEquippedMagicWeapons(
-	        refreshEquippedWeapons(
-	          refreshEquippedArmor(
-	            refreshAutomaticArmorClass(character),
+	    refreshAutomaticDualWielderArmorBonus(
+	      refreshEquippedOffHandWeapons(
+	        refreshEquippedMagicWeapons(
+	          refreshEquippedWeapons(
+	            refreshEquippedArmor(
+	              refreshAutomaticArmorClass(character),
+	              content,
+	            ),
 	            content,
 	          ),
 	          content,
@@ -872,16 +1094,53 @@ export const refreshEquippedOffHandWeapons = (
 
 const removeAutomaticStyleAttacks = (character: CharacterData): CharacterData => {
   return character.appliedAdjustments
-    .filter(adjustment => adjustment.sourceId.startsWith('auto-style-attack-') || adjustment.sourceId.startsWith('auto-class-attack-'))
+    .filter(adjustment => (
+      adjustment.sourceId.startsWith('auto-style-attack-')
+      || adjustment.sourceId.startsWith('auto-class-attack-')
+      || adjustment.sourceId.startsWith('auto-race-attack-')
+    ))
     .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);
+};
+
+const createNaturalAttack = (
+  definition: NaturalAttackDefinition,
+  strMod: number,
+  profBonus: number,
+): Attack => {
+  const sourceId = `auto-race-attack-${definition.attackKey}`;
+  return {
+    id: `${sourceId}-attack`,
+    sourceId,
+    sourceName: definition.sourceName,
+    automatic: true,
+    name: definition.name,
+    bonus: formatModifier(strMod + profBonus),
+    damage: `${definition.die}${strMod === 0 ? '' : formatModifier(strMod)} ${definition.damageType}`,
+    type: '徒手打击',
+    notes: definition.notes,
+  };
 };
 
 export const refreshAutomaticStyleAttacks = (character: CharacterData): CharacterData => {
   let next = removeAutomaticStyleAttacks(character);
   const profBonus = calculateProficiencyBonus(getTotalLevel(next.classes));
+  const strMod = calculateModifier(next.abilities.STR);
+
+  for (const definition of NATURAL_ATTACKS) {
+    if (!hasOriginFeature(next, definition.raceKey, definition.raceSource, definition.featureNames)) continue;
+    const sourceId = `auto-race-attack-${definition.attackKey}`;
+    const attack = createNaturalAttack(definition, strMod, profBonus);
+    next = applyCharacterAdjustments(next, {
+      id: sourceId,
+      sourceId,
+      sourceName: definition.sourceName,
+      operations: [
+        { type: 'addAttack', attack },
+      ],
+    });
+  }
 
   if (hasUnarmedFightingStyle(next)) {
-    const strMod = calculateModifier(next.abilities.STR);
     const sourceId = 'auto-style-attack-unarmed-fighting';
     const attack: Attack = {
       id: `${sourceId}-attack`,
@@ -1006,7 +1265,7 @@ export const equipShield = (
 
 	  const sourceId = `equip-shield-${shield.id}`;
 	  const bonus = Number(shield.ac) || 2;
-	  next = removeAutomaticArmorClass(removeEquippedShields(next));
+	  next = removeAutomaticDualWielderArmorBonus(removeAutomaticArmorClass(removeEquippedShields(next)));
 	  return refreshAutomaticArmorClass(applyCharacterAdjustments(next, {
 	    id: sourceId,
 	    sourceId,
@@ -1032,5 +1291,5 @@ export const unequipShield = (
   character: CharacterData,
   shield: AutoBuilderArmor,
 ): CharacterData => {
-  return refreshAutomaticArmorClass(removeCharacterAdjustments(character, `equip-shield-${shield.id}`));
+  return refreshAutomaticArmorClass(removeAutomaticDualWielderArmorBonus(removeCharacterAdjustments(character, `equip-shield-${shield.id}`)));
 };

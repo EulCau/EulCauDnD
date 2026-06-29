@@ -2755,6 +2755,52 @@ const makeClassResource = (
   },
 });
 
+const makeFeatResource = (
+  feat: Pick<AutoBuilderFeat, 'key' | 'name' | 'source'>,
+  ruleSystem: RuleSystem,
+  key: string,
+  name: string,
+  max: number,
+  reset: CharacterResource['reset'],
+  note?: string,
+): AdjustmentOperation => ({
+  type: 'upsertResource',
+  resource: {
+    id: `auto-resource-feat-${feat.key}-${feat.source}-${key}`,
+    sourceId: `auto-resource-feat-${feat.key}-${feat.source}-${key}`,
+    sourceName: `${feat.name} ${feat.source}`,
+    name,
+    current: Math.max(0, max),
+    max: Math.max(0, max),
+    reset,
+    note,
+    ruleSystem,
+  },
+});
+
+const makeOriginResource = (
+  origin: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'>,
+  ruleSystem: RuleSystem,
+  key: string,
+  name: string,
+  max: number,
+  reset: CharacterResource['reset'],
+  note?: string,
+): AdjustmentOperation => ({
+  type: 'upsertResource',
+  resource: {
+    id: `auto-resource-race-${origin.key}-${origin.source}-${key}`,
+    sourceId: `auto-resource-race-${origin.key}-${origin.source}-${key}`,
+    sourceName: `${origin.name} ${origin.source}`,
+    name,
+    current: Math.max(0, max),
+    max: Math.max(0, max),
+    reset,
+    note,
+    ruleSystem,
+  },
+});
+
 const getRageUses = (level: number): number => {
   if (level >= 17) return 6;
   if (level >= 12) return 5;
@@ -3140,6 +3186,38 @@ const createSkillChoiceOperations = (
   ));
 };
 
+const hasProficiencyAfterOperations = (
+  character: CharacterData,
+  operations: AdjustmentOperation[],
+  key: string,
+): boolean => {
+  let proficient = character.proficiencies.has(key);
+  for (const operation of operations) {
+    if (operation.type === 'addProficiency' && operation.key === key) proficient = true;
+    if (operation.type === 'removeProficiency' && operation.key === key) proficient = false;
+  }
+  return proficient;
+};
+
+const createFeatSkillChoiceOperations = (
+  feat: AutoBuilderFeat,
+  character: CharacterData,
+  choices?: AutoBuilderSkillChoiceSelection,
+  previousOperations: AdjustmentOperation[] = [],
+): AdjustmentOperation[] => {
+  if (feat.key !== 'Observant' || feat.source !== 'XPHB') return createSkillChoiceOperations(choices);
+  return Object.values(choices || {}).flatMap(skills => (
+    skills.map(skill => {
+      const normalized = normalizeSkillName(skill);
+      return {
+        type: 'addProficiency',
+        key: normalized,
+        expertise: hasProficiencyAfterOperations(character, previousOperations, normalized),
+      } satisfies AdjustmentOperation;
+    })
+  ));
+};
+
 const createExpertiseChoiceOperations = (
   choices?: AutoBuilderSkillChoiceSelection,
 ): AdjustmentOperation[] => {
@@ -3328,9 +3406,16 @@ const createOriginStructuredFeatureOperations = (
   entity: AutoBuilderOrigin,
   kind: 'race' | 'background',
   ruleSystem: RuleSystem,
+  characterLevel = 1,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [];
   const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
+  if (kind === 'race' && entity.key === 'Warforged') {
+    operations.push({ type: 'addNumber', path: 'armorBonus', value: 1 });
+  }
+  if (kind === 'race' && entity.key === 'Dwarf' && entity.source === 'XPHB') {
+    operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: Math.max(1, characterLevel) });
+  }
   if (entity.darkvision) {
     addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${entity.darkvision} 尺`], {
       sourceId: `${sourceId}-darkvision`,
@@ -3421,16 +3506,333 @@ const createOriginStructuredFeatureOperations = (
   return operations;
 };
 
+const createOriginResourceOperations = (
+  entity: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'> & Partial<Pick<AutoBuilderOrigin, 'features'>>,
+  kind: 'race' | 'background',
+  ruleSystem: RuleSystem,
+  characterLevel = 1,
+): AdjustmentOperation[] => {
+  if (kind !== 'race') return [];
+  const operations: AdjustmentOperation[] = [];
+  const profBonus = calculateProficiencyBonus(Math.max(1, characterLevel));
+  if (entity.key === 'Orc' && entity.source === 'XPHB') {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'adrenaline-rush',
+      '激昂冲锋',
+      profBonus,
+      'shortRest',
+      '次数等于熟练加值. 使用时获得等同熟练加值的临时生命值.',
+    ));
+  }
+  if (entity.key === 'Orc' && entity.source === 'MPMM') {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'adrenaline-rush',
+      '激昂冲锋',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 使用时获得等同熟练加值的临时生命值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Relentless Endurance' || feature.name === '坚韧不屈')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'relentless-endurance',
+      '坚韧不屈',
+      1,
+      'longRest',
+      '生命值降至 0 且未立即死亡时, 可改为降至 1.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Healing Hands' || feature.name === '治愈之手')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'healing-hands',
+      '治愈之手',
+      1,
+      'longRest',
+      entity.source === 'VGM' ? '恢复等同角色等级的生命值.' : '恢复若干 d4, 骰数等同熟练加值.',
+    ));
+  }
+  if (
+    characterLevel >= 3
+    && (entity.features || []).some(feature => feature.englishName === 'Celestial Revelation' || feature.name === '天界启示')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'celestial-revelation',
+      '天界启示',
+      1,
+      'longRest',
+      '以附赠动作变身, 持续 1 分钟.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === "Stone's Endurance" || feature.name === '石之坚韧')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'stones-endurance',
+      '石之坚韧',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'VGM' ? 'shortRest' : 'longRest',
+      '以反应降低受到的伤害.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Starlight Step' || feature.name === '星光步')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'starlight-step',
+      '星光步',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Rabbit Hop' || feature.name === '兔子跳跃')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'rabbit-hop',
+      '兔子跳跃',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Kenku Recall' || feature.name === '天狗回想')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'kenku-recall',
+      '天狗回想',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Draconic Cry' || feature.name === '龙吼')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'draconic-cry',
+      '龙吼',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Grovel, Cower, and Beg' || feature.name === '摇尾乞怜')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'grovel-cower-and-beg',
+      '摇尾乞怜',
+      1,
+      'shortRest',
+      '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Knowledge from a Past Life' || feature.name === '往昔学识')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'knowledge-from-a-past-life',
+      '往昔学识',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Blessing of the Raven Queen' || feature.name === '鸦后祝福')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'blessing-of-the-raven-queen',
+      '鸦后祝福',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fearless' || feature.name === '无畏')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fearless',
+      '无畏',
+      1,
+      'longRest',
+      '豁免失败时可改为成功.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fey-step',
+      '妖精步伐',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'MPMM' ? 'longRest' : 'shortRest',
+      entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Hidden Step' || feature.name === '神隐步')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'hidden-step',
+      '神隐步',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'MPMM' ? 'longRest' : 'shortRest',
+      entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Hungry Jaws' || feature.name === '饥渴之喉')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'hungry-jaws',
+      '饥渴之喉',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'MPMM' ? 'longRest' : 'shortRest',
+      entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Shifting' || feature.name === '化形')) {
+    const usesProficiency = entity.source === 'MPMM' || entity.source === 'EFA';
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'shifting',
+      '化形',
+      usesProficiency ? profBonus : 1,
+      usesProficiency ? 'longRest' : 'shortRest',
+      usesProficiency ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fury of the Small' || feature.name === '小个子的怒火')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fury-of-the-small',
+      '小个子的怒火',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'MPMM' ? 'longRest' : 'shortRest',
+      entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fortune from the Many' || feature.name === '集众之运')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fortune-from-the-many',
+      '集众之运',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Saving Face' || feature.name === '挽回颜面')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'saving-face',
+      '挽回颜面',
+      1,
+      'shortRest',
+      '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Breath Weapon' || feature.name === '吐息武器')) {
+    const usesProficiency = entity.source === 'XPHB' || entity.source === 'FTD';
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'breath-weapon',
+      '吐息武器',
+      usesProficiency ? profBonus : 1,
+      usesProficiency ? 'longRest' : 'shortRest',
+      usesProficiency ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Draconic Flight' || feature.name === '龙族飞翼')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'draconic-flight',
+      '龙族飞翼',
+      1,
+      'longRest',
+      '以附赠动作获得临时飞行速度, 持续 10 分钟.',
+    ));
+  }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Chromatic Warding' || feature.name === '色彩守护')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'chromatic-warding',
+      '色彩守护',
+      1,
+      'longRest',
+      '以动作获得所选血统伤害类型免疫, 持续 1 分钟.',
+    ));
+  }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Gem Flight' || feature.name === '宝石之翼')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'gem-flight',
+      '宝石之翼',
+      1,
+      'longRest',
+      '以附赠动作获得等同步行速度的飞行速度, 持续 1 分钟.',
+    ));
+  }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Metallic Breath Weapon' || feature.name === '金属吐息武器')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'metallic-breath-weapon',
+      '金属吐息武器',
+      1,
+      'longRest',
+      '5 级起可使用第二种吐息武器.',
+    ));
+  }
+  return operations;
+};
+
 const createOriginOperations = (
   entity: AutoBuilderOrigin,
   kind: 'race' | 'background',
   ruleSystem: RuleSystem,
   abilityChoice?: AutoBuilderAbilityChoice,
   toolChoices?: AutoBuilderToolChoiceSelection,
+  characterLevel = 1,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
-    ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem),
+    ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel),
+    ...createOriginResourceOperations(entity, kind, ruleSystem, characterLevel),
     ...createAbilityOperations(entity, abilityChoice),
     ...createFixedProficiencyOperations(entity.skillProficiencies, ''),
     ...createFixedProficiencyOperations(entity.toolProficiencies, 'tool'),
@@ -3446,6 +3848,12 @@ const createOriginOperations = (
   }
   if (entity.size?.length === 1) {
     operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(entity.size[0]) });
+  }
+  if (
+    kind === 'race'
+    && (entity.features || []).some(feature => feature.englishName === 'Hare-Trigger' || feature.name === '野兔敏锐')
+  ) {
+    operations.push({ type: 'addNumber', path: 'initiativeBonus', value: calculateProficiencyBonus(Math.max(1, characterLevel)) });
   }
 
   return operations;
@@ -3525,7 +3933,7 @@ const createChosenFeatOperations = (
   return [
     ...createFeatOperations([feat], ruleSystem, characterLevel),
     ...createFeatFixedAbilityOperations(feat, abilitiesAfterPreviousOperations, choices.featAbility),
-    ...createSkillChoiceOperations(choices.featSkillChoices),
+    ...createFeatSkillChoiceOperations(feat, character, choices.featSkillChoices, previousOperations),
     ...createToolChoiceOperations(choices.featToolChoices),
     ...createWeaponChoiceOperations(content, choices.featWeaponChoices),
     ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
@@ -3652,6 +4060,419 @@ const createManeuverOperations = (
   });
 };
 
+const getFeatResourceOperations = (
+  feat: Pick<AutoBuilderFeat, 'key' | 'name' | 'source'>,
+  ruleSystem: RuleSystem,
+  characterLevel: number,
+): AdjustmentOperation[] => {
+  const profBonus = calculateProficiencyBonus(Math.max(1, characterLevel));
+  if (feat.key === 'Lucky' || feat.name === '幸运') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'luck-points',
+      '幸运点',
+      feat.source === 'XPHB' ? profBonus : 3,
+      'longRest',
+    )];
+  }
+  if (feat.key === 'Martial Adept' || feat.name === '战技专家') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'superiority-die',
+      '卓越骰',
+      1,
+      'shortRest',
+      'd6. 可用于本专长习得的战技, 短休或长休后恢复.',
+    )];
+  }
+  if (feat.key === 'Metamagic Adept' || feat.name === '超魔导师') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'sorcery-points',
+      '专长术法点',
+      2,
+      'longRest',
+      '只能用于超魔法.',
+    )];
+  }
+  if (feat.key === 'Chef') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'chef-treats',
+      feat.source === 'XPHB' ? '应急零嘴' : '餐点',
+      profBonus,
+      'longRest',
+      '数量等于熟练加值, 做好后持续 8 小时.',
+    )];
+  }
+  if (feat.key === 'Squire of Solamnia') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'precise-strike',
+      '精准打击',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值, 仅在攻击命中时消耗.',
+    )];
+  }
+  if (feat.key === 'Cartomancer') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'hidden-ace',
+      '隐藏王牌',
+      1,
+      'longRest',
+      '完成长休后可注入一张卡牌, 魔力持续 8 小时.',
+    )];
+  }
+  if (feat.key === 'Planar Wanderer') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'portal-sense',
+      '传送门感知',
+      1,
+      'longRest',
+      '以动作侦测 30 尺内传送门, 长休后恢复.',
+    )];
+  }
+  if (feat.key === 'Rune Shaper') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'rune-magic',
+      '符文魔法',
+      1,
+      'longRest',
+      '不消耗法术位且无需材料成分施展一个刻印符文关联法术.',
+    )];
+  }
+  if (feat.key === 'Gift of the Chromatic Dragon') {
+    return [
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'chromatic-infusion',
+        '繁彩注魔',
+        1,
+        'longRest',
+      ),
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'reactive-resistance',
+        '反应抗性',
+        profBonus,
+        'longRest',
+        '次数等于熟练加值.',
+      ),
+    ];
+  }
+  if (feat.key === 'Gift of the Gem Dragon') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'telekinetic-reprisal',
+      '念力报复',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Gift of the Metallic Dragon') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'protective-wings',
+      '庇护之翼',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Ember of the Fire Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'searing-ignition',
+      '炽热灼烧',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Fury of the Frost Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'frigid-retaliation',
+      '霜寒回击',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Guile of the Cloud Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'cloudy-escape',
+      '迷云逃逸',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Keenness of the Stone Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'stone-throw',
+      '投掷石块',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Soul of the Storm Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'maelstrom-aura',
+      '旋涡灵光',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Agent of Order') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'stasis-strike',
+      '凝滞打击',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Baleful Scion') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'grasp-of-avarice',
+      '贪婪之攫',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Righteous Heritor') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'soothe-pain',
+      '舒缓伤痛',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Outlands Envoy') {
+    return [
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'crossroads-emissary-misty-step',
+        '交路使者: 迷踪步',
+        1,
+        'longRest',
+        '不消耗法术位施展迷踪步.',
+      ),
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'crossroads-emissary-tongues',
+        '交路使者: 巧言术',
+        1,
+        'longRest',
+        '不消耗法术位施展巧言术, 且无需材料成分.',
+      ),
+    ];
+  }
+  if (feat.key === 'Knight of the Crown') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'commanding-rally',
+      '号令集结',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Knight of the Rose') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'bolstering-rally',
+      '振奋集结',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Knight of the Sword') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'demoralizing-strike',
+      '丧志打击',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Telepathic' && feat.source === 'XPHB') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'detect-thoughts',
+      '侦测思想',
+      1,
+      'longRest',
+      '不消耗法术位且无需法术成分施展侦测思想.',
+    )];
+  }
+  if (feat.key === 'Boon of Recovery' && feat.source === 'XPHB') {
+    return [
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'last-stand',
+        '背水一战',
+        1,
+        'longRest',
+      ),
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'recovery-dice',
+        '重获生机',
+        10,
+        'longRest',
+        '治疗池为 10 枚 d10, 可用附赠动作消耗任意枚.',
+      ),
+    ];
+  }
+  if (feat.key === 'Boon of Fate' && feat.source === 'XPHB') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'fate-points',
+      '时来运转',
+      1,
+      'shortRest',
+      '投掷先攻, 完成短休或完成长休后恢复.',
+    )];
+  }
+  if (feat.key === 'Ritual Caster' && feat.source === 'XPHB') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'quick-ritual',
+      '快速仪式',
+      1,
+      'longRest',
+      '以通常施法时间施展一道仪式法术, 不消耗法术位.',
+    )];
+  }
+  if (feat.key === 'Fey Touched' || feat.key === 'Fey-Touched') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'misty-step',
+      '迷踪步',
+      1,
+      'longRest',
+      '不消耗法术位施展迷踪步.',
+    )];
+  }
+  if (feat.key === 'Shadow Touched' || feat.key === 'Shadow-Touched') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'invisibility',
+      '隐形术',
+      1,
+      'longRest',
+      '不消耗法术位施展隐形术.',
+    )];
+  }
+  if (feat.key === 'Drow High Magic') {
+    return [
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'levitate',
+        '浮空术',
+        1,
+        'longRest',
+        '不消耗法术位施展浮空术.',
+      ),
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'dispel-magic',
+        '解除魔法',
+        1,
+        'longRest',
+        '不消耗法术位施展解除魔法.',
+      ),
+    ];
+  }
+  if (feat.key === 'Fey Teleportation') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'misty-step',
+      '迷踪步',
+      1,
+      'shortRest',
+      '短休或长休后恢复.',
+    )];
+  }
+  if (feat.key === 'Poisoner') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'poison-doses',
+      '酿毒',
+      profBonus,
+      'manual',
+      '剂数等于熟练加值, 需花费时间和材料制作.',
+    )];
+  }
+  if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'guarded-mind',
+      '审慎护心',
+      1,
+      'shortRest',
+      '短休或长休后恢复.',
+    )];
+  }
+  return [];
+};
+
 const createFeatOperations = (
   feats: AutoBuilderFeat[],
   ruleSystem: RuleSystem,
@@ -3672,6 +4493,28 @@ const createFeatOperations = (
     if (feat.key === 'Mobile' || feat.key === 'Speedy' || feat.name === '移动' || feat.name === '迅捷') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 10 });
     }
+    if (feat.key === 'Squat Nimbleness') {
+      featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 5 });
+    }
+    if (feat.key === 'Tavern Brawler' && feat.source === 'PHB') {
+      featOperations.push({ type: 'addProficiency', key: 'weapon:improvised' });
+    }
+    if (feat.key === 'Boon of Fortitude') {
+      featOperations.push({ type: 'addNumber', path: 'hpMaxBonus', value: 40 });
+    }
+    if (feat.key === 'Boon of Speed') {
+      featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 30 });
+    }
+    if (feat.key === 'Boon of Truesight') {
+      featOperations.push({ type: 'addTextEntry', path: 'senses', value: '真实视觉 60 尺' });
+    }
+    if (feat.key === 'Ember of the Fire Giant') {
+      featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '火焰' });
+    }
+    if (feat.key === 'Fury of the Frost Giant') {
+      featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '寒冷' });
+    }
+    featOperations.push(...getFeatResourceOperations(feat, ruleSystem, characterLevel));
     const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
       Object.entries(entry).flatMap(([key, value]) => {
         if (value !== true) return [];
@@ -3713,6 +4556,89 @@ const hasAppliedFeat = (
     : feature.sourceId.startsWith(`auto-feat-${key}-`)
 ));
 
+const hasAppliedRace = (
+  character: CharacterData,
+  key: string,
+  source?: string,
+): boolean => character.featureEntries.some(feature => (
+  source
+    ? feature.sourceId === `auto-race-${key}-${source}`
+    : feature.sourceId.startsWith(`auto-race-${key}-`)
+));
+
+const createExistingOriginLevelUpOperations = (
+  character: CharacterData,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+): AdjustmentOperation[] => {
+  const levelDelta = Math.max(0, newCharacterLevel - oldCharacterLevel);
+  if (levelDelta <= 0) return [];
+  const operations: AdjustmentOperation[] = [];
+  const ruleSystem = character.automation.ruleSystem || '5e';
+  const refreshOriginResources = (
+    key: string,
+    name: string,
+    source: string,
+    features: NonNullable<AutoBuilderOrigin['features']>,
+  ) => {
+    if (!hasAppliedRace(character, key, source)) return;
+    operations.push(...createOriginResourceOperations(
+      { key, name, source, features },
+      'race',
+      ruleSystem,
+      newCharacterLevel,
+    ));
+  };
+  if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
+    operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
+  }
+  refreshOriginResources('Orc', '兽人', 'XPHB', []);
+  refreshOriginResources('Orc', '兽人', 'MPMM', []);
+  refreshOriginResources('Aasimar', '阿斯莫', 'MPMM', [{ name: '天界启示', englishName: 'Celestial Revelation', description: '' }]);
+  refreshOriginResources('Aasimar', '阿斯莫', 'XPHB', [{ name: '天界启示', englishName: 'Celestial Revelation', description: '' }]);
+  refreshOriginResources('Astral Elf', '星界精灵', 'AAG', [{ name: '星光步', englishName: 'Starlight Step', description: '' }]);
+  refreshOriginResources('Harengon', '兔人', 'MPMM', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
+  refreshOriginResources('Harengon', '兔人', 'WBtW', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
+  refreshOriginResources('Kenku', '天狗', 'MPMM', [{ name: '天狗回想', englishName: 'Kenku Recall', description: '' }]);
+  refreshOriginResources('Kobold', '狗头人', 'MPMM', [{ name: '龙吼', englishName: 'Draconic Cry', description: '' }]);
+  refreshOriginResources('Reborn', '重生者', 'RHW', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
+  refreshOriginResources('Reborn', '重生者', 'VRGR', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
+  refreshOriginResources('Shadar-Kai', '影灵', 'MPMM', [{ name: '鸦后祝福', englishName: 'Blessing of the Raven Queen', description: '' }]);
+  refreshOriginResources('Eladrin', '雅灵', 'MPMM', [{ name: '妖精步伐', englishName: 'Fey Step', description: '' }]);
+  refreshOriginResources('Firbolg', '费尔伯格人', 'MPMM', [{ name: '神隐步', englishName: 'Hidden Step', description: '' }]);
+  refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
+  refreshOriginResources('Shifter', '化兽者', 'EFA', [{ name: '化形', englishName: 'Shifting', description: '' }]);
+  refreshOriginResources('Shifter', '化兽者', 'MPMM', [{ name: '化形', englishName: 'Shifting', description: '' }]);
+  refreshOriginResources('Goblin', '地精', 'MPMM', [{ name: '小个子的怒火', englishName: 'Fury of the Small', description: '' }]);
+  refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '集众之运', englishName: 'Fortune from the Many', description: '' }]);
+  refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
+  refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [
+    { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
+    { name: '龙族飞翼', englishName: 'Draconic Flight', description: '' },
+  ]);
+  refreshOriginResources('Dragonborn (Chromatic)', '龙裔 (色彩)', 'FTD', [
+    { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
+    { name: '色彩守护', englishName: 'Chromatic Warding', description: '' },
+  ]);
+  refreshOriginResources('Dragonborn (Gem)', '龙裔 (宝石)', 'FTD', [
+    { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
+    { name: '宝石之翼', englishName: 'Gem Flight', description: '' },
+  ]);
+  refreshOriginResources('Dragonborn (Metallic)', '龙裔 (金属)', 'FTD', [
+    { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
+    { name: '金属吐息武器', englishName: 'Metallic Breath Weapon', description: '' },
+  ]);
+  if (hasAppliedRace(character, 'Harengon', 'MPMM') || hasAppliedRace(character, 'Harengon', 'WBtW')) {
+    const oldBonus = calculateProficiencyBonus(Math.max(1, oldCharacterLevel));
+    const newBonus = calculateProficiencyBonus(Math.max(1, newCharacterLevel));
+    const bonusDelta = newBonus - oldBonus;
+    if (bonusDelta > 0) {
+      operations.push({ type: 'addNumber', path: 'initiativeBonus', value: bonusDelta });
+    }
+  }
+  return operations;
+};
+
 const createExistingFeatLevelUpOperations = (
   character: CharacterData,
   oldCharacterLevel: number,
@@ -3732,6 +4658,166 @@ const createExistingFeatLevelUpOperations = (
     if (bonusDelta > 0) {
       operations.push({ type: 'addNumber', path: 'initiativeBonus', value: bonusDelta });
     }
+  }
+
+  if (hasAppliedFeat(character, 'Lucky', 'XPHB')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Lucky', name: '幸运', source: 'XPHB' },
+      '5r',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Chef', 'TCE')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Chef', name: '大厨', source: 'TCE' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Chef', 'XPHB')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Chef', name: '大厨', source: 'XPHB' },
+      '5r',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Poisoner', 'TCE')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Poisoner', name: '毒师', source: 'TCE' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Poisoner', 'XPHB')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Poisoner', name: '毒师', source: 'XPHB' },
+      '5r',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Squire of Solamnia', 'DSotDQ')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Squire of Solamnia', name: '索拉尼亚侍从', source: 'DSotDQ' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Knight of the Crown', 'DSotDQ')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Knight of the Crown', name: '皇冠骑士', source: 'DSotDQ' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Knight of the Rose', 'DSotDQ')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Knight of the Rose', name: '蔷薇骑士', source: 'DSotDQ' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Knight of the Sword', 'DSotDQ')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Knight of the Sword', name: '圣剑骑士', source: 'DSotDQ' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Gift of the Chromatic Dragon', 'FTD')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Gift of the Chromatic Dragon', name: '色彩龙赋礼', source: 'FTD' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Gift of the Gem Dragon', 'FTD')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Gift of the Gem Dragon', name: '宝石龙赋礼', source: 'FTD' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Gift of the Metallic Dragon', 'FTD')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Gift of the Metallic Dragon', name: '金属龙赋礼', source: 'FTD' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Ember of the Fire Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Ember of the Fire Giant', name: '火巨人之余烬', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Fury of the Frost Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Fury of the Frost Giant', name: '霜巨人之狂怒', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Guile of the Cloud Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Guile of the Cloud Giant', name: '云巨人之诡诈', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Keenness of the Stone Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Keenness of the Stone Giant', name: '石巨人之敏锐', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Soul of the Storm Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Soul of the Storm Giant', name: '风暴巨人之灵魂', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Agent of Order', 'SatO')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Agent of Order', name: '秩序代行者', source: 'SatO' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Baleful Scion', 'SatO')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Baleful Scion', name: '恶意后继者', source: 'SatO' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Righteous Heritor', 'SatO')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Righteous Heritor', name: '公义传承者', source: 'SatO' },
+      '5e',
+      newCharacterLevel,
+    ));
   }
 
   return operations;
@@ -3791,7 +4877,7 @@ const createAbilityScoreImprovementOperations = (
     return feat ? [
       ...createFeatOperations([feat], ruleSystem, characterLevel),
       ...createFeatFixedAbilityOperations(feat, character.abilities, choice.featAbility),
-      ...createSkillChoiceOperations(choice.featSkillChoices),
+      ...createFeatSkillChoiceOperations(feat, character, choice.featSkillChoices),
       ...createToolChoiceOperations(choice.featToolChoices),
       ...createWeaponChoiceOperations(content, choice.featWeaponChoices),
       ...createExpertiseChoiceOperations(choice.featExpertiseChoices),
@@ -4235,6 +5321,11 @@ export const buildLevelUpCharacter = (
     oldTotalLevel,
     newTotalLevel,
   );
+  const existingOriginLevelUpOperations = createExistingOriginLevelUpOperations(
+    character,
+    oldTotalLevel,
+    newTotalLevel,
+  );
   const classResourceOperations = createClassResourceOperations(
     cls,
     options.ruleSystem,
@@ -4299,6 +5390,7 @@ export const buildLevelUpCharacter = (
 	        ...classWeaponMasteryOperations,
 	        ...abilityScoreImprovementOperations,
 	        ...existingFeatLevelUpOperations,
+	        ...existingOriginLevelUpOperations,
 	        ...classResourceOperations,
 	        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),
 	        ...createSubclassFeatureOperations(selectedSubclass, options.ruleSystem, newLevel),
