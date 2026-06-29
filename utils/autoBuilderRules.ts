@@ -3628,6 +3628,39 @@ const createOriginResourceOperations = (
       entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fury of the Small' || feature.name === '小个子的怒火')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fury-of-the-small',
+      '小个子的怒火',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'MPMM' ? 'longRest' : 'shortRest',
+      entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fortune from the Many' || feature.name === '集众之运')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fortune-from-the-many',
+      '集众之运',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Saving Face' || feature.name === '挽回颜面')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'saving-face',
+      '挽回颜面',
+      1,
+      'shortRest',
+      '完成短休或长休后恢复.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Breath Weapon' || feature.name === '吐息武器')) {
     const usesProficiency = entity.source === 'XPHB' || entity.source === 'FTD';
     operations.push(makeOriginResource(
@@ -4472,6 +4505,8 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Eladrin', '雅灵', 'MPMM', [{ name: '妖精步伐', englishName: 'Fey Step', description: '' }]);
   refreshOriginResources('Firbolg', '费尔伯格人', 'MPMM', [{ name: '神隐步', englishName: 'Hidden Step', description: '' }]);
   refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
+  refreshOriginResources('Goblin', '地精', 'MPMM', [{ name: '小个子的怒火', englishName: 'Fury of the Small', description: '' }]);
+  refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '集众之运', englishName: 'Fortune from the Many', description: '' }]);
   refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
   refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [
     { name: '吐息武器', englishName: 'Breath Weapon', description: '' },

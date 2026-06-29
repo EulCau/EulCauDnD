@@ -46,6 +46,9 @@ const mpmmGoliath = content.races.find(item => item.key === 'Goliath' && item.so
 const vgmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'VGM');
 const mpmmFirbolg = content.races.find(item => item.key === 'Firbolg' && item.source === 'MPMM');
 const vgmFirbolg = content.races.find(item => item.key === 'Firbolg' && item.source === 'VGM');
+const mpmmGoblin = content.races.find(item => item.key === 'Goblin' && item.source === 'MPMM');
+const vgmGoblin = content.races.find(item => item.key === 'Goblin' && item.source === 'VGM');
+const mpmmHobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'MPMM');
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const mpmmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'MPMM');
 const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'VGM');
@@ -78,6 +81,9 @@ assert(mpmmGoliath, 'missing MPMM Goliath fixture');
 assert(vgmGoliath, 'missing VGM Goliath fixture');
 assert(mpmmFirbolg, 'missing MPMM Firbolg fixture');
 assert(vgmFirbolg, 'missing VGM Firbolg fixture');
+assert(mpmmGoblin, 'missing MPMM Goblin fixture');
+assert(vgmGoblin, 'missing VGM Goblin fixture');
+assert(mpmmHobgoblin, 'missing MPMM Hobgoblin fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(mpmmLizardfolk, 'missing MPMM Lizardfolk fixture');
 assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
@@ -406,6 +412,58 @@ const vgmFirbolgCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, w
 const vgmFirbolgResource = getResource(vgmFirbolgCharacter, 'auto-resource-race-Firbolg-VGM-hidden-step');
 assert(vgmFirbolgResource?.max === 1 && vgmFirbolgResource.reset === 'shortRest', 'VGM Firbolg should add one-use Hidden Step short-rest resource');
 
+const mpmmGoblinResourceId = 'auto-resource-race-Goblin-MPMM-fury-of-the-small';
+let mpmmGoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmGoblin,
+});
+const mpmmGoblinResource = getResource(mpmmGoblinCharacter, mpmmGoblinResourceId);
+assert(mpmmGoblinResource?.max === 2 && mpmmGoblinResource.reset === 'longRest', 'MPMM Goblin should add proficiency-based Fury of the Small resource');
+for (let index = 0; index < 4; index += 1) {
+  mpmmGoblinCharacter = buildLevelUpCharacter(mpmmGoblinCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledMpmmGoblinResource = getResource(mpmmGoblinCharacter, mpmmGoblinResourceId);
+assert(leveledMpmmGoblinResource?.max === 3, \`MPMM Goblin Fury of the Small should refresh to PB 3 at level 5, got \${leveledMpmmGoblinResource?.max}\`);
+
+const vgmGoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: vgmGoblin,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const vgmGoblinResource = getResource(vgmGoblinCharacter, 'auto-resource-race-Goblin-VGM-fury-of-the-small');
+assert(vgmGoblinResource?.max === 1 && vgmGoblinResource.reset === 'shortRest', 'VGM Goblin should add one-use Fury of the Small short-rest resource');
+
+const mpmmHobgoblinResourceId = 'auto-resource-race-Hobgoblin-MPMM-fortune-from-the-many';
+let mpmmHobgoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmHobgoblin,
+});
+const mpmmHobgoblinResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinResourceId);
+assert(mpmmHobgoblinResource?.max === 2 && mpmmHobgoblinResource.reset === 'longRest', 'MPMM Hobgoblin should add proficiency-based Fortune from the Many resource');
+for (let index = 0; index < 4; index += 1) {
+  mpmmHobgoblinCharacter = buildLevelUpCharacter(mpmmHobgoblinCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledMpmmHobgoblinResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinResourceId);
+assert(leveledMpmmHobgoblinResource?.max === 3, \`MPMM Hobgoblin Fortune from the Many should refresh to PB 3 at level 5, got \${leveledMpmmHobgoblinResource?.max}\`);
+
+const vgmHobgoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: hobgoblin,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const vgmHobgoblinResource = getResource(vgmHobgoblinCharacter, 'auto-resource-race-Hobgoblin-VGM-saving-face');
+assert(vgmHobgoblinResource?.max === 1 && vgmHobgoblinResource.reset === 'shortRest', 'VGM Hobgoblin should add one-use Saving Face short-rest resource');
+
 const mpmmLizardfolkResourceId = 'auto-resource-race-Lizardfolk-MPMM-hungry-jaws';
 let mpmmLizardfolkCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -520,7 +578,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmFirbolg.name, vgmFirbolg.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -535,6 +593,7 @@ export default {
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
+    'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
