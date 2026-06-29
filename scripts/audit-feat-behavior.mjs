@@ -60,6 +60,8 @@ const phbLucky = getFeat('Lucky', 'PHB');
 const xphbLucky = getFeat('Lucky', 'XPHB');
 const tceChef = getFeat('Chef', 'TCE');
 const xphbChef = getFeat('Chef', 'XPHB');
+const tcePoisoner = getFeat('Poisoner', 'TCE');
+const xphbPoisoner = getFeat('Poisoner', 'XPHB');
 const squireOfSolamnia = getFeat('Squire of Solamnia', 'DSotDQ');
 const knightOfTheCrown = getFeat('Knight of the Crown', 'DSotDQ');
 const knightOfTheRose = getFeat('Knight of the Rose', 'DSotDQ');
@@ -174,6 +176,48 @@ const xphbChefLevelFive = buildLevelUpCharacter(xphbChefCharacter, content, wiza
 });
 const xphbChefLevelFiveResource = xphbChefLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Chef-XPHB-chef-treats');
 assert(xphbChefLevelFiveResource?.max === 3, \`XPHB Chef at total level 5 should refresh treats to proficiency bonus 3, got \${xphbChefLevelFiveResource?.max}\`);
+
+const assertPoisonerResource = ({ featId, classDefinition, ruleSystem, ability, resourceId, label, expectedTool }) => {
+  const characterWithFeat = buildLevelUpCharacter(makeLevelThreeWizard(), content, classDefinition, {
+    ruleSystem,
+    spellChoices: { cantrips: [], leveled: [] },
+    abilityScoreImprovementChoice: {
+      mode: 'feat',
+      featId,
+      featAbility: ability,
+    },
+  });
+  assert(characterWithFeat.proficiencies.has(expectedTool), \`\${label} should add poisoner's kit proficiency\`);
+  const levelFourResource = characterWithFeat.resources.find(resource => resource.id === resourceId);
+  assert(levelFourResource?.max === 2, \`\${label} at total level 4 should add proficiency bonus poison doses, got \${levelFourResource?.max}\`);
+  assert(levelFourResource?.reset === 'manual', \`\${label} poison doses should use manual reset, got \${levelFourResource?.reset}\`);
+  assert(levelFourResource?.note?.includes('材料'), \`\${label} poison resource note should mention materials, got \${levelFourResource?.note}\`);
+  const levelFiveCharacter = buildLevelUpCharacter(characterWithFeat, content, classDefinition, {
+    ruleSystem,
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+  const levelFiveResource = levelFiveCharacter.resources.find(resource => resource.id === resourceId);
+  assert(levelFiveResource?.max === 3, \`\${label} at total level 5 should refresh poison doses to proficiency bonus 3, got \${levelFiveResource?.max}\`);
+};
+
+assertPoisonerResource({
+  featId: 'Poisoner|TCE',
+  classDefinition: phbWizard,
+  ruleSystem: '5e',
+  ability: 'DEX',
+  resourceId: 'auto-resource-feat-Poisoner-TCE-poison-doses',
+  label: 'TCE Poisoner',
+  expectedTool: "tool:poisoner's kit",
+});
+assertPoisonerResource({
+  featId: 'Poisoner|XPHB',
+  classDefinition: wizard,
+  ruleSystem: '5r',
+  ability: 'INT',
+  resourceId: 'auto-resource-feat-Poisoner-XPHB-poison-doses',
+  label: 'XPHB Poisoner',
+  expectedTool: "tool:poisoner's kit",
+});
 
 const squireCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
   ruleSystem: '5e',
@@ -749,6 +793,8 @@ export default {
     xphbLucky.name,
     tceChef.name,
     xphbChef.name,
+    tcePoisoner.name,
+    xphbPoisoner.name,
     squireOfSolamnia.name,
     knightOfTheCrown.name,
     knightOfTheRose.name,
@@ -791,6 +837,7 @@ export default {
     'XPHB Lucky adds and refreshes proficiency-based luck point resource',
     'TCE Chef adds cook utensils and refreshes proficiency-based treat resource',
     'XPHB Chef adds cook utensils and refreshes proficiency-based treat resource',
+    'TCE and XPHB Poisoner refresh proficiency-based poison dose resources',
     'Squire of Solamnia refreshes proficiency-based Precise Strike resource',
     'Solamnia knight feats refresh proficiency-based resources',
     'Cartomancer adds Hidden Ace resource and Prestidigitation profile',

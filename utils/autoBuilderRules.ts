@@ -4066,6 +4066,17 @@ const getFeatResourceOperations = (
       '短休或长休后恢复.',
     )];
   }
+  if (feat.key === 'Poisoner') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'poison-doses',
+      '酿毒',
+      profBonus,
+      'manual',
+      '剂数等于熟练加值, 需花费时间和材料制作.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,
@@ -4188,6 +4199,22 @@ const createExistingFeatLevelUpOperations = (
   if (hasAppliedFeat(character, 'Chef', 'XPHB')) {
     operations.push(...getFeatResourceOperations(
       { key: 'Chef', name: '大厨', source: 'XPHB' },
+      '5r',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Poisoner', 'TCE')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Poisoner', name: '毒师', source: 'TCE' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Poisoner', 'XPHB')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Poisoner', name: '毒师', source: 'XPHB' },
       '5r',
       newCharacterLevel,
     ));
