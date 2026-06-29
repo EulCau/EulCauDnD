@@ -3759,6 +3759,17 @@ const getFeatResourceOperations = (
       '次数等于熟练加值.',
     )];
   }
+  if (feat.key === 'Ember of the Fire Giant') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'searing-ignition',
+      '炽热灼烧',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,
@@ -3792,6 +3803,9 @@ const createFeatOperations = (
     }
     if (feat.key === 'Mobile' || feat.key === 'Speedy' || feat.name === '移动' || feat.name === '迅捷') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 10 });
+    }
+    if (feat.key === 'Ember of the Fire Giant') {
+      featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '火焰' });
     }
     featOperations.push(...getFeatResourceOperations(feat, ruleSystem, characterLevel));
     const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
@@ -3883,6 +3897,14 @@ const createExistingFeatLevelUpOperations = (
   if (hasAppliedFeat(character, 'Gift of the Metallic Dragon', 'FTD')) {
     operations.push(...getFeatResourceOperations(
       { key: 'Gift of the Metallic Dragon', name: '金属龙赋礼', source: 'FTD' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Ember of the Fire Giant', 'BGG')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Ember of the Fire Giant', name: '火巨人之余烬', source: 'BGG' },
       '5e',
       newCharacterLevel,
     ));

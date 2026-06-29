@@ -63,6 +63,7 @@ const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
 const gemGift = getFeat('Gift of the Gem Dragon', 'FTD');
 const metallicGift = getFeat('Gift of the Metallic Dragon', 'FTD');
+const emberFireGiant = getFeat('Ember of the Fire Giant', 'BGG');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -212,6 +213,28 @@ const metallicGiftLevelFive = buildLevelUpCharacter(metallicGiftCharacter, conte
 const metallicLevelFiveResource = metallicGiftLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Metallic Dragon-FTD-protective-wings');
 assert(metallicLevelFiveResource?.max === 3, \`Gift of the Metallic Dragon at total level 5 should refresh Protective Wings to proficiency bonus 3, got \${metallicLevelFiveResource?.max}\`);
 
+const emberFireGiantCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Ember of the Fire Giant|BGG',
+    featAbility: 'WIS',
+  },
+});
+assert(
+  emberFireGiantCharacter.damageResistances.includes('火焰'),
+  \`Ember of the Fire Giant should add fire resistance, got \${emberFireGiantCharacter.damageResistances.join(', ')}\`,
+);
+const emberFireGiantResource = emberFireGiantCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Ember of the Fire Giant-BGG-searing-ignition');
+assert(emberFireGiantResource?.max === 2, \`Ember of the Fire Giant at total level 4 should add proficiency bonus Searing Ignition uses, got \${emberFireGiantResource?.max}\`);
+const emberFireGiantLevelFive = buildLevelUpCharacter(emberFireGiantCharacter, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const emberLevelFiveResource = emberFireGiantLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Ember of the Fire Giant-BGG-searing-ignition');
+assert(emberLevelFiveResource?.max === 3, \`Ember of the Fire Giant at total level 5 should refresh Searing Ignition to proficiency bonus 3, got \${emberLevelFiveResource?.max}\`);
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -309,7 +332,7 @@ assert(
 );
 
 export default {
-  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, martialAdept.name, metamagicAdept.name, chromaticGift.name, gemGift.name, metallicGift.name, xphbMageSlayer.name, resilient.name, skillExpert.name, weaponMaster.name],
+  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, martialAdept.name, metamagicAdept.name, chromaticGift.name, gemGift.name, metallicGift.name, emberFireGiant.name, xphbMageSlayer.name, resilient.name, skillExpert.name, weaponMaster.name],
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'PHB Lucky adds fixed long-rest luck point resource',
@@ -319,6 +342,7 @@ export default {
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',
     'Gift of the Gem Dragon adds and refreshes proficiency-based resource',
     'Gift of the Metallic Dragon adds prepared Cure Wounds and refreshes proficiency-based resource',
+    'Ember of the Fire Giant adds fire resistance and refreshes proficiency-based resource',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
