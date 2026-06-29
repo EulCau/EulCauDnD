@@ -3869,6 +3869,39 @@ const getFeatResourceOperations = (
       '次数等于熟练加值.',
     )];
   }
+  if (feat.key === 'Agent of Order') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'stasis-strike',
+      '凝滞打击',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Baleful Scion') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'grasp-of-avarice',
+      '贪婪之攫',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Righteous Heritor') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'soothe-pain',
+      '舒缓伤痛',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,
@@ -4063,6 +4096,30 @@ const createExistingFeatLevelUpOperations = (
   if (hasAppliedFeat(character, 'Soul of the Storm Giant', 'BGG')) {
     operations.push(...getFeatResourceOperations(
       { key: 'Soul of the Storm Giant', name: '风暴巨人之灵魂', source: 'BGG' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Agent of Order', 'SatO')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Agent of Order', name: '秩序代行者', source: 'SatO' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Baleful Scion', 'SatO')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Baleful Scion', name: '恶意后继者', source: 'SatO' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Righteous Heritor', 'SatO')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Righteous Heritor', name: '公义传承者', source: 'SatO' },
       '5e',
       newCharacterLevel,
     ));

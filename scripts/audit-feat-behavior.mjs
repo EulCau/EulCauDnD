@@ -74,6 +74,9 @@ const frostGiantFury = getFeat('Fury of the Frost Giant', 'BGG');
 const cloudGiantGuile = getFeat('Guile of the Cloud Giant', 'BGG');
 const stoneGiantKeenness = getFeat('Keenness of the Stone Giant', 'BGG');
 const stormGiantSoul = getFeat('Soul of the Storm Giant', 'BGG');
+const agentOfOrder = getFeat('Agent of Order', 'SatO');
+const balefulScion = getFeat('Baleful Scion', 'SatO');
+const righteousHeritor = getFeat('Righteous Heritor', 'SatO');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -402,6 +405,23 @@ assertProficiencyFeatResource({
   resourceId: 'auto-resource-feat-Soul of the Storm Giant-BGG-maelstrom-aura',
   label: 'Soul of the Storm Giant',
 });
+assertProficiencyFeatResource({
+  featId: 'Agent of Order|SatO',
+  ability: 'INT',
+  resourceId: 'auto-resource-feat-Agent of Order-SatO-stasis-strike',
+  label: 'Agent of Order',
+});
+assertProficiencyFeatResource({
+  featId: 'Baleful Scion|SatO',
+  ability: 'CHA',
+  resourceId: 'auto-resource-feat-Baleful Scion-SatO-grasp-of-avarice',
+  label: 'Baleful Scion',
+});
+assertProficiencyFeatResource({
+  featId: 'Righteous Heritor|SatO',
+  resourceId: 'auto-resource-feat-Righteous Heritor-SatO-soothe-pain',
+  label: 'Righteous Heritor',
+});
 
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -520,6 +540,9 @@ export default {
     cloudGiantGuile.name,
     stoneGiantKeenness.name,
     stormGiantSoul.name,
+    agentOfOrder.name,
+    balefulScion.name,
+    righteousHeritor.name,
     xphbMageSlayer.name,
     resilient.name,
     skillExpert.name,
@@ -545,6 +568,7 @@ export default {
     'Guile of the Cloud Giant refreshes proficiency-based resource',
     'Keenness of the Stone Giant refreshes proficiency-based resource',
     'Soul of the Storm Giant refreshes proficiency-based resource',
+    'SatO planar successor feats refresh proficiency-based resources',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
