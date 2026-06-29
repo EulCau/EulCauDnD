@@ -56,6 +56,14 @@ assert(battleaxe, 'missing PHB Battleaxe');
 assert(xphbBattleaxe, 'missing XPHB Battleaxe');
 
 const lightlyArmored = getFeat('Lightly Armored', 'XPHB');
+const phbHeavilyArmored = getFeat('Heavily Armored', 'PHB');
+const xphbHeavilyArmored = getFeat('Heavily Armored', 'XPHB');
+const phbModeratelyArmored = getFeat('Moderately Armored', 'PHB');
+const xphbModeratelyArmored = getFeat('Moderately Armored', 'XPHB');
+const martialWeaponTraining = getFeat('Martial Weapon Training', 'XPHB');
+const phbTavernBrawler = getFeat('Tavern Brawler', 'PHB');
+const xphbTavernBrawler = getFeat('Tavern Brawler', 'XPHB');
+const gunner = getFeat('Gunner', 'TCE');
 const phbLucky = getFeat('Lucky', 'PHB');
 const xphbLucky = getFeat('Lucky', 'XPHB');
 const tceChef = getFeat('Chef', 'TCE');
@@ -112,6 +120,99 @@ assert(lightlyArmoredCharacter.abilities.DEX === 14, \`Lightly Armored should ad
 assert(lightlyArmoredCharacter.proficiencies.has('armor:light'), 'Lightly Armored should add light armor proficiency');
 assert(lightlyArmoredCharacter.proficiencies.has('armor:shield'), 'Lightly Armored should add shield proficiency');
 assert(lightlyArmoredCharacter.featureEntries.some(feature => feature.sourceId === 'auto-feat-Lightly Armored-XPHB'), 'Lightly Armored should add its feat feature entry');
+
+const phbHeavilyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Heavily Armored|PHB',
+  },
+});
+assert(phbHeavilyArmoredCharacter.abilities.STR === 11, 'PHB Heavily Armored should add +1 STR, got ' + phbHeavilyArmoredCharacter.abilities.STR);
+assert(phbHeavilyArmoredCharacter.proficiencies.has('armor:heavy'), 'PHB Heavily Armored should add heavy armor proficiency');
+
+const xphbHeavilyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Heavily Armored|XPHB',
+    featAbility: 'CON',
+  },
+});
+assert(xphbHeavilyArmoredCharacter.abilities.CON === 14, 'XPHB Heavily Armored should add +1 CON, got ' + xphbHeavilyArmoredCharacter.abilities.CON);
+assert(xphbHeavilyArmoredCharacter.proficiencies.has('armor:heavy'), 'XPHB Heavily Armored should add heavy armor proficiency');
+
+const phbModeratelyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Moderately Armored|PHB',
+    featAbility: 'DEX',
+  },
+});
+assert(phbModeratelyArmoredCharacter.abilities.DEX === 14, 'PHB Moderately Armored should add +1 DEX, got ' + phbModeratelyArmoredCharacter.abilities.DEX);
+assert(phbModeratelyArmoredCharacter.proficiencies.has('armor:medium'), 'PHB Moderately Armored should add medium armor proficiency');
+assert(phbModeratelyArmoredCharacter.proficiencies.has('armor:shield'), 'PHB Moderately Armored should add shield proficiency');
+
+const xphbModeratelyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Moderately Armored|XPHB',
+    featAbility: 'STR',
+  },
+});
+assert(xphbModeratelyArmoredCharacter.abilities.STR === 11, 'XPHB Moderately Armored should add +1 STR, got ' + xphbModeratelyArmoredCharacter.abilities.STR);
+assert(xphbModeratelyArmoredCharacter.proficiencies.has('armor:medium'), 'XPHB Moderately Armored should add medium armor proficiency');
+
+const martialWeaponTrainingCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Martial Weapon Training|XPHB',
+    featAbility: 'DEX',
+  },
+});
+assert(martialWeaponTrainingCharacter.abilities.DEX === 14, 'XPHB Martial Weapon Training should add +1 DEX, got ' + martialWeaponTrainingCharacter.abilities.DEX);
+assert(martialWeaponTrainingCharacter.proficiencies.has('weapon:martial'), 'XPHB Martial Weapon Training should add martial weapon proficiency');
+
+const phbTavernBrawlerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Tavern Brawler|PHB',
+    featAbility: 'STR',
+  },
+});
+assert(phbTavernBrawlerCharacter.abilities.STR === 11, 'PHB Tavern Brawler should add +1 STR, got ' + phbTavernBrawlerCharacter.abilities.STR);
+assert(phbTavernBrawlerCharacter.proficiencies.has('weapon:improvised'), 'PHB Tavern Brawler should add improvised weapon proficiency');
+
+const xphbTavernBrawlerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Tavern Brawler|XPHB',
+  },
+});
+assert(xphbTavernBrawlerCharacter.proficiencies.has('weapon:improvised'), 'XPHB Tavern Brawler should add improvised weapon proficiency');
+
+const gunnerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Gunner|TCE',
+  },
+});
+assert(gunnerCharacter.abilities.DEX === 14, 'TCE Gunner should add +1 DEX, got ' + gunnerCharacter.abilities.DEX);
+assert(gunnerCharacter.proficiencies.has('weapon:firearms'), 'TCE Gunner should add firearms proficiency');
 
 const phbLuckyCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
   ruleSystem: '5e',
@@ -882,6 +983,14 @@ assert(
 export default {
   feats: [
     lightlyArmored.name,
+    phbHeavilyArmored.name,
+    xphbHeavilyArmored.name,
+    phbModeratelyArmored.name,
+    xphbModeratelyArmored.name,
+    martialWeaponTraining.name,
+    phbTavernBrawler.name,
+    xphbTavernBrawler.name,
+    gunner.name,
     phbLucky.name,
     xphbLucky.name,
     tceChef.name,
@@ -931,6 +1040,7 @@ export default {
   ],
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
+    'armor and weapon training feats apply fixed proficiencies',
     'PHB Lucky adds fixed long-rest luck point resource',
     'XPHB Lucky adds and refreshes proficiency-based luck point resource',
     'TCE Chef adds cook utensils and refreshes proficiency-based treat resource',

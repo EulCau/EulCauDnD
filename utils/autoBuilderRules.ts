@@ -4114,6 +4114,9 @@ const createFeatOperations = (
     if (feat.key === 'Squat Nimbleness') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 5 });
     }
+    if (feat.key === 'Tavern Brawler' && feat.source === 'PHB') {
+      featOperations.push({ type: 'addProficiency', key: 'weapon:improvised' });
+    }
     if (feat.key === 'Boon of Fortitude') {
       featOperations.push({ type: 'addNumber', path: 'hpMaxBonus', value: 40 });
     }
