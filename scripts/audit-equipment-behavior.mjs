@@ -19,6 +19,7 @@ import {
   removeCharacterAdjustments,
 } from '${projectImport('utils/characterAdjustments.ts')}';
 import {
+  equipArmor,
   equipMagicWeapon,
   equipOffHandWeapon,
   equipShield,
@@ -97,6 +98,7 @@ const heavyRanged5rWeapon = weapons.find(weapon => (
   && weapon.dmg1
 ));
 const shield = content.armors.find(armor => String(armor.type || '').split('|')[0] === 'S');
+const mediumArmor = content.armors.find(armor => String(armor.type || '').split('|')[0] === 'MA' && Number(armor.ac) > 0);
 
 assert(lightWeapon, 'missing light weapon fixture');
 assert(nonLightWeapon, 'missing non-light weapon fixture');
@@ -111,6 +113,7 @@ assert(specialWeapon, 'missing special weapon fixture');
 assert(heavyMelee5eWeapon, 'missing PHB heavy melee weapon fixture');
 assert(heavyRanged5rWeapon, 'missing XPHB heavy ranged weapon fixture');
 assert(shield, 'missing shield fixture');
+assert(mediumArmor, 'missing medium armor fixture');
 
 let character = cloneCharacter();
 character = equipWeapon(character, nonLightWeapon, content);
@@ -553,6 +556,28 @@ assert(
   \`off-hand damage should refresh after Two-Weapon Fighting to include ability modifier, got \${refreshedOffHandAttack.damage}\`,
 );
 
+character = {
+  ...cloneCharacter(),
+  abilities: { ...cloneCharacter().abilities, DEX: 16 },
+};
+character = equipArmor(character, mediumArmor);
+const mediumArmorBase = Number(mediumArmor.ac);
+assert(
+  character.armorBase === mediumArmorBase + 2,
+  \`medium armor should cap Dexterity modifier at +2 without Medium Armor Master, got \${character.armorBase}\`,
+);
+
+character = {
+  ...cloneCharacter(),
+  abilities: { ...cloneCharacter().abilities, DEX: 16 },
+};
+character = addFeature(character, '中甲大师', 'audit-feat-Medium Armor Master-PHB');
+character = equipArmor(character, mediumArmor);
+assert(
+  character.armorBase === mediumArmorBase + 3,
+  \`Medium Armor Master should raise medium armor Dexterity cap to +3, got \${character.armorBase}\`,
+);
+
 export default {
   lightWeapon: lightWeapon.name,
   nonLightWeapon: nonLightWeapon.name,
@@ -567,6 +592,7 @@ export default {
   heavyMelee5eWeapon: heavyMelee5eWeapon.name,
   heavyRanged5rWeapon: heavyRanged5rWeapon.name,
   shield: shield.name,
+  mediumArmor: mediumArmor.name,
 };
 `;
 
@@ -627,5 +653,6 @@ console.log(JSON.stringify({
     'main weapon refreshes after adding and removing Chinese weapon-name proficiency',
     'ranged weapon refreshes after adding archery',
     'off-hand weapon refreshes after adding two-weapon fighting',
+    'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
 }, null, 2));
