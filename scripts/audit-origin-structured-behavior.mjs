@@ -12,6 +12,7 @@ const entrySource = `
 import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
   buildLevelOneCharacter,
+  buildLevelUpCharacter,
   getOriginWeaponChoiceOptions,
   getRaceResistanceOptions,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
@@ -30,6 +31,7 @@ const phbBackground = content.backgrounds.find(item => item.source === 'PHB') ||
 const aasimar = content.races.find(item => item.key === 'Aasimar' && item.source === 'MPMM');
 const dragonborn = content.races.find(item => item.key === 'Dragonborn' && item.source === 'PHB');
 const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'PHB');
+const xphbDwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'XPHB');
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
 const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
@@ -45,6 +47,7 @@ assert(phbBackground, 'missing PHB background fixture');
 assert(aasimar, 'missing MPMM Aasimar fixture');
 assert(dragonborn, 'missing PHB Dragonborn fixture');
 assert(dwarf, 'missing PHB Dwarf fixture');
+assert(xphbDwarf, 'missing XPHB Dwarf fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(autognome, 'missing AAG Autognome fixture');
 assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
@@ -129,6 +132,19 @@ assert(
   battleaxeAttack.bonus === '+2',
   \`Dwarf battleaxe attack should include proficiency bonus with STR 10, got \${battleaxeAttack.bonus}\`,
 );
+
+const xphbDwarfCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: xphbDwarf,
+});
+assert(xphbDwarfCharacter.hpMaxBonus === 1, \`XPHB Dwarf should add +1 HP max bonus at level 1, got \${xphbDwarfCharacter.hpMaxBonus}\`);
+const removedXphbDwarf = removeCharacterAdjustments(xphbDwarfCharacter, 'auto-character-5r');
+assert(removedXphbDwarf.hpMaxBonus === 0, 'removing auto-character should remove XPHB Dwarf HP max bonus');
+const leveledXphbDwarf = buildLevelUpCharacter(xphbDwarfCharacter, content, fighter, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+assert(leveledXphbDwarf.hpMaxBonus === 2, \`XPHB Dwarf should add +1 HP max bonus on level up, got \${leveledXphbDwarf.hpMaxBonus}\`);
 
 const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
 assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
@@ -218,13 +234,14 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, dragonborn.name, dwarf.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, dragonborn.name, dwarf.name, xphbDwarf.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
     'chosen race resistance adds reversible structured resistance',
     'structured origin data keeps feature descriptions',
     'fixed race weapon proficiencies normalize source suffixes and affect attacks',
+    'XPHB Dwarf adds reversible HP max bonus and scales it on level up',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',

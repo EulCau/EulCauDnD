@@ -3383,11 +3383,15 @@ const createOriginStructuredFeatureOperations = (
   entity: AutoBuilderOrigin,
   kind: 'race' | 'background',
   ruleSystem: RuleSystem,
+  characterLevel = 1,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [];
   const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
   if (kind === 'race' && entity.key === 'Warforged') {
     operations.push({ type: 'addNumber', path: 'armorBonus', value: 1 });
+  }
+  if (kind === 'race' && entity.key === 'Dwarf' && entity.source === 'XPHB') {
+    operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: Math.max(1, characterLevel) });
   }
   if (entity.darkvision) {
     addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${entity.darkvision} 尺`], {
@@ -3485,10 +3489,11 @@ const createOriginOperations = (
   ruleSystem: RuleSystem,
   abilityChoice?: AutoBuilderAbilityChoice,
   toolChoices?: AutoBuilderToolChoiceSelection,
+  characterLevel = 1,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
-    ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem),
+    ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel),
     ...createAbilityOperations(entity, abilityChoice),
     ...createFixedProficiencyOperations(entity.skillProficiencies, ''),
     ...createFixedProficiencyOperations(entity.toolProficiencies, 'tool'),
@@ -4206,6 +4211,30 @@ const hasAppliedFeat = (
     : feature.sourceId.startsWith(`auto-feat-${key}-`)
 ));
 
+const hasAppliedRace = (
+  character: CharacterData,
+  key: string,
+  source?: string,
+): boolean => character.featureEntries.some(feature => (
+  source
+    ? feature.sourceId === `auto-race-${key}-${source}`
+    : feature.sourceId.startsWith(`auto-race-${key}-`)
+));
+
+const createExistingOriginLevelUpOperations = (
+  character: CharacterData,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+): AdjustmentOperation[] => {
+  const levelDelta = Math.max(0, newCharacterLevel - oldCharacterLevel);
+  if (levelDelta <= 0) return [];
+  const operations: AdjustmentOperation[] = [];
+  if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
+    operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
+  }
+  return operations;
+};
+
 const createExistingFeatLevelUpOperations = (
   character: CharacterData,
   oldCharacterLevel: number,
@@ -4888,6 +4917,11 @@ export const buildLevelUpCharacter = (
     oldTotalLevel,
     newTotalLevel,
   );
+  const existingOriginLevelUpOperations = createExistingOriginLevelUpOperations(
+    character,
+    oldTotalLevel,
+    newTotalLevel,
+  );
   const classResourceOperations = createClassResourceOperations(
     cls,
     options.ruleSystem,
@@ -4952,6 +4986,7 @@ export const buildLevelUpCharacter = (
 	        ...classWeaponMasteryOperations,
 	        ...abilityScoreImprovementOperations,
 	        ...existingFeatLevelUpOperations,
+	        ...existingOriginLevelUpOperations,
 	        ...classResourceOperations,
 	        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),
 	        ...createSubclassFeatureOperations(selectedSubclass, options.ruleSystem, newLevel),
