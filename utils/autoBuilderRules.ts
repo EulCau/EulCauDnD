@@ -3678,6 +3678,90 @@ const createManeuverOperations = (
   });
 };
 
+const getFeatResourceOperations = (
+  feat: Pick<AutoBuilderFeat, 'key' | 'name' | 'source'>,
+  ruleSystem: RuleSystem,
+  characterLevel: number,
+): AdjustmentOperation[] => {
+  const profBonus = calculateProficiencyBonus(Math.max(1, characterLevel));
+  if (feat.key === 'Lucky' || feat.name === '幸运') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'luck-points',
+      '幸运点',
+      feat.source === 'XPHB' ? profBonus : 3,
+      'longRest',
+    )];
+  }
+  if (feat.key === 'Martial Adept' || feat.name === '战技专家') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'superiority-die',
+      '卓越骰',
+      1,
+      'shortRest',
+      'd6. 可用于本专长习得的战技, 短休或长休后恢复.',
+    )];
+  }
+  if (feat.key === 'Metamagic Adept' || feat.name === '超魔导师') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'sorcery-points',
+      '专长术法点',
+      2,
+      'longRest',
+      '只能用于超魔法.',
+    )];
+  }
+  if (feat.key === 'Gift of the Chromatic Dragon') {
+    return [
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'chromatic-infusion',
+        '繁彩注魔',
+        1,
+        'longRest',
+      ),
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'reactive-resistance',
+        '反应抗性',
+        profBonus,
+        'longRest',
+        '次数等于熟练加值.',
+      ),
+    ];
+  }
+  if (feat.key === 'Gift of the Gem Dragon') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'telekinetic-reprisal',
+      '念力报复',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
+  if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'guarded-mind',
+      '审慎护心',
+      1,
+      'shortRest',
+      '短休或长休后恢复.',
+    )];
+  }
+  return [];
+};
+
 const createFeatOperations = (
   feats: AutoBuilderFeat[],
   ruleSystem: RuleSystem,
@@ -3698,38 +3782,7 @@ const createFeatOperations = (
     if (feat.key === 'Mobile' || feat.key === 'Speedy' || feat.name === '移动' || feat.name === '迅捷') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 10 });
     }
-    if (feat.key === 'Lucky' || feat.name === '幸运') {
-      featOperations.push(makeFeatResource(
-        feat,
-        ruleSystem,
-        'luck-points',
-        '幸运点',
-        feat.source === 'XPHB' ? calculateProficiencyBonus(Math.max(1, characterLevel)) : 3,
-        'longRest',
-      ));
-    }
-    if (feat.key === 'Martial Adept' || feat.name === '战技专家') {
-      featOperations.push(makeFeatResource(
-        feat,
-        ruleSystem,
-        'superiority-die',
-        '卓越骰',
-        1,
-        'shortRest',
-        'd6. 可用于本专长习得的战技, 短休或长休后恢复.',
-      ));
-    }
-    if (feat.key === 'Metamagic Adept' || feat.name === '超魔导师') {
-      featOperations.push(makeFeatResource(
-        feat,
-        ruleSystem,
-        'sorcery-points',
-        '专长术法点',
-        2,
-        'longRest',
-        '只能用于超魔法.',
-      ));
-    }
+    featOperations.push(...getFeatResourceOperations(feat, ruleSystem, characterLevel));
     const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
       Object.entries(entry).flatMap(([key, value]) => {
         if (value !== true) return [];
@@ -3793,13 +3846,26 @@ const createExistingFeatLevelUpOperations = (
   }
 
   if (hasAppliedFeat(character, 'Lucky', 'XPHB')) {
-    operations.push(makeFeatResource(
+    operations.push(...getFeatResourceOperations(
       { key: 'Lucky', name: '幸运', source: 'XPHB' },
       '5r',
-      'luck-points',
-      '幸运点',
-      calculateProficiencyBonus(Math.max(1, newCharacterLevel)),
-      'longRest',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Gift of the Chromatic Dragon', 'FTD')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Gift of the Chromatic Dragon', name: '色彩龙赋礼', source: 'FTD' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Gift of the Gem Dragon', 'FTD')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Gift of the Gem Dragon', name: '宝石龙赋礼', source: 'FTD' },
+      '5e',
+      newCharacterLevel,
     ));
   }
 

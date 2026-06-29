@@ -60,6 +60,9 @@ const phbLucky = getFeat('Lucky', 'PHB');
 const xphbLucky = getFeat('Lucky', 'XPHB');
 const martialAdept = getFeat('Martial Adept', 'PHB');
 const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
+const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
+const gemGift = getFeat('Gift of the Gem Dragon', 'FTD');
+const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -147,6 +150,56 @@ assert(
   'Metamagic Adept should add selected metamagic features',
 );
 
+const chromaticGiftCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Gift of the Chromatic Dragon|FTD',
+  },
+});
+const chromaticInfusionResource = chromaticGiftCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Chromatic Dragon-FTD-chromatic-infusion');
+const chromaticResistanceResource = chromaticGiftCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Chromatic Dragon-FTD-reactive-resistance');
+assert(chromaticInfusionResource?.max === 1, \`Gift of the Chromatic Dragon should add one Chromatic Infusion use, got \${chromaticInfusionResource?.max}\`);
+assert(chromaticResistanceResource?.max === 2, \`Gift of the Chromatic Dragon at total level 4 should add proficiency bonus reactive resistance uses, got \${chromaticResistanceResource?.max}\`);
+const chromaticGiftLevelFive = buildLevelUpCharacter(chromaticGiftCharacter, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const chromaticLevelFiveResistanceResource = chromaticGiftLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Chromatic Dragon-FTD-reactive-resistance');
+assert(chromaticLevelFiveResistanceResource?.max === 3, \`Gift of the Chromatic Dragon at total level 5 should refresh reactive resistance to proficiency bonus 3, got \${chromaticLevelFiveResistanceResource?.max}\`);
+
+const gemGiftCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Gift of the Gem Dragon|FTD',
+    featAbility: 'INT',
+  },
+});
+const gemGiftResource = gemGiftCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Gem Dragon-FTD-telekinetic-reprisal');
+assert(gemGiftResource?.max === 2, \`Gift of the Gem Dragon at total level 4 should add proficiency bonus reprisal uses, got \${gemGiftResource?.max}\`);
+const gemGiftLevelFive = buildLevelUpCharacter(gemGiftCharacter, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const gemLevelFiveResource = gemGiftLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Gem Dragon-FTD-telekinetic-reprisal');
+assert(gemLevelFiveResource?.max === 3, \`Gift of the Gem Dragon at total level 5 should refresh reprisal to proficiency bonus 3, got \${gemLevelFiveResource?.max}\`);
+
+const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Mage Slayer|XPHB',
+    featAbility: 'DEX',
+  },
+});
+const mageSlayerResource = mageSlayerCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Mage Slayer-XPHB-guarded-mind');
+assert(mageSlayerResource?.max === 1, \`XPHB Mage Slayer should add one Guarded Mind resource, got \${mageSlayerResource?.max}\`);
+assert(mageSlayerResource?.reset === 'shortRest', \`XPHB Mage Slayer should recover on short or long rest, represented as shortRest, got \${mageSlayerResource?.reset}\`);
+
 const resilient = getFeat('Resilient', 'XPHB');
 const resilientSavingChoices = getFeatSavingThrowChoiceOptions(resilient);
 assert(resilientSavingChoices.length === 1, \`Resilient should expose one saving throw choice group, got \${resilientSavingChoices.length}\`);
@@ -231,13 +284,16 @@ assert(
 );
 
 export default {
-  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, martialAdept.name, metamagicAdept.name, resilient.name, skillExpert.name, weaponMaster.name],
+  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, martialAdept.name, metamagicAdept.name, chromaticGift.name, gemGift.name, xphbMageSlayer.name, resilient.name, skillExpert.name, weaponMaster.name],
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'PHB Lucky adds fixed long-rest luck point resource',
     'XPHB Lucky adds and refreshes proficiency-based luck point resource',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
+    'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',
+    'Gift of the Gem Dragon adds and refreshes proficiency-based resource',
+    'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
     'Weapon Master exposes and applies selected weapon proficiencies',
