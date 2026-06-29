@@ -3559,6 +3559,17 @@ const createOriginResourceOperations = (
       entity.source === 'VGM' ? '恢复等同角色等级的生命值.' : '恢复若干 d4, 骰数等同熟练加值.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === "Stone's Endurance" || feature.name === '石之坚韧')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'stones-endurance',
+      '石之坚韧',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'VGM' ? 'shortRest' : 'longRest',
+      '以反应降低受到的伤害.',
+    ));
+  }
   return operations;
 };
 
@@ -4309,6 +4320,7 @@ const createExistingOriginLevelUpOperations = (
   const levelDelta = Math.max(0, newCharacterLevel - oldCharacterLevel);
   if (levelDelta <= 0) return [];
   const operations: AdjustmentOperation[] = [];
+  const ruleSystem = character.automation.ruleSystem || '5e';
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
     operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
   }
@@ -4316,7 +4328,7 @@ const createExistingOriginLevelUpOperations = (
     operations.push(...createOriginResourceOperations(
       { key: 'Orc', name: '兽人', source: 'XPHB' },
       'race',
-      '5r',
+      ruleSystem,
       newCharacterLevel,
     ));
   }
@@ -4324,7 +4336,20 @@ const createExistingOriginLevelUpOperations = (
     operations.push(...createOriginResourceOperations(
       { key: 'Orc', name: '兽人', source: 'MPMM' },
       'race',
-      '5e',
+      ruleSystem,
+      newCharacterLevel,
+    ));
+  }
+  if (hasAppliedRace(character, 'Goliath', 'MPMM')) {
+    operations.push(...createOriginResourceOperations(
+      {
+        key: 'Goliath',
+        name: '歌利亚',
+        source: 'MPMM',
+        features: [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }],
+      },
+      'race',
+      ruleSystem,
       newCharacterLevel,
     ));
   }

@@ -35,6 +35,8 @@ const xphbDwarf = content.races.find(item => item.key === 'Dwarf' && item.source
 const xphbOrc = content.races.find(item => item.key === 'Orc' && item.source === 'XPHB');
 const mpmmOrc = content.races.find(item => item.key === 'Orc' && item.source === 'MPMM');
 const halfOrc = content.races.find(item => item.key === 'Half-Orc' && item.source === 'PHB');
+const mpmmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'MPMM');
+const vgmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'VGM');
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
 const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
@@ -54,6 +56,8 @@ assert(xphbDwarf, 'missing XPHB Dwarf fixture');
 assert(xphbOrc, 'missing XPHB Orc fixture');
 assert(mpmmOrc, 'missing MPMM Orc fixture');
 assert(halfOrc, 'missing PHB Half-Orc fixture');
+assert(mpmmGoliath, 'missing MPMM Goliath fixture');
+assert(vgmGoliath, 'missing VGM Goliath fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(autognome, 'missing AAG Autognome fixture');
 assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
@@ -199,6 +203,32 @@ const halfOrcCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wiza
 const halfOrcEnduranceResource = getResource(halfOrcCharacter, 'auto-resource-race-Half-Orc-PHB-relentless-endurance');
 assert(halfOrcEnduranceResource?.max === 1 && halfOrcEnduranceResource.reset === 'longRest', 'PHB Half-Orc should add Relentless Endurance long-rest resource');
 
+const mpmmGoliathResourceId = 'auto-resource-race-Goliath-MPMM-stones-endurance';
+let mpmmGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmGoliath,
+});
+const mpmmGoliathResource = getResource(mpmmGoliathCharacter, mpmmGoliathResourceId);
+assert(mpmmGoliathResource?.max === 2 && mpmmGoliathResource.reset === 'longRest', 'MPMM Goliath should add proficiency-based Stone Endurance long-rest resource');
+for (let index = 0; index < 4; index += 1) {
+  mpmmGoliathCharacter = buildLevelUpCharacter(mpmmGoliathCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledMpmmGoliathResource = getResource(mpmmGoliathCharacter, mpmmGoliathResourceId);
+assert(leveledMpmmGoliathResource?.max === 3, \`MPMM Goliath Stone Endurance should refresh to PB 3 at level 5, got \${leveledMpmmGoliathResource?.max}\`);
+
+const vgmGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: vgmGoliath,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const vgmGoliathResource = getResource(vgmGoliathCharacter, 'auto-resource-race-Goliath-VGM-stones-endurance');
+assert(vgmGoliathResource?.max === 1 && vgmGoliathResource.reset === 'shortRest', 'VGM Goliath should add one-use Stone Endurance short-rest resource');
+
 const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
 assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
 assert(hobgoblinWeaponChoices[0].count === 2, \`Hobgoblin should choose two martial weapons, got \${hobgoblinWeaponChoices[0].count}\`);
@@ -287,7 +317,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, dragonborn.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, dragonborn.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -298,6 +328,7 @@ export default {
     'XPHB Dwarf adds reversible HP max bonus and scales it on level up',
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
+    'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
