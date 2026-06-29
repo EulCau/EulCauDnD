@@ -54,6 +54,17 @@ type MagicWeaponEquipOptions = {
   isTemplate: boolean;
   baseWeaponId?: string;
 };
+type NaturalAttackDefinition = {
+  raceKey: string;
+  raceSource: string;
+  featureNames: string[];
+  sourceName: string;
+  attackKey: string;
+  name: string;
+  die: string;
+  damageType: string;
+  notes: string;
+};
 
 const toAttackWeaponSnapshot = (weapon: AutoBuilderWeapon): AttackWeaponSnapshot => ({
   id: weapon.id,
@@ -190,6 +201,18 @@ const hasFeature = (character: CharacterData, names: string[]): boolean => (
   character.featureEntries.some(feature => names.includes(feature.name))
 );
 
+const hasOriginFeature = (
+  character: CharacterData,
+  raceKey: string,
+  raceSource: string,
+  names: string[],
+): boolean => (
+  character.featureEntries.some(feature => (
+    feature.sourceId === `auto-race-${raceKey}-${raceSource}`
+    && names.includes(feature.name)
+  ))
+);
+
 const hasDuelingStyle = (character: CharacterData): boolean => hasFeature(character, ['对决', 'Dueling']);
 const hasThrownWeaponStyle = (character: CharacterData): boolean => hasFeature(character, ['投掷武器战斗', 'Thrown Weapon Fighting']);
 const hasTwoWeaponStyle = (character: CharacterData): boolean => hasFeature(character, ['双武器战斗', 'Two-Weapon Fighting']);
@@ -205,6 +228,130 @@ const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature
 const hasPhbDualWielder = (character: CharacterData): boolean => (
   character.featureEntries.some(feature => feature.sourceId === 'auto-feat-Dual Wielder-PHB')
 );
+
+const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
+  {
+    raceKey: 'Aarakocra',
+    raceSource: 'EEPC',
+    featureNames: ['禽爪', 'Talons'],
+    sourceName: '禽爪',
+    attackKey: 'aarakocra-eepc-talons',
+    name: '禽爪',
+    die: '1d4',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Aarakocra',
+    raceSource: 'MPMM',
+    featureNames: ['禽爪', 'Talons'],
+    sourceName: '禽爪',
+    attackKey: 'aarakocra-mpmm-talons',
+    name: '禽爪',
+    die: '1d6',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Centaur',
+    raceSource: 'GGR',
+    featureNames: ['蹄击', 'Hooves'],
+    sourceName: '蹄击',
+    attackKey: 'centaur-ggr-hooves',
+    name: '蹄击',
+    die: '1d4',
+    damageType: '钝击',
+    notes: '天然武器: 可用力量进行徒手打击. 冲锋后可用附赠动作蹄击.',
+  },
+  {
+    raceKey: 'Centaur',
+    raceSource: 'MPMM',
+    featureNames: ['蹄击', 'Hooves'],
+    sourceName: '蹄击',
+    attackKey: 'centaur-mpmm-hooves',
+    name: '蹄击',
+    die: '1d6',
+    damageType: '钝击',
+    notes: '天然武器: 可用力量进行徒手打击. 冲锋后可用附赠动作蹄击.',
+  },
+  {
+    raceKey: 'Lizardfolk',
+    raceSource: 'MPMM',
+    featureNames: ['啃咬', 'Bite'],
+    sourceName: '啃咬',
+    attackKey: 'lizardfolk-mpmm-bite',
+    name: '啃咬',
+    die: '1d6',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击. 饥渴之喉可用该攻击触发额外效果.',
+  },
+  {
+    raceKey: 'Lizardfolk',
+    raceSource: 'VGM',
+    featureNames: ['啃咬', 'Bite'],
+    sourceName: '啃咬',
+    attackKey: 'lizardfolk-vgm-bite',
+    name: '啃咬',
+    die: '1d6',
+    damageType: '穿刺',
+    notes: '天然武器: 可用力量进行徒手打击. 饥渴之喉可用该攻击触发额外效果.',
+  },
+  {
+    raceKey: 'Minotaur',
+    raceSource: 'GGR',
+    featureNames: ['角击', 'Horns'],
+    sourceName: '角击',
+    attackKey: 'minotaur-ggr-horns',
+    name: '角击',
+    die: '1d6',
+    damageType: '穿刺',
+    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击.',
+  },
+  {
+    raceKey: 'Minotaur',
+    raceSource: 'MPMM',
+    featureNames: ['角击', 'Horns'],
+    sourceName: '角击',
+    attackKey: 'minotaur-mpmm-horns',
+    name: '角击',
+    die: '1d6',
+    damageType: '穿刺',
+    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击.',
+  },
+  {
+    raceKey: 'Tabaxi',
+    raceSource: 'MPMM',
+    featureNames: ['猫之利爪', "Cat's Claws"],
+    sourceName: '猫之利爪',
+    attackKey: 'tabaxi-mpmm-cats-claws',
+    name: '猫之利爪',
+    die: '1d6',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Tabaxi',
+    raceSource: 'VGM',
+    featureNames: ['猫之利爪', "Cat's Claws"],
+    sourceName: '猫之利爪',
+    attackKey: 'tabaxi-vgm-cats-claws',
+    name: '猫之利爪',
+    die: '1d4',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Tortle',
+    raceSource: 'MPMM',
+    featureNames: ['爪击', 'Claws'],
+    sourceName: '爪击',
+    attackKey: 'tortle-mpmm-claws',
+    name: '爪击',
+    die: '1d6',
+    damageType: '挥砍',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+];
 
 const getClassLevel = (character: CharacterData, classNames: string[]): number => (
   character.classes.find(cls => classNames.includes(cls.name))?.level || 0
@@ -947,16 +1094,53 @@ export const refreshEquippedOffHandWeapons = (
 
 const removeAutomaticStyleAttacks = (character: CharacterData): CharacterData => {
   return character.appliedAdjustments
-    .filter(adjustment => adjustment.sourceId.startsWith('auto-style-attack-') || adjustment.sourceId.startsWith('auto-class-attack-'))
+    .filter(adjustment => (
+      adjustment.sourceId.startsWith('auto-style-attack-')
+      || adjustment.sourceId.startsWith('auto-class-attack-')
+      || adjustment.sourceId.startsWith('auto-race-attack-')
+    ))
     .reduce((next, adjustment) => removeCharacterAdjustments(next, adjustment.sourceId), character);
+};
+
+const createNaturalAttack = (
+  definition: NaturalAttackDefinition,
+  strMod: number,
+  profBonus: number,
+): Attack => {
+  const sourceId = `auto-race-attack-${definition.attackKey}`;
+  return {
+    id: `${sourceId}-attack`,
+    sourceId,
+    sourceName: definition.sourceName,
+    automatic: true,
+    name: definition.name,
+    bonus: formatModifier(strMod + profBonus),
+    damage: `${definition.die}${strMod === 0 ? '' : formatModifier(strMod)} ${definition.damageType}`,
+    type: '徒手打击',
+    notes: definition.notes,
+  };
 };
 
 export const refreshAutomaticStyleAttacks = (character: CharacterData): CharacterData => {
   let next = removeAutomaticStyleAttacks(character);
   const profBonus = calculateProficiencyBonus(getTotalLevel(next.classes));
+  const strMod = calculateModifier(next.abilities.STR);
+
+  for (const definition of NATURAL_ATTACKS) {
+    if (!hasOriginFeature(next, definition.raceKey, definition.raceSource, definition.featureNames)) continue;
+    const sourceId = `auto-race-attack-${definition.attackKey}`;
+    const attack = createNaturalAttack(definition, strMod, profBonus);
+    next = applyCharacterAdjustments(next, {
+      id: sourceId,
+      sourceId,
+      sourceName: definition.sourceName,
+      operations: [
+        { type: 'addAttack', attack },
+      ],
+    });
+  }
 
   if (hasUnarmedFightingStyle(next)) {
-    const strMod = calculateModifier(next.abilities.STR);
     const sourceId = 'auto-style-attack-unarmed-fighting';
     const attack: Attack = {
       id: `${sourceId}-attack`,

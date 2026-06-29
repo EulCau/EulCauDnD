@@ -17,7 +17,7 @@ import {
   getRaceResistanceOptions,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import { removeCharacterAdjustments } from '${projectImport('utils/characterAdjustments.ts')}';
-import { equipWeapon } from '${projectImport('utils/equipmentRules.ts')}';
+import { equipWeapon, refreshAutomaticStyleAttacks } from '${projectImport('utils/equipmentRules.ts')}';
 import content from '${projectImport('public/data/auto-builder-core.json')}';
 
 const assert = (condition, message) => {
@@ -66,6 +66,9 @@ const vrgrReborn = content.races.find(item => item.key === 'Reborn' && item.sour
 const shadarKai = content.races.find(item => item.key === 'Shadar-Kai' && item.source === 'MPMM');
 const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
 const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
+const aarakocra = content.races.find(item => item.key === 'Aarakocra' && item.source === 'MPMM');
+const mpmmCentaur = content.races.find(item => item.key === 'Centaur' && item.source === 'MPMM');
+const mpmmMinotaur = content.races.find(item => item.key === 'Minotaur' && item.source === 'MPMM');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
@@ -113,6 +116,9 @@ assert(vrgrReborn, 'missing VRGR Reborn fixture');
 assert(shadarKai, 'missing MPMM Shadar-Kai fixture');
 assert(autognome, 'missing AAG Autognome fixture');
 assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
+assert(aarakocra, 'missing MPMM Aarakocra fixture');
+assert(mpmmCentaur, 'missing MPMM Centaur fixture');
+assert(mpmmMinotaur, 'missing MPMM Minotaur fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
@@ -126,6 +132,7 @@ const baseOptions = {
 };
 
 const getResource = (character, id) => character.resources.find(resource => resource.id === id);
+const getAttack = (character, id) => character.attacks.find(attack => attack.sourceId === id);
 const levelToFive = (character, cls, ruleSystem) => {
   let nextCharacter = character;
   for (let index = 0; index < 4; index += 1) {
@@ -744,6 +751,63 @@ const tortleCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fight
 });
 assert(tortleCharacter.armorBase === 17, \`Tortle natural armor should set armor base 17, got \${tortleCharacter.armorBase}\`);
 
+const naturalAttackCases = [
+  {
+    race: aarakocra,
+    sourceId: 'auto-race-attack-aarakocra-mpmm-talons',
+    name: '禽爪',
+    damage: '1d6 挥砍',
+  },
+  {
+    race: mpmmCentaur,
+    sourceId: 'auto-race-attack-centaur-mpmm-hooves',
+    name: '蹄击',
+    damage: '1d6 钝击',
+  },
+  {
+    race: mpmmMinotaur,
+    sourceId: 'auto-race-attack-minotaur-mpmm-horns',
+    name: '角击',
+    damage: '1d6 穿刺',
+  },
+  {
+    race: mpmmLizardfolk,
+    sourceId: 'auto-race-attack-lizardfolk-mpmm-bite',
+    name: '啃咬',
+    damage: '1d6 挥砍',
+  },
+  {
+    race: tortle,
+    sourceId: 'auto-race-attack-tortle-mpmm-claws',
+    name: '爪击',
+    damage: '1d6 挥砍',
+  },
+];
+
+for (const item of naturalAttackCases) {
+  const character = refreshAutomaticStyleAttacks(buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ...baseOptions,
+    race: item.race,
+  }));
+  const attack = getAttack(character, item.sourceId);
+  assert(attack?.name === item.name, \`\${item.race.key} should add natural attack \${item.name}\`);
+  assert(attack?.bonus === '+2', \`\${item.race.key} natural attack should use STR plus proficiency at level 1, got \${attack?.bonus}\`);
+  assert(attack?.damage === item.damage, \`\${item.race.key} natural attack damage should be \${item.damage}, got \${attack?.damage}\`);
+  assert(attack?.type === '徒手打击', \`\${item.race.key} natural attack should be typed as unarmed strike\`);
+  assert(attack?.notes.includes('天然武器'), \`\${item.race.key} natural attack should keep feature notes\`);
+  const refreshedCharacter = refreshAutomaticStyleAttacks(character);
+  const refreshedAttacks = refreshedCharacter.attacks.filter(nextAttack => nextAttack.sourceId === item.sourceId);
+  assert(refreshedAttacks.length === 1, \`\${item.race.key} natural attack refresh should not duplicate attack entries\`);
+}
+const leveledAarakocraAttack = getAttack(
+  refreshAutomaticStyleAttacks(levelToFive(buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ...baseOptions,
+    race: aarakocra,
+  }), fighter, '5r')),
+  'auto-race-attack-aarakocra-mpmm-talons',
+);
+assert(leveledAarakocraAttack?.bonus === '+3', \`Aarakocra natural attack should refresh proficiency bonus at level 5, got \${leveledAarakocraAttack?.bonus}\`);
+
 const warforgedCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
   ruleSystem: '5e',
   race: warforged,
@@ -756,7 +820,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -780,6 +844,7 @@ export default {
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
     'constant racial armor formulas update armor class',
+    'natural weapon race features add refreshable attack entries',
     'Warforged integrated protection adds reversible armor bonus',
   ],
 };
