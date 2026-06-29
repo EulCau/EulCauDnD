@@ -3628,6 +3628,18 @@ const createOriginResourceOperations = (
       entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Shifting' || feature.name === '化形')) {
+    const usesProficiency = entity.source === 'MPMM' || entity.source === 'EFA';
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'shifting',
+      '化形',
+      usesProficiency ? profBonus : 1,
+      usesProficiency ? 'longRest' : 'shortRest',
+      usesProficiency ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fury of the Small' || feature.name === '小个子的怒火')) {
     operations.push(makeOriginResource(
       entity,
@@ -4505,6 +4517,8 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Eladrin', '雅灵', 'MPMM', [{ name: '妖精步伐', englishName: 'Fey Step', description: '' }]);
   refreshOriginResources('Firbolg', '费尔伯格人', 'MPMM', [{ name: '神隐步', englishName: 'Hidden Step', description: '' }]);
   refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
+  refreshOriginResources('Shifter', '化兽者', 'EFA', [{ name: '化形', englishName: 'Shifting', description: '' }]);
+  refreshOriginResources('Shifter', '化兽者', 'MPMM', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Goblin', '地精', 'MPMM', [{ name: '小个子的怒火', englishName: 'Fury of the Small', description: '' }]);
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '集众之运', englishName: 'Fortune from the Many', description: '' }]);
   refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);

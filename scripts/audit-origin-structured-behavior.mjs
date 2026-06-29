@@ -52,6 +52,9 @@ const mpmmHobgoblin = content.races.find(item => item.key === 'Hobgoblin' && ite
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const mpmmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'MPMM');
 const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'VGM');
+const efaShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'EFA');
+const erlwShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'ERLW');
+const mpmmShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'MPMM');
 const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
 const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
@@ -87,6 +90,9 @@ assert(mpmmHobgoblin, 'missing MPMM Hobgoblin fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(mpmmLizardfolk, 'missing MPMM Lizardfolk fixture');
 assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
+assert(efaShifter, 'missing EFA Shifter fixture');
+assert(erlwShifter, 'missing ERLW Shifter fixture');
+assert(mpmmShifter, 'missing MPMM Shifter fixture');
 assert(autognome, 'missing AAG Autognome fixture');
 assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
@@ -490,6 +496,48 @@ const vgmLizardfolkCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content
 const vgmLizardfolkResource = getResource(vgmLizardfolkCharacter, 'auto-resource-race-Lizardfolk-VGM-hungry-jaws');
 assert(vgmLizardfolkResource?.max === 1 && vgmLizardfolkResource.reset === 'shortRest', 'VGM Lizardfolk should add one-use Hungry Jaws short-rest resource');
 
+const efaShifterResourceId = 'auto-resource-race-Shifter-EFA-shifting';
+let efaShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: efaShifter,
+});
+const efaShifterResource = getResource(efaShifterCharacter, efaShifterResourceId);
+assert(efaShifterResource?.max === 2 && efaShifterResource.reset === 'longRest', 'EFA Shifter should add proficiency-based Shifting resource');
+for (let index = 0; index < 4; index += 1) {
+  efaShifterCharacter = buildLevelUpCharacter(efaShifterCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledEfaShifterResource = getResource(efaShifterCharacter, efaShifterResourceId);
+assert(leveledEfaShifterResource?.max === 3, \`EFA Shifter Shifting should refresh to PB 3 at level 5, got \${leveledEfaShifterResource?.max}\`);
+
+const mpmmShifterResourceId = 'auto-resource-race-Shifter-MPMM-shifting';
+let mpmmShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmShifter,
+});
+const mpmmShifterResource = getResource(mpmmShifterCharacter, mpmmShifterResourceId);
+assert(mpmmShifterResource?.max === 2 && mpmmShifterResource.reset === 'longRest', 'MPMM Shifter should add proficiency-based Shifting resource');
+for (let index = 0; index < 4; index += 1) {
+  mpmmShifterCharacter = buildLevelUpCharacter(mpmmShifterCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledMpmmShifterResource = getResource(mpmmShifterCharacter, mpmmShifterResourceId);
+assert(leveledMpmmShifterResource?.max === 3, \`MPMM Shifter Shifting should refresh to PB 3 at level 5, got \${leveledMpmmShifterResource?.max}\`);
+
+const erlwShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: erlwShifter,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const erlwShifterResource = getResource(erlwShifterCharacter, 'auto-resource-race-Shifter-ERLW-shifting');
+assert(erlwShifterResource?.max === 1 && erlwShifterResource.reset === 'shortRest', 'ERLW Shifter should add one-use Shifting short-rest resource');
+
 const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
 assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
 assert(hobgoblinWeaponChoices[0].count === 2, \`Hobgoblin should choose two martial weapons, got \${hobgoblinWeaponChoices[0].count}\`);
@@ -578,7 +626,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -595,6 +643,7 @@ export default {
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
+    'Shifter source-specific Shifting resources refresh proficiency-based uses',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
