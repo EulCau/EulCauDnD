@@ -3708,6 +3708,28 @@ const createFeatOperations = (
         'longRest',
       ));
     }
+    if (feat.key === 'Martial Adept' || feat.name === '战技专家') {
+      featOperations.push(makeFeatResource(
+        feat,
+        ruleSystem,
+        'superiority-die',
+        '卓越骰',
+        1,
+        'shortRest',
+        'd6. 可用于本专长习得的战技, 短休或长休后恢复.',
+      ));
+    }
+    if (feat.key === 'Metamagic Adept' || feat.name === '超魔导师') {
+      featOperations.push(makeFeatResource(
+        feat,
+        ruleSystem,
+        'sorcery-points',
+        '专长术法点',
+        2,
+        'longRest',
+        '只能用于超魔法.',
+      ));
+    }
     const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
       Object.entries(entry).flatMap(([key, value]) => {
         if (value !== true) return [];

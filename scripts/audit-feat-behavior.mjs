@@ -13,6 +13,8 @@ import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
   buildLevelUpCharacter,
   getFeatExpertiseChoiceOptions,
+  getFeatManeuverChoiceState,
+  getFeatMetamagicChoiceState,
   getFeatSavingThrowChoiceOptions,
   getFeatSkillChoiceOptions,
   getFeatWeaponChoiceOptions,
@@ -56,6 +58,8 @@ assert(xphbBattleaxe, 'missing XPHB Battleaxe');
 const lightlyArmored = getFeat('Lightly Armored', 'XPHB');
 const phbLucky = getFeat('Lucky', 'PHB');
 const xphbLucky = getFeat('Lucky', 'XPHB');
+const martialAdept = getFeat('Martial Adept', 'PHB');
+const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -98,6 +102,50 @@ const xphbLuckyLevelFive = buildLevelUpCharacter(xphbLuckyCharacter, content, wi
 });
 const xphbLuckyLevelFiveResource = xphbLuckyLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Lucky-XPHB-luck-points');
 assert(xphbLuckyLevelFiveResource?.max === 3, \`XPHB Lucky at total level 5 should refresh to proficiency bonus 3, got \${xphbLuckyLevelFiveResource?.max}\`);
+
+const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
+assert(martialAdeptChoices?.needed === 2, \`Martial Adept should require two maneuvers, got \${martialAdeptChoices?.needed}\`);
+assert(martialAdeptChoices.options.some(maneuver => maneuver.id === '反击|PHB'), 'Martial Adept should expose PHB Riposte');
+const selectedManeuvers = martialAdeptChoices.options.slice(0, 2).map(maneuver => maneuver.id);
+assert(selectedManeuvers.length === 2, 'Martial Adept should have at least two maneuver options');
+const martialAdeptCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Martial Adept|PHB',
+    featManeuvers: selectedManeuvers,
+  },
+});
+const martialAdeptResource = martialAdeptCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Martial Adept-PHB-superiority-die');
+assert(martialAdeptResource?.max === 1, \`Martial Adept should add one superiority die resource, got \${martialAdeptResource?.max}\`);
+assert(martialAdeptResource?.reset === 'shortRest', \`Martial Adept superiority die should recover on short rest, got \${martialAdeptResource?.reset}\`);
+assert(
+  selectedManeuvers.every(id => martialAdeptCharacter.featureEntries.some(feature => feature.sourceId === \`auto-maneuver-\${id}\`)),
+  'Martial Adept should add selected maneuver features',
+);
+
+const metamagicAdeptChoices = getFeatMetamagicChoiceState(content, metamagicAdept, makeLevelThreeWizard(), '5e');
+assert(metamagicAdeptChoices?.needed === 2, \`Metamagic Adept should require two metamagics, got \${metamagicAdeptChoices?.needed}\`);
+assert(metamagicAdeptChoices.options.some(metamagic => metamagic.id === '谨慎法术|PHB'), 'Metamagic Adept should expose PHB Careful Spell');
+const selectedMetamagics = metamagicAdeptChoices.options.slice(0, 2).map(metamagic => metamagic.id);
+assert(selectedMetamagics.length === 2, 'Metamagic Adept should have at least two metamagic options');
+const metamagicAdeptCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Metamagic Adept|TCE',
+    featMetamagics: selectedMetamagics,
+  },
+});
+const metamagicAdeptResource = metamagicAdeptCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Metamagic Adept-TCE-sorcery-points');
+assert(metamagicAdeptResource?.max === 2, \`Metamagic Adept should add two feat sorcery points, got \${metamagicAdeptResource?.max}\`);
+assert(metamagicAdeptResource?.reset === 'longRest', \`Metamagic Adept sorcery points should recover on long rest, got \${metamagicAdeptResource?.reset}\`);
+assert(
+  selectedMetamagics.every(id => metamagicAdeptCharacter.featureEntries.some(feature => feature.sourceId === \`auto-metamagic-\${id}\`)),
+  'Metamagic Adept should add selected metamagic features',
+);
 
 const resilient = getFeat('Resilient', 'XPHB');
 const resilientSavingChoices = getFeatSavingThrowChoiceOptions(resilient);
@@ -183,11 +231,13 @@ assert(
 );
 
 export default {
-  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, resilient.name, skillExpert.name, weaponMaster.name],
+  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, martialAdept.name, metamagicAdept.name, resilient.name, skillExpert.name, weaponMaster.name],
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'PHB Lucky adds fixed long-rest luck point resource',
     'XPHB Lucky adds and refreshes proficiency-based luck point resource',
+    'Martial Adept exposes maneuvers and adds superiority die resource',
+    'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
     'Weapon Master exposes and applies selected weapon proficiencies',
