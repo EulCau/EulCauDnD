@@ -81,6 +81,8 @@ const agentOfOrder = getFeat('Agent of Order', 'SatO');
 const balefulScion = getFeat('Baleful Scion', 'SatO');
 const righteousHeritor = getFeat('Righteous Heritor', 'SatO');
 const outlandsEnvoy = getFeat('Outlands Envoy', 'SatO');
+const telepathic = getFeat('Telepathic', 'XPHB');
+const boonOfRecovery = getFeat('Boon of Recovery', 'XPHB');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -467,6 +469,41 @@ assert(
   'Outlands Envoy should add prepared Misty Step and Tongues feat spells',
 );
 
+const telepathicCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Telepathic|XPHB',
+    featAbility: 'INT',
+  },
+});
+const telepathicResource = telepathicCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Telepathic-XPHB-detect-thoughts');
+assert(telepathicResource?.max === 1, \`XPHB Telepathic should add one Detect Thoughts resource, got \${telepathicResource?.max}\`);
+assert(telepathicResource?.reset === 'longRest', \`XPHB Telepathic Detect Thoughts should recover on long rest, got \${telepathicResource?.reset}\`);
+assert(telepathicResource?.note?.includes('无需法术成分'), \`XPHB Telepathic resource note should mention no components, got \${telepathicResource?.note}\`);
+const telepathicProfile = telepathicCharacter.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Telepathic-XPHB-spells');
+assert(
+  telepathicProfile?.spells.some(spell => spell.name === '侦测思想' && spell.prepared),
+  'XPHB Telepathic should add prepared Detect Thoughts feat spell',
+);
+
+const boonOfRecoveryCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Recovery|XPHB',
+    featAbility: 'CON',
+  },
+});
+const lastStandResource = boonOfRecoveryCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Boon of Recovery-XPHB-last-stand');
+assert(lastStandResource?.max === 1, \`XPHB Boon of Recovery should add one Last Stand resource, got \${lastStandResource?.max}\`);
+assert(lastStandResource?.reset === 'longRest', \`XPHB Boon of Recovery Last Stand should recover on long rest, got \${lastStandResource?.reset}\`);
+const recoveryDiceResource = boonOfRecoveryCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Boon of Recovery-XPHB-recovery-dice');
+assert(recoveryDiceResource?.max === 10, \`XPHB Boon of Recovery should add ten recovery dice, got \${recoveryDiceResource?.max}\`);
+assert(recoveryDiceResource?.note?.includes('10 枚 d10'), \`XPHB Boon of Recovery dice note should mention 10d10 pool, got \${recoveryDiceResource?.note}\`);
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -591,6 +628,8 @@ export default {
     balefulScion.name,
     righteousHeritor.name,
     outlandsEnvoy.name,
+    telepathic.name,
+    boonOfRecovery.name,
     xphbMageSlayer.name,
     resilient.name,
     skillExpert.name,
@@ -619,6 +658,8 @@ export default {
     'Soul of the Storm Giant refreshes proficiency-based resource',
     'SatO planar successor feats refresh proficiency-based resources',
     'Outlands Envoy adds Crossroads Emissary resources and spell profile',
+    'XPHB Telepathic adds Detect Thoughts resource and spell profile',
+    'XPHB Boon of Recovery adds Last Stand and recovery dice resources',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',

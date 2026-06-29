@@ -3957,6 +3957,38 @@ const getFeatResourceOperations = (
       '次数等于熟练加值.',
     )];
   }
+  if (feat.key === 'Telepathic' && feat.source === 'XPHB') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'detect-thoughts',
+      '侦测思想',
+      1,
+      'longRest',
+      '不消耗法术位且无需法术成分施展侦测思想.',
+    )];
+  }
+  if (feat.key === 'Boon of Recovery' && feat.source === 'XPHB') {
+    return [
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'last-stand',
+        '背水一战',
+        1,
+        'longRest',
+      ),
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'recovery-dice',
+        '重获生机',
+        10,
+        'longRest',
+        '治疗池为 10 枚 d10, 可用附赠动作消耗任意枚.',
+      ),
+    ];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,
