@@ -2778,6 +2778,29 @@ const makeFeatResource = (
   },
 });
 
+const makeOriginResource = (
+  origin: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'>,
+  ruleSystem: RuleSystem,
+  key: string,
+  name: string,
+  max: number,
+  reset: CharacterResource['reset'],
+  note?: string,
+): AdjustmentOperation => ({
+  type: 'upsertResource',
+  resource: {
+    id: `auto-resource-race-${origin.key}-${origin.source}-${key}`,
+    sourceId: `auto-resource-race-${origin.key}-${origin.source}-${key}`,
+    sourceName: `${origin.name} ${origin.source}`,
+    name,
+    current: Math.max(0, max),
+    max: Math.max(0, max),
+    reset,
+    note,
+    ruleSystem,
+  },
+});
+
 const getRageUses = (level: number): number => {
   if (level >= 17) return 6;
   if (level >= 12) return 5;
@@ -3483,6 +3506,39 @@ const createOriginStructuredFeatureOperations = (
   return operations;
 };
 
+const createOriginResourceOperations = (
+  entity: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'>,
+  kind: 'race' | 'background',
+  ruleSystem: RuleSystem,
+  characterLevel = 1,
+): AdjustmentOperation[] => {
+  if (kind !== 'race') return [];
+  const profBonus = calculateProficiencyBonus(Math.max(1, characterLevel));
+  if (entity.key === 'Orc' && entity.source === 'XPHB') {
+    return [makeOriginResource(
+      entity,
+      ruleSystem,
+      'adrenaline-rush',
+      '激昂冲锋',
+      profBonus,
+      'shortRest',
+      '次数等于熟练加值. 使用时获得等同熟练加值的临时生命值.',
+    )];
+  }
+  if (entity.key === 'Orc' && entity.source === 'MPMM') {
+    return [makeOriginResource(
+      entity,
+      ruleSystem,
+      'adrenaline-rush',
+      '激昂冲锋',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 使用时获得等同熟练加值的临时生命值.',
+    )];
+  }
+  return [];
+};
+
 const createOriginOperations = (
   entity: AutoBuilderOrigin,
   kind: 'race' | 'background',
@@ -3494,6 +3550,7 @@ const createOriginOperations = (
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
     ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel),
+    ...createOriginResourceOperations(entity, kind, ruleSystem, characterLevel),
     ...createAbilityOperations(entity, abilityChoice),
     ...createFixedProficiencyOperations(entity.skillProficiencies, ''),
     ...createFixedProficiencyOperations(entity.toolProficiencies, 'tool'),
@@ -4231,6 +4288,22 @@ const createExistingOriginLevelUpOperations = (
   const operations: AdjustmentOperation[] = [];
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
     operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
+  }
+  if (hasAppliedRace(character, 'Orc', 'XPHB')) {
+    operations.push(...createOriginResourceOperations(
+      { key: 'Orc', name: '兽人', source: 'XPHB' },
+      'race',
+      '5r',
+      newCharacterLevel,
+    ));
+  }
+  if (hasAppliedRace(character, 'Orc', 'MPMM')) {
+    operations.push(...createOriginResourceOperations(
+      { key: 'Orc', name: '兽人', source: 'MPMM' },
+      'race',
+      '5e',
+      newCharacterLevel,
+    ));
   }
   return operations;
 };
