@@ -3716,6 +3716,17 @@ const getFeatResourceOperations = (
       '只能用于超魔法.',
     )];
   }
+  if (feat.key === 'Chef') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'chef-treats',
+      feat.source === 'XPHB' ? '应急零嘴' : '餐点',
+      profBonus,
+      'longRest',
+      '数量等于熟练加值, 做好后持续 8 小时.',
+    )];
+  }
   if (feat.key === 'Gift of the Chromatic Dragon') {
     return [
       makeFeatResource(
@@ -3920,6 +3931,22 @@ const createExistingFeatLevelUpOperations = (
   if (hasAppliedFeat(character, 'Lucky', 'XPHB')) {
     operations.push(...getFeatResourceOperations(
       { key: 'Lucky', name: '幸运', source: 'XPHB' },
+      '5r',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Chef', 'TCE')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Chef', name: '大厨', source: 'TCE' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Chef', 'XPHB')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Chef', name: '大厨', source: 'XPHB' },
       '5r',
       newCharacterLevel,
     ));

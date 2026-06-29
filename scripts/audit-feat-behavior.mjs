@@ -58,6 +58,8 @@ assert(xphbBattleaxe, 'missing XPHB Battleaxe');
 const lightlyArmored = getFeat('Lightly Armored', 'XPHB');
 const phbLucky = getFeat('Lucky', 'PHB');
 const xphbLucky = getFeat('Lucky', 'XPHB');
+const tceChef = getFeat('Chef', 'TCE');
+const xphbChef = getFeat('Chef', 'XPHB');
 const martialAdept = getFeat('Martial Adept', 'PHB');
 const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
@@ -111,6 +113,46 @@ const xphbLuckyLevelFive = buildLevelUpCharacter(xphbLuckyCharacter, content, wi
 });
 const xphbLuckyLevelFiveResource = xphbLuckyLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Lucky-XPHB-luck-points');
 assert(xphbLuckyLevelFiveResource?.max === 3, \`XPHB Lucky at total level 5 should refresh to proficiency bonus 3, got \${xphbLuckyLevelFiveResource?.max}\`);
+
+const tceChefCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Chef|TCE',
+    featAbility: 'WIS',
+  },
+});
+const tceChefResource = tceChefCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Chef-TCE-chef-treats');
+assert(tceChefResource?.name === '餐点', \`TCE Chef resource should be named 餐点, got \${tceChefResource?.name}\`);
+assert(tceChefResource?.max === 2, \`TCE Chef at total level 4 should add proficiency bonus treats, got \${tceChefResource?.max}\`);
+assert(tceChefCharacter.proficiencies.has("tool:cook's utensils"), 'TCE Chef should add cook\\'s utensils proficiency');
+const tceChefLevelFive = buildLevelUpCharacter(tceChefCharacter, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const tceChefLevelFiveResource = tceChefLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Chef-TCE-chef-treats');
+assert(tceChefLevelFiveResource?.max === 3, \`TCE Chef at total level 5 should refresh treats to proficiency bonus 3, got \${tceChefLevelFiveResource?.max}\`);
+
+const xphbChefCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Chef|XPHB',
+    featAbility: 'WIS',
+  },
+});
+const xphbChefResource = xphbChefCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Chef-XPHB-chef-treats');
+assert(xphbChefResource?.name === '应急零嘴', \`XPHB Chef resource should be named 应急零嘴, got \${xphbChefResource?.name}\`);
+assert(xphbChefResource?.max === 2, \`XPHB Chef at total level 4 should add proficiency bonus treats, got \${xphbChefResource?.max}\`);
+assert(xphbChefCharacter.proficiencies.has("tool:cook's utensils"), 'XPHB Chef should add cook\\'s utensils proficiency');
+const xphbChefLevelFive = buildLevelUpCharacter(xphbChefCharacter, content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const xphbChefLevelFiveResource = xphbChefLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Chef-XPHB-chef-treats');
+assert(xphbChefLevelFiveResource?.max === 3, \`XPHB Chef at total level 5 should refresh treats to proficiency bonus 3, got \${xphbChefLevelFiveResource?.max}\`);
 
 const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
 assert(martialAdeptChoices?.needed === 2, \`Martial Adept should require two maneuvers, got \${martialAdeptChoices?.needed}\`);
@@ -390,6 +432,8 @@ export default {
     lightlyArmored.name,
     phbLucky.name,
     xphbLucky.name,
+    tceChef.name,
+    xphbChef.name,
     martialAdept.name,
     metamagicAdept.name,
     chromaticGift.name,
@@ -409,6 +453,8 @@ export default {
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'PHB Lucky adds fixed long-rest luck point resource',
     'XPHB Lucky adds and refreshes proficiency-based luck point resource',
+    'TCE Chef adds cook utensils and refreshes proficiency-based treat resource',
+    'XPHB Chef adds cook utensils and refreshes proficiency-based treat resource',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',
