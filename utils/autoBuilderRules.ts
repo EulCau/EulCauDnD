@@ -3570,6 +3570,74 @@ const createOriginResourceOperations = (
       '以反应降低受到的伤害.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Breath Weapon' || feature.name === '吐息武器')) {
+    const usesProficiency = entity.source === 'XPHB' || entity.source === 'FTD';
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'breath-weapon',
+      '吐息武器',
+      usesProficiency ? profBonus : 1,
+      usesProficiency ? 'longRest' : 'shortRest',
+      usesProficiency ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Draconic Flight' || feature.name === '龙族飞翼')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'draconic-flight',
+      '龙族飞翼',
+      1,
+      'longRest',
+      '以附赠动作获得临时飞行速度, 持续 10 分钟.',
+    ));
+  }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Chromatic Warding' || feature.name === '色彩守护')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'chromatic-warding',
+      '色彩守护',
+      1,
+      'longRest',
+      '以动作获得所选血统伤害类型免疫, 持续 1 分钟.',
+    ));
+  }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Gem Flight' || feature.name === '宝石之翼')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'gem-flight',
+      '宝石之翼',
+      1,
+      'longRest',
+      '以附赠动作获得等同步行速度的飞行速度, 持续 1 分钟.',
+    ));
+  }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Metallic Breath Weapon' || feature.name === '金属吐息武器')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'metallic-breath-weapon',
+      '金属吐息武器',
+      1,
+      'longRest',
+      '5 级起可使用第二种吐息武器.',
+    ));
+  }
   return operations;
 };
 
@@ -4321,38 +4389,42 @@ const createExistingOriginLevelUpOperations = (
   if (levelDelta <= 0) return [];
   const operations: AdjustmentOperation[] = [];
   const ruleSystem = character.automation.ruleSystem || '5e';
+  const refreshOriginResources = (
+    key: string,
+    name: string,
+    source: string,
+    features: NonNullable<AutoBuilderOrigin['features']>,
+  ) => {
+    if (!hasAppliedRace(character, key, source)) return;
+    operations.push(...createOriginResourceOperations(
+      { key, name, source, features },
+      'race',
+      ruleSystem,
+      newCharacterLevel,
+    ));
+  };
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
     operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
   }
-  if (hasAppliedRace(character, 'Orc', 'XPHB')) {
-    operations.push(...createOriginResourceOperations(
-      { key: 'Orc', name: '兽人', source: 'XPHB' },
-      'race',
-      ruleSystem,
-      newCharacterLevel,
-    ));
-  }
-  if (hasAppliedRace(character, 'Orc', 'MPMM')) {
-    operations.push(...createOriginResourceOperations(
-      { key: 'Orc', name: '兽人', source: 'MPMM' },
-      'race',
-      ruleSystem,
-      newCharacterLevel,
-    ));
-  }
-  if (hasAppliedRace(character, 'Goliath', 'MPMM')) {
-    operations.push(...createOriginResourceOperations(
-      {
-        key: 'Goliath',
-        name: '歌利亚',
-        source: 'MPMM',
-        features: [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }],
-      },
-      'race',
-      ruleSystem,
-      newCharacterLevel,
-    ));
-  }
+  refreshOriginResources('Orc', '兽人', 'XPHB', []);
+  refreshOriginResources('Orc', '兽人', 'MPMM', []);
+  refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
+  refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [
+    { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
+    { name: '龙族飞翼', englishName: 'Draconic Flight', description: '' },
+  ]);
+  refreshOriginResources('Dragonborn (Chromatic)', '龙裔 (色彩)', 'FTD', [
+    { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
+    { name: '色彩守护', englishName: 'Chromatic Warding', description: '' },
+  ]);
+  refreshOriginResources('Dragonborn (Gem)', '龙裔 (宝石)', 'FTD', [
+    { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
+    { name: '宝石之翼', englishName: 'Gem Flight', description: '' },
+  ]);
+  refreshOriginResources('Dragonborn (Metallic)', '龙裔 (金属)', 'FTD', [
+    { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
+    { name: '金属吐息武器', englishName: 'Metallic Breath Weapon', description: '' },
+  ]);
   return operations;
 };
 

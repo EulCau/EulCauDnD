@@ -30,6 +30,10 @@ const background = content.backgrounds.find(item => item.source === 'XPHB') || c
 const phbBackground = content.backgrounds.find(item => item.source === 'PHB') || background;
 const aasimar = content.races.find(item => item.key === 'Aasimar' && item.source === 'MPMM');
 const dragonborn = content.races.find(item => item.key === 'Dragonborn' && item.source === 'PHB');
+const xphbDragonborn = content.races.find(item => item.key === 'Dragonborn' && item.source === 'XPHB');
+const chromaticDragonborn = content.races.find(item => item.key === 'Dragonborn (Chromatic)' && item.source === 'FTD');
+const gemDragonborn = content.races.find(item => item.key === 'Dragonborn (Gem)' && item.source === 'FTD');
+const metallicDragonborn = content.races.find(item => item.key === 'Dragonborn (Metallic)' && item.source === 'FTD');
 const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'PHB');
 const xphbDwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'XPHB');
 const xphbOrc = content.races.find(item => item.key === 'Orc' && item.source === 'XPHB');
@@ -51,6 +55,10 @@ assert(background, 'missing background fixture');
 assert(phbBackground, 'missing PHB background fixture');
 assert(aasimar, 'missing MPMM Aasimar fixture');
 assert(dragonborn, 'missing PHB Dragonborn fixture');
+assert(xphbDragonborn, 'missing XPHB Dragonborn fixture');
+assert(chromaticDragonborn, 'missing FTD Chromatic Dragonborn fixture');
+assert(gemDragonborn, 'missing FTD Gem Dragonborn fixture');
+assert(metallicDragonborn, 'missing FTD Metallic Dragonborn fixture');
 assert(dwarf, 'missing PHB Dwarf fixture');
 assert(xphbDwarf, 'missing XPHB Dwarf fixture');
 assert(xphbOrc, 'missing XPHB Orc fixture');
@@ -122,8 +130,78 @@ assert(
   dragonbornCharacter.featureEntries.some(feature => feature.sourceId === 'auto-race-Dragonborn-PHB-choice-resistance'),
   'Dragonborn selected resistance should still add feature description',
 );
+const dragonbornBreathResource = getResource(dragonbornCharacter, 'auto-resource-race-Dragonborn-PHB-breath-weapon');
+assert(dragonbornBreathResource?.max === 1 && dragonbornBreathResource.reset === 'shortRest', 'PHB Dragonborn should add one-use short-rest Breath Weapon resource');
 const removedDragonborn = removeCharacterAdjustments(dragonbornCharacter, 'auto-character-5r');
 assert(!removedDragonborn.damageResistances.includes('火焰'), 'removing auto-character should remove selected resistance');
+assert(!getResource(removedDragonborn, 'auto-resource-race-Dragonborn-PHB-breath-weapon'), 'removing auto-character should remove PHB Dragonborn Breath Weapon resource');
+
+const xphbDragonbornResourceId = 'auto-resource-race-Dragonborn-XPHB-breath-weapon';
+let xphbDragonbornCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: xphbDragonborn,
+  raceChoices: {
+    resistance: '火焰',
+  },
+});
+const xphbDragonbornBreathResource = getResource(xphbDragonbornCharacter, xphbDragonbornResourceId);
+assert(xphbDragonbornBreathResource?.max === 2 && xphbDragonbornBreathResource.reset === 'longRest', 'XPHB Dragonborn should add proficiency-based long-rest Breath Weapon resource');
+assert(!getResource(xphbDragonbornCharacter, 'auto-resource-race-Dragonborn-XPHB-draconic-flight'), 'XPHB Dragonborn should not add Draconic Flight before level 5');
+for (let index = 0; index < 4; index += 1) {
+  xphbDragonbornCharacter = buildLevelUpCharacter(xphbDragonbornCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledXphbDragonbornBreathResource = getResource(xphbDragonbornCharacter, xphbDragonbornResourceId);
+assert(leveledXphbDragonbornBreathResource?.max === 3, \`XPHB Dragonborn Breath Weapon should refresh to PB 3 at level 5, got \${leveledXphbDragonbornBreathResource?.max}\`);
+const xphbDragonbornFlightResource = getResource(xphbDragonbornCharacter, 'auto-resource-race-Dragonborn-XPHB-draconic-flight');
+assert(xphbDragonbornFlightResource?.max === 1 && xphbDragonbornFlightResource.reset === 'longRest', 'XPHB Dragonborn should add Draconic Flight resource at level 5');
+
+const chromaticDragonbornResourceId = 'auto-resource-race-Dragonborn (Chromatic)-FTD-breath-weapon';
+let chromaticDragonbornCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: chromaticDragonborn,
+});
+const chromaticDragonbornBreathResource = getResource(chromaticDragonbornCharacter, chromaticDragonbornResourceId);
+assert(chromaticDragonbornBreathResource?.max === 2 && chromaticDragonbornBreathResource.reset === 'longRest', 'FTD Chromatic Dragonborn should add proficiency-based long-rest Breath Weapon resource');
+assert(!getResource(chromaticDragonbornCharacter, 'auto-resource-race-Dragonborn (Chromatic)-FTD-chromatic-warding'), 'FTD Chromatic Dragonborn should not add Chromatic Warding before level 5');
+for (let index = 0; index < 4; index += 1) {
+  chromaticDragonbornCharacter = buildLevelUpCharacter(chromaticDragonbornCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledChromaticDragonbornBreathResource = getResource(chromaticDragonbornCharacter, chromaticDragonbornResourceId);
+assert(leveledChromaticDragonbornBreathResource?.max === 3, \`FTD Chromatic Dragonborn Breath Weapon should refresh to PB 3 at level 5, got \${leveledChromaticDragonbornBreathResource?.max}\`);
+const chromaticWardingResource = getResource(chromaticDragonbornCharacter, 'auto-resource-race-Dragonborn (Chromatic)-FTD-chromatic-warding');
+assert(chromaticWardingResource?.max === 1 && chromaticWardingResource.reset === 'longRest', 'FTD Chromatic Dragonborn should add Chromatic Warding resource at level 5');
+
+let gemDragonbornCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: gemDragonborn,
+});
+for (let index = 0; index < 4; index += 1) {
+  gemDragonbornCharacter = buildLevelUpCharacter(gemDragonbornCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const gemFlightResource = getResource(gemDragonbornCharacter, 'auto-resource-race-Dragonborn (Gem)-FTD-gem-flight');
+assert(gemFlightResource?.max === 1 && gemFlightResource.reset === 'longRest', 'FTD Gem Dragonborn should add Gem Flight resource at level 5');
+
+let metallicDragonbornCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: metallicDragonborn,
+});
+for (let index = 0; index < 4; index += 1) {
+  metallicDragonbornCharacter = buildLevelUpCharacter(metallicDragonbornCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const metallicBreathResource = getResource(metallicDragonbornCharacter, 'auto-resource-race-Dragonborn (Metallic)-FTD-metallic-breath-weapon');
+assert(metallicBreathResource?.max === 1 && metallicBreathResource.reset === 'longRest', 'FTD Metallic Dragonborn should add Metallic Breath Weapon resource at level 5');
 
 const dwarfCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
   ruleSystem: '5e',
@@ -317,12 +395,13 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, dragonborn.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
     'Healing Hands adds reversible long-rest race resource',
     'chosen race resistance adds reversible structured resistance',
+    'Dragonborn Breath Weapon adds source-specific race resources and level-gated resources',
     'structured origin data keeps feature descriptions',
     'fixed race weapon proficiencies normalize source suffixes and affect attacks',
     'XPHB Dwarf adds reversible HP max bonus and scales it on level up',
