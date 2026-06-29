@@ -4033,6 +4033,39 @@ const getFeatResourceOperations = (
       '不消耗法术位施展隐形术.',
     )];
   }
+  if (feat.key === 'Drow High Magic') {
+    return [
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'levitate',
+        '浮空术',
+        1,
+        'longRest',
+        '不消耗法术位施展浮空术.',
+      ),
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'dispel-magic',
+        '解除魔法',
+        1,
+        'longRest',
+        '不消耗法术位施展解除魔法.',
+      ),
+    ];
+  }
+  if (feat.key === 'Fey Teleportation') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'misty-step',
+      '迷踪步',
+      1,
+      'shortRest',
+      '短休或长休后恢复.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,

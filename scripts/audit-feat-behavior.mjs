@@ -89,6 +89,8 @@ const tceFeyTouched = getFeat('Fey Touched', 'TCE');
 const xphbFeyTouched = getFeat('Fey-Touched', 'XPHB');
 const tceShadowTouched = getFeat('Shadow Touched', 'TCE');
 const xphbShadowTouched = getFeat('Shadow-Touched', 'XPHB');
+const drowHighMagic = getFeat('Drow High Magic', 'XGE');
+const feyTeleportation = getFeat('Fey Teleportation', 'XGE');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -604,6 +606,46 @@ assertFixedTouchedSpellResource({
   spellName: '隐形术',
 });
 
+const drowHighMagicCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Drow High Magic|XGE',
+  },
+});
+const drowLevitateResource = drowHighMagicCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Drow High Magic-XGE-levitate');
+assert(drowLevitateResource?.max === 1, \`Drow High Magic should add one Levitate resource, got \${drowLevitateResource?.max}\`);
+assert(drowLevitateResource?.reset === 'longRest', \`Drow High Magic Levitate should recover on long rest, got \${drowLevitateResource?.reset}\`);
+const drowDispelMagicResource = drowHighMagicCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Drow High Magic-XGE-dispel-magic');
+assert(drowDispelMagicResource?.max === 1, \`Drow High Magic should add one Dispel Magic resource, got \${drowDispelMagicResource?.max}\`);
+assert(drowDispelMagicResource?.note?.includes('不消耗法术位'), \`Drow High Magic Dispel Magic note should mention no spell slot, got \${drowDispelMagicResource?.note}\`);
+const drowHighMagicProfile = drowHighMagicCharacter.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Drow High Magic-XGE-spells');
+assert(
+  drowHighMagicProfile?.spells.some(spell => spell.name === '浮空术' && spell.prepared)
+    && drowHighMagicProfile.spells.some(spell => spell.name === '解除魔法' && spell.prepared)
+    && drowHighMagicProfile.spells.some(spell => spell.name === '侦测魔法' && spell.prepared),
+  'Drow High Magic should add prepared Detect Magic, Levitate, and Dispel Magic feat spells',
+);
+
+const feyTeleportationCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Fey Teleportation|XGE',
+    featAbility: 'INT',
+  },
+});
+const feyTeleportationResource = feyTeleportationCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Fey Teleportation-XGE-misty-step');
+assert(feyTeleportationResource?.max === 1, \`Fey Teleportation should add one Misty Step resource, got \${feyTeleportationResource?.max}\`);
+assert(feyTeleportationResource?.reset === 'shortRest', \`Fey Teleportation Misty Step should recover on short rest, got \${feyTeleportationResource?.reset}\`);
+const feyTeleportationProfile = feyTeleportationCharacter.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Fey Teleportation-XGE-spells');
+assert(
+  feyTeleportationProfile?.spells.some(spell => spell.name === '迷踪步' && spell.prepared),
+  'Fey Teleportation should add prepared Misty Step feat spell',
+);
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -736,6 +778,8 @@ export default {
     xphbFeyTouched.name,
     tceShadowTouched.name,
     xphbShadowTouched.name,
+    drowHighMagic.name,
+    feyTeleportation.name,
     xphbMageSlayer.name,
     resilient.name,
     skillExpert.name,
@@ -769,6 +813,7 @@ export default {
     'XPHB Boon of Fate adds Fate resource',
     'XPHB Ritual Caster adds Quick Ritual resource',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
+    'XGE fixed spell feats add spell resources',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
