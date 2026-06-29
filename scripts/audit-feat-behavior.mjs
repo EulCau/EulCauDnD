@@ -86,6 +86,9 @@ const outlandsEnvoy = getFeat('Outlands Envoy', 'SatO');
 const telepathic = getFeat('Telepathic', 'XPHB');
 const boonOfRecovery = getFeat('Boon of Recovery', 'XPHB');
 const boonOfFate = getFeat('Boon of Fate', 'XPHB');
+const boonOfFortitude = getFeat('Boon of Fortitude', 'XPHB');
+const boonOfSpeed = getFeat('Boon of Speed', 'XPHB');
+const boonOfTruesight = getFeat('Boon of Truesight', 'XPHB');
 const ritualCaster = getFeat('Ritual Caster', 'XPHB');
 const tceFeyTouched = getFeat('Fey Touched', 'TCE');
 const xphbFeyTouched = getFeat('Fey-Touched', 'XPHB');
@@ -556,6 +559,42 @@ const recoveryDiceResource = boonOfRecoveryCharacter.resources.find(resource => 
 assert(recoveryDiceResource?.max === 10, \`XPHB Boon of Recovery should add ten recovery dice, got \${recoveryDiceResource?.max}\`);
 assert(recoveryDiceResource?.note?.includes('10 枚 d10'), \`XPHB Boon of Recovery dice note should mention 10d10 pool, got \${recoveryDiceResource?.note}\`);
 
+const boonOfFortitudeCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Fortitude|XPHB',
+    featAbility: 'CON',
+  },
+});
+assert(boonOfFortitudeCharacter.hpMaxBonus === 40, \`XPHB Boon of Fortitude should add +40 HP max bonus, got \${boonOfFortitudeCharacter.hpMaxBonus}\`);
+
+const boonOfSpeedCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Speed|XPHB',
+    featAbility: 'DEX',
+  },
+});
+assert(boonOfSpeedCharacter.speedBonus === 30, \`XPHB Boon of Speed should add +30 speed bonus, got \${boonOfSpeedCharacter.speedBonus}\`);
+
+const boonOfTruesightCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Truesight|XPHB',
+    featAbility: 'WIS',
+  },
+});
+assert(
+  boonOfTruesightCharacter.senses.includes('真实视觉 60 尺'),
+  \`XPHB Boon of Truesight should add 60-foot truesight, got \${boonOfTruesightCharacter.senses.join(', ')}\`,
+);
+
 const boonOfFateCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -818,6 +857,9 @@ export default {
     outlandsEnvoy.name,
     telepathic.name,
     boonOfRecovery.name,
+    boonOfFortitude.name,
+    boonOfSpeed.name,
+    boonOfTruesight.name,
     boonOfFate.name,
     ritualCaster.name,
     tceFeyTouched.name,
@@ -857,6 +899,7 @@ export default {
     'Outlands Envoy adds Crossroads Emissary resources and spell profile',
     'XPHB Telepathic adds Detect Thoughts resource and spell profile',
     'XPHB Boon of Recovery adds Last Stand and recovery dice resources',
+    'XPHB fixed boon effects add HP, speed, and truesight adjustments',
     'XPHB Boon of Fate adds Fate resource',
     'XPHB Ritual Caster adds Quick Ritual resource',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',

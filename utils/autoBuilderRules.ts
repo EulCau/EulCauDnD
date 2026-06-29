@@ -4111,6 +4111,15 @@ const createFeatOperations = (
     if (feat.key === 'Mobile' || feat.key === 'Speedy' || feat.name === '移动' || feat.name === '迅捷') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 10 });
     }
+    if (feat.key === 'Boon of Fortitude') {
+      featOperations.push({ type: 'addNumber', path: 'hpMaxBonus', value: 40 });
+    }
+    if (feat.key === 'Boon of Speed') {
+      featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 30 });
+    }
+    if (feat.key === 'Boon of Truesight') {
+      featOperations.push({ type: 'addTextEntry', path: 'senses', value: '真实视觉 60 尺' });
+    }
     if (feat.key === 'Ember of the Fire Giant') {
       featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '火焰' });
     }
