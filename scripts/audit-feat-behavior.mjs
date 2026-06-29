@@ -54,6 +54,8 @@ assert(battleaxe, 'missing PHB Battleaxe');
 assert(xphbBattleaxe, 'missing XPHB Battleaxe');
 
 const lightlyArmored = getFeat('Lightly Armored', 'XPHB');
+const phbLucky = getFeat('Lucky', 'PHB');
+const xphbLucky = getFeat('Lucky', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -67,6 +69,35 @@ assert(lightlyArmoredCharacter.abilities.DEX === 14, \`Lightly Armored should ad
 assert(lightlyArmoredCharacter.proficiencies.has('armor:light'), 'Lightly Armored should add light armor proficiency');
 assert(lightlyArmoredCharacter.proficiencies.has('armor:shield'), 'Lightly Armored should add shield proficiency');
 assert(lightlyArmoredCharacter.featureEntries.some(feature => feature.sourceId === 'auto-feat-Lightly Armored-XPHB'), 'Lightly Armored should add its feat feature entry');
+
+const phbLuckyCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Lucky|PHB',
+  },
+});
+const phbLuckyResource = phbLuckyCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Lucky-PHB-luck-points');
+assert(phbLuckyResource?.max === 3, \`PHB Lucky should add 3 luck points, got \${phbLuckyResource?.max}\`);
+assert(phbLuckyResource?.reset === 'longRest', \`PHB Lucky should recover on long rest, got \${phbLuckyResource?.reset}\`);
+
+const xphbLuckyCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Lucky|XPHB',
+  },
+});
+const xphbLuckyResource = xphbLuckyCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Lucky-XPHB-luck-points');
+assert(xphbLuckyResource?.max === 2, \`XPHB Lucky at total level 4 should add proficiency bonus luck points, got \${xphbLuckyResource?.max}\`);
+const xphbLuckyLevelFive = buildLevelUpCharacter(xphbLuckyCharacter, content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const xphbLuckyLevelFiveResource = xphbLuckyLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Lucky-XPHB-luck-points');
+assert(xphbLuckyLevelFiveResource?.max === 3, \`XPHB Lucky at total level 5 should refresh to proficiency bonus 3, got \${xphbLuckyLevelFiveResource?.max}\`);
 
 const resilient = getFeat('Resilient', 'XPHB');
 const resilientSavingChoices = getFeatSavingThrowChoiceOptions(resilient);
@@ -152,9 +183,11 @@ assert(
 );
 
 export default {
-  feats: [lightlyArmored.name, resilient.name, skillExpert.name, weaponMaster.name],
+  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, resilient.name, skillExpert.name, weaponMaster.name],
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
+    'PHB Lucky adds fixed long-rest luck point resource',
+    'XPHB Lucky adds and refreshes proficiency-based luck point resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
     'Weapon Master exposes and applies selected weapon proficiencies',

@@ -2755,6 +2755,29 @@ const makeClassResource = (
   },
 });
 
+const makeFeatResource = (
+  feat: Pick<AutoBuilderFeat, 'key' | 'name' | 'source'>,
+  ruleSystem: RuleSystem,
+  key: string,
+  name: string,
+  max: number,
+  reset: CharacterResource['reset'],
+  note?: string,
+): AdjustmentOperation => ({
+  type: 'upsertResource',
+  resource: {
+    id: `auto-resource-feat-${feat.key}-${feat.source}-${key}`,
+    sourceId: `auto-resource-feat-${feat.key}-${feat.source}-${key}`,
+    sourceName: `${feat.name} ${feat.source}`,
+    name,
+    current: Math.max(0, max),
+    max: Math.max(0, max),
+    reset,
+    note,
+    ruleSystem,
+  },
+});
+
 const getRageUses = (level: number): number => {
   if (level >= 17) return 6;
   if (level >= 12) return 5;
@@ -3675,6 +3698,16 @@ const createFeatOperations = (
     if (feat.key === 'Mobile' || feat.key === 'Speedy' || feat.name === '移动' || feat.name === '迅捷') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 10 });
     }
+    if (feat.key === 'Lucky' || feat.name === '幸运') {
+      featOperations.push(makeFeatResource(
+        feat,
+        ruleSystem,
+        'luck-points',
+        '幸运点',
+        feat.source === 'XPHB' ? calculateProficiencyBonus(Math.max(1, characterLevel)) : 3,
+        'longRest',
+      ));
+    }
     const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
       Object.entries(entry).flatMap(([key, value]) => {
         if (value !== true) return [];
@@ -3735,6 +3768,17 @@ const createExistingFeatLevelUpOperations = (
     if (bonusDelta > 0) {
       operations.push({ type: 'addNumber', path: 'initiativeBonus', value: bonusDelta });
     }
+  }
+
+  if (hasAppliedFeat(character, 'Lucky', 'XPHB')) {
+    operations.push(makeFeatResource(
+      { key: 'Lucky', name: '幸运', source: 'XPHB' },
+      '5r',
+      'luck-points',
+      '幸运点',
+      calculateProficiencyBonus(Math.max(1, newCharacterLevel)),
+      'longRest',
+    ));
   }
 
   return operations;
