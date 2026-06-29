@@ -3559,6 +3559,20 @@ const createOriginResourceOperations = (
       entity.source === 'VGM' ? '恢复等同角色等级的生命值.' : '恢复若干 d4, 骰数等同熟练加值.',
     ));
   }
+  if (
+    characterLevel >= 3
+    && (entity.features || []).some(feature => feature.englishName === 'Celestial Revelation' || feature.name === '天界启示')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'celestial-revelation',
+      '天界启示',
+      1,
+      'longRest',
+      '以附赠动作变身, 持续 1 分钟.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === "Stone's Endurance" || feature.name === '石之坚韧')) {
     operations.push(makeOriginResource(
       entity,
@@ -3568,6 +3582,50 @@ const createOriginResourceOperations = (
       entity.source === 'MPMM' ? profBonus : 1,
       entity.source === 'VGM' ? 'shortRest' : 'longRest',
       '以反应降低受到的伤害.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Starlight Step' || feature.name === '星光步')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'starlight-step',
+      '星光步',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fey-step',
+      '妖精步伐',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'MPMM' ? 'longRest' : 'shortRest',
+      entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Hidden Step' || feature.name === '神隐步')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'hidden-step',
+      '神隐步',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'MPMM' ? 'longRest' : 'shortRest',
+      entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Hungry Jaws' || feature.name === '饥渴之喉')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'hungry-jaws',
+      '饥渴之喉',
+      entity.source === 'MPMM' ? profBonus : 1,
+      entity.source === 'MPMM' ? 'longRest' : 'shortRest',
+      entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
     ));
   }
   if ((entity.features || []).some(feature => feature.englishName === 'Breath Weapon' || feature.name === '吐息武器')) {
@@ -4408,6 +4466,12 @@ const createExistingOriginLevelUpOperations = (
   }
   refreshOriginResources('Orc', '兽人', 'XPHB', []);
   refreshOriginResources('Orc', '兽人', 'MPMM', []);
+  refreshOriginResources('Aasimar', '阿斯莫', 'MPMM', [{ name: '天界启示', englishName: 'Celestial Revelation', description: '' }]);
+  refreshOriginResources('Aasimar', '阿斯莫', 'XPHB', [{ name: '天界启示', englishName: 'Celestial Revelation', description: '' }]);
+  refreshOriginResources('Astral Elf', '星界精灵', 'AAG', [{ name: '星光步', englishName: 'Starlight Step', description: '' }]);
+  refreshOriginResources('Eladrin', '雅灵', 'MPMM', [{ name: '妖精步伐', englishName: 'Fey Step', description: '' }]);
+  refreshOriginResources('Firbolg', '费尔伯格人', 'MPMM', [{ name: '神隐步', englishName: 'Hidden Step', description: '' }]);
+  refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
   refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
   refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [
     { name: '吐息武器', englishName: 'Breath Weapon', description: '' },

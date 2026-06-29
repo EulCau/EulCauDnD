@@ -29,11 +29,14 @@ const wizard = content.classes.find(item => item.key === 'Wizard' && item.source
 const background = content.backgrounds.find(item => item.source === 'XPHB') || content.backgrounds[0];
 const phbBackground = content.backgrounds.find(item => item.source === 'PHB') || background;
 const aasimar = content.races.find(item => item.key === 'Aasimar' && item.source === 'MPMM');
+const xphbAasimar = content.races.find(item => item.key === 'Aasimar' && item.source === 'XPHB');
+const astralElf = content.races.find(item => item.key === 'Astral Elf' && item.source === 'AAG');
 const dragonborn = content.races.find(item => item.key === 'Dragonborn' && item.source === 'PHB');
 const xphbDragonborn = content.races.find(item => item.key === 'Dragonborn' && item.source === 'XPHB');
 const chromaticDragonborn = content.races.find(item => item.key === 'Dragonborn (Chromatic)' && item.source === 'FTD');
 const gemDragonborn = content.races.find(item => item.key === 'Dragonborn (Gem)' && item.source === 'FTD');
 const metallicDragonborn = content.races.find(item => item.key === 'Dragonborn (Metallic)' && item.source === 'FTD');
+const eladrin = content.races.find(item => item.key === 'Eladrin' && item.source === 'MPMM');
 const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'PHB');
 const xphbDwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'XPHB');
 const xphbOrc = content.races.find(item => item.key === 'Orc' && item.source === 'XPHB');
@@ -41,7 +44,11 @@ const mpmmOrc = content.races.find(item => item.key === 'Orc' && item.source ===
 const halfOrc = content.races.find(item => item.key === 'Half-Orc' && item.source === 'PHB');
 const mpmmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'MPMM');
 const vgmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'VGM');
+const mpmmFirbolg = content.races.find(item => item.key === 'Firbolg' && item.source === 'MPMM');
+const vgmFirbolg = content.races.find(item => item.key === 'Firbolg' && item.source === 'VGM');
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
+const mpmmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'MPMM');
+const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'VGM');
 const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
 const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
@@ -54,11 +61,14 @@ assert(wizard, 'missing PHB Wizard');
 assert(background, 'missing background fixture');
 assert(phbBackground, 'missing PHB background fixture');
 assert(aasimar, 'missing MPMM Aasimar fixture');
+assert(xphbAasimar, 'missing XPHB Aasimar fixture');
+assert(astralElf, 'missing AAG Astral Elf fixture');
 assert(dragonborn, 'missing PHB Dragonborn fixture');
 assert(xphbDragonborn, 'missing XPHB Dragonborn fixture');
 assert(chromaticDragonborn, 'missing FTD Chromatic Dragonborn fixture');
 assert(gemDragonborn, 'missing FTD Gem Dragonborn fixture');
 assert(metallicDragonborn, 'missing FTD Metallic Dragonborn fixture');
+assert(eladrin, 'missing MPMM Eladrin fixture');
 assert(dwarf, 'missing PHB Dwarf fixture');
 assert(xphbDwarf, 'missing XPHB Dwarf fixture');
 assert(xphbOrc, 'missing XPHB Orc fixture');
@@ -66,7 +76,11 @@ assert(mpmmOrc, 'missing MPMM Orc fixture');
 assert(halfOrc, 'missing PHB Half-Orc fixture');
 assert(mpmmGoliath, 'missing MPMM Goliath fixture');
 assert(vgmGoliath, 'missing VGM Goliath fixture');
+assert(mpmmFirbolg, 'missing MPMM Firbolg fixture');
+assert(vgmFirbolg, 'missing VGM Firbolg fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
+assert(mpmmLizardfolk, 'missing MPMM Lizardfolk fixture');
+assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
 assert(autognome, 'missing AAG Autognome fixture');
 assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
@@ -111,6 +125,65 @@ const removedAasimar = removeCharacterAdjustments(aasimarCharacter, 'auto-charac
 assert(!removedAasimar.senses.includes('黑暗视觉 60 尺'), 'removing auto-character should remove structured darkvision');
 assert(!removedAasimar.damageResistances.includes('暗蚀'), 'removing auto-character should remove structured fixed resistance');
 assert(!getResource(removedAasimar, 'auto-resource-race-Aasimar-MPMM-healing-hands'), 'removing auto-character should remove Aasimar Healing Hands resource');
+
+let leveledAasimarCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: aasimar,
+});
+assert(!getResource(leveledAasimarCharacter, 'auto-resource-race-Aasimar-MPMM-celestial-revelation'), 'MPMM Aasimar should not add Celestial Revelation before level 3');
+for (let index = 0; index < 2; index += 1) {
+  leveledAasimarCharacter = buildLevelUpCharacter(leveledAasimarCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const aasimarRevelationResource = getResource(leveledAasimarCharacter, 'auto-resource-race-Aasimar-MPMM-celestial-revelation');
+assert(aasimarRevelationResource?.max === 1 && aasimarRevelationResource.reset === 'longRest', 'MPMM Aasimar should add Celestial Revelation resource at level 3');
+
+let xphbAasimarCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: xphbAasimar,
+});
+for (let index = 0; index < 2; index += 1) {
+  xphbAasimarCharacter = buildLevelUpCharacter(xphbAasimarCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const xphbAasimarRevelationResource = getResource(xphbAasimarCharacter, 'auto-resource-race-Aasimar-XPHB-celestial-revelation');
+assert(xphbAasimarRevelationResource?.max === 1 && xphbAasimarRevelationResource.reset === 'longRest', 'XPHB Aasimar should add Celestial Revelation resource at level 3');
+
+const astralElfResourceId = 'auto-resource-race-Astral Elf-AAG-starlight-step';
+let astralElfCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: astralElf,
+});
+const astralElfResource = getResource(astralElfCharacter, astralElfResourceId);
+assert(astralElfResource?.max === 2 && astralElfResource.reset === 'longRest', 'AAG Astral Elf should add proficiency-based Starlight Step resource');
+for (let index = 0; index < 4; index += 1) {
+  astralElfCharacter = buildLevelUpCharacter(astralElfCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledAstralElfResource = getResource(astralElfCharacter, astralElfResourceId);
+assert(leveledAstralElfResource?.max === 3, \`AAG Astral Elf Starlight Step should refresh to PB 3 at level 5, got \${leveledAstralElfResource?.max}\`);
+
+const eladrinResourceId = 'auto-resource-race-Eladrin-MPMM-fey-step';
+let eladrinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: eladrin,
+});
+const eladrinResource = getResource(eladrinCharacter, eladrinResourceId);
+assert(eladrinResource?.max === 2 && eladrinResource.reset === 'longRest', 'MPMM Eladrin should add proficiency-based Fey Step resource');
+for (let index = 0; index < 4; index += 1) {
+  eladrinCharacter = buildLevelUpCharacter(eladrinCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledEladrinResource = getResource(eladrinCharacter, eladrinResourceId);
+assert(leveledEladrinResource?.max === 3, \`MPMM Eladrin Fey Step should refresh to PB 3 at level 5, got \${leveledEladrinResource?.max}\`);
 
 const resistanceOptions = getRaceResistanceOptions(dragonborn);
 assert(resistanceOptions.includes('火焰'), \`Dragonborn resistance choices should include 火焰, got \${resistanceOptions.join(', ')}\`);
@@ -307,6 +380,58 @@ const vgmGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, w
 const vgmGoliathResource = getResource(vgmGoliathCharacter, 'auto-resource-race-Goliath-VGM-stones-endurance');
 assert(vgmGoliathResource?.max === 1 && vgmGoliathResource.reset === 'shortRest', 'VGM Goliath should add one-use Stone Endurance short-rest resource');
 
+const mpmmFirbolgResourceId = 'auto-resource-race-Firbolg-MPMM-hidden-step';
+let mpmmFirbolgCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmFirbolg,
+});
+const mpmmFirbolgResource = getResource(mpmmFirbolgCharacter, mpmmFirbolgResourceId);
+assert(mpmmFirbolgResource?.max === 2 && mpmmFirbolgResource.reset === 'longRest', 'MPMM Firbolg should add proficiency-based Hidden Step resource');
+for (let index = 0; index < 4; index += 1) {
+  mpmmFirbolgCharacter = buildLevelUpCharacter(mpmmFirbolgCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledMpmmFirbolgResource = getResource(mpmmFirbolgCharacter, mpmmFirbolgResourceId);
+assert(leveledMpmmFirbolgResource?.max === 3, \`MPMM Firbolg Hidden Step should refresh to PB 3 at level 5, got \${leveledMpmmFirbolgResource?.max}\`);
+
+const vgmFirbolgCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: vgmFirbolg,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const vgmFirbolgResource = getResource(vgmFirbolgCharacter, 'auto-resource-race-Firbolg-VGM-hidden-step');
+assert(vgmFirbolgResource?.max === 1 && vgmFirbolgResource.reset === 'shortRest', 'VGM Firbolg should add one-use Hidden Step short-rest resource');
+
+const mpmmLizardfolkResourceId = 'auto-resource-race-Lizardfolk-MPMM-hungry-jaws';
+let mpmmLizardfolkCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmLizardfolk,
+});
+const mpmmLizardfolkResource = getResource(mpmmLizardfolkCharacter, mpmmLizardfolkResourceId);
+assert(mpmmLizardfolkResource?.max === 2 && mpmmLizardfolkResource.reset === 'longRest', 'MPMM Lizardfolk should add proficiency-based Hungry Jaws resource');
+for (let index = 0; index < 4; index += 1) {
+  mpmmLizardfolkCharacter = buildLevelUpCharacter(mpmmLizardfolkCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledMpmmLizardfolkResource = getResource(mpmmLizardfolkCharacter, mpmmLizardfolkResourceId);
+assert(leveledMpmmLizardfolkResource?.max === 3, \`MPMM Lizardfolk Hungry Jaws should refresh to PB 3 at level 5, got \${leveledMpmmLizardfolkResource?.max}\`);
+
+const vgmLizardfolkCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: vgmLizardfolk,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const vgmLizardfolkResource = getResource(vgmLizardfolkCharacter, 'auto-resource-race-Lizardfolk-VGM-hungry-jaws');
+assert(vgmLizardfolkResource?.max === 1 && vgmLizardfolkResource.reset === 'shortRest', 'VGM Lizardfolk should add one-use Hungry Jaws short-rest resource');
+
 const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
 assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
 assert(hobgoblinWeaponChoices[0].count === 2, \`Hobgoblin should choose two martial weapons, got \${hobgoblinWeaponChoices[0].count}\`);
@@ -395,11 +520,13 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, hobgoblin.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmFirbolg.name, vgmFirbolg.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
     'Healing Hands adds reversible long-rest race resource',
+    'Aasimar Celestial Revelation adds level-gated long-rest race resource',
+    'Astral Elf and Eladrin teleport resources refresh proficiency-based uses',
     'chosen race resistance adds reversible structured resistance',
     'Dragonborn Breath Weapon adds source-specific race resources and level-gated resources',
     'structured origin data keeps feature descriptions',
@@ -408,6 +535,7 @@ export default {
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
+    'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
