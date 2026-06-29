@@ -3760,6 +3760,17 @@ const getFeatResourceOperations = (
       '以动作侦测 30 尺内传送门, 长休后恢复.',
     )];
   }
+  if (feat.key === 'Rune Shaper') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'rune-magic',
+      '符文魔法',
+      1,
+      'longRest',
+      '不消耗法术位且无需材料成分施展一个刻印符文关联法术.',
+    )];
+  }
   if (feat.key === 'Gift of the Chromatic Dragon') {
     return [
       makeFeatResource(

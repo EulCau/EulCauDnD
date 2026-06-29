@@ -63,6 +63,7 @@ const xphbChef = getFeat('Chef', 'XPHB');
 const squireOfSolamnia = getFeat('Squire of Solamnia', 'DSotDQ');
 const cartomancer = getFeat('Cartomancer', 'BMT');
 const planarWanderer = getFeat('Planar Wanderer', 'SatO');
+const runeShaper = getFeat('Rune Shaper', 'BGG');
 const martialAdept = getFeat('Martial Adept', 'PHB');
 const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
@@ -205,6 +206,25 @@ const planarWandererResource = planarWandererCharacter.resources.find(resource =
 assert(planarWandererResource?.max === 1, \`Planar Wanderer should add one Portal Sense resource, got \${planarWandererResource?.max}\`);
 assert(planarWandererResource?.reset === 'longRest', \`Planar Wanderer Portal Sense should recover on long rest, got \${planarWandererResource?.reset}\`);
 assert(planarWandererResource?.note?.includes('30 尺'), \`Planar Wanderer resource note should mention 30-foot range, got \${planarWandererResource?.note}\`);
+
+const runeShaperCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Rune Shaper|BGG',
+    featSpellAbility: 'WIS',
+  },
+});
+const runeShaperResource = runeShaperCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Rune Shaper-BGG-rune-magic');
+assert(runeShaperResource?.max === 1, \`Rune Shaper should add one Rune Magic resource, got \${runeShaperResource?.max}\`);
+assert(runeShaperResource?.reset === 'longRest', \`Rune Shaper Rune Magic should recover on long rest, got \${runeShaperResource?.reset}\`);
+assert(runeShaperResource?.note?.includes('无需材料成分'), \`Rune Shaper resource note should mention no material components, got \${runeShaperResource?.note}\`);
+const runeShaperProfile = runeShaperCharacter.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Rune Shaper-BGG-spells');
+assert(
+  runeShaperProfile?.spells.some(spell => spell.name === '通晓语言' && spell.prepared),
+  'Rune Shaper should add prepared Comprehend Languages feat spell',
+);
 
 const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
 assert(martialAdeptChoices?.needed === 2, \`Martial Adept should require two maneuvers, got \${martialAdeptChoices?.needed}\`);
@@ -489,6 +509,7 @@ export default {
     squireOfSolamnia.name,
     cartomancer.name,
     planarWanderer.name,
+    runeShaper.name,
     martialAdept.name,
     metamagicAdept.name,
     chromaticGift.name,
@@ -513,6 +534,7 @@ export default {
     'Squire of Solamnia refreshes proficiency-based Precise Strike resource',
     'Cartomancer adds Hidden Ace resource and Prestidigitation profile',
     'Planar Wanderer adds Portal Sense long-rest resource',
+    'Rune Shaper adds Rune Magic resource and Comprehend Languages profile',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',
