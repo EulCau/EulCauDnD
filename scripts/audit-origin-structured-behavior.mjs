@@ -46,6 +46,10 @@ const mpmmGoliath = content.races.find(item => item.key === 'Goliath' && item.so
 const vgmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'VGM');
 const mpmmHarengon = content.races.find(item => item.key === 'Harengon' && item.source === 'MPMM');
 const wbtwHarengon = content.races.find(item => item.key === 'Harengon' && item.source === 'WBtW');
+const kender = content.races.find(item => item.key === 'Kender' && item.source === 'DSotDQ');
+const kenku = content.races.find(item => item.key === 'Kenku' && item.source === 'MPMM');
+const mpmmKobold = content.races.find(item => item.key === 'Kobold' && item.source === 'MPMM');
+const vgmKobold = content.races.find(item => item.key === 'Kobold' && item.source === 'VGM');
 const mpmmFirbolg = content.races.find(item => item.key === 'Firbolg' && item.source === 'MPMM');
 const vgmFirbolg = content.races.find(item => item.key === 'Firbolg' && item.source === 'VGM');
 const mpmmGoblin = content.races.find(item => item.key === 'Goblin' && item.source === 'MPMM');
@@ -57,6 +61,9 @@ const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && it
 const efaShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'EFA');
 const erlwShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'ERLW');
 const mpmmShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'MPMM');
+const rhwReborn = content.races.find(item => item.key === 'Reborn' && item.source === 'RHW');
+const vrgrReborn = content.races.find(item => item.key === 'Reborn' && item.source === 'VRGR');
+const shadarKai = content.races.find(item => item.key === 'Shadar-Kai' && item.source === 'MPMM');
 const autognome = content.races.find(item => item.key === 'Autognome' && item.source === 'AAG');
 const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && item.source === 'VGM');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
@@ -86,6 +93,10 @@ assert(mpmmGoliath, 'missing MPMM Goliath fixture');
 assert(vgmGoliath, 'missing VGM Goliath fixture');
 assert(mpmmHarengon, 'missing MPMM Harengon fixture');
 assert(wbtwHarengon, 'missing WBtW Harengon fixture');
+assert(kender, 'missing DSotDQ Kender fixture');
+assert(kenku, 'missing MPMM Kenku fixture');
+assert(mpmmKobold, 'missing MPMM Kobold fixture');
+assert(vgmKobold, 'missing VGM Kobold fixture');
 assert(mpmmFirbolg, 'missing MPMM Firbolg fixture');
 assert(vgmFirbolg, 'missing VGM Firbolg fixture');
 assert(mpmmGoblin, 'missing MPMM Goblin fixture');
@@ -97,6 +108,9 @@ assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
 assert(efaShifter, 'missing EFA Shifter fixture');
 assert(erlwShifter, 'missing ERLW Shifter fixture');
 assert(mpmmShifter, 'missing MPMM Shifter fixture');
+assert(rhwReborn, 'missing RHW Reborn fixture');
+assert(vrgrReborn, 'missing VRGR Reborn fixture');
+assert(shadarKai, 'missing MPMM Shadar-Kai fixture');
 assert(autognome, 'missing AAG Autognome fixture');
 assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
@@ -112,6 +126,16 @@ const baseOptions = {
 };
 
 const getResource = (character, id) => character.resources.find(resource => resource.id === id);
+const levelToFive = (character, cls, ruleSystem) => {
+  let nextCharacter = character;
+  for (let index = 0; index < 4; index += 1) {
+    nextCharacter = buildLevelUpCharacter(nextCharacter, content, cls, {
+      ruleSystem,
+      spellChoices: { cantrips: [], leveled: [] },
+    });
+  }
+  return nextCharacter;
+};
 
 const aasimarCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -435,6 +459,69 @@ const leveledWbtwHarengonResource = getResource(wbtwHarengonCharacter, wbtwHaren
 assert(leveledWbtwHarengonResource?.max === 3, \`WBtW Harengon Rabbit Hop should refresh to PB 3 at level 5, got \${leveledWbtwHarengonResource?.max}\`);
 assert(wbtwHarengonCharacter.initiativeBonus === 3, \`WBtW Harengon initiative bonus should refresh to PB 3 at level 5, got \${wbtwHarengonCharacter.initiativeBonus}\`);
 
+const kenderCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: kender,
+});
+const kenderFearlessResource = getResource(kenderCharacter, 'auto-resource-race-Kender-DSotDQ-fearless');
+assert(kenderFearlessResource?.max === 1 && kenderFearlessResource.reset === 'longRest', 'DSotDQ Kender should add one-use Fearless long-rest resource');
+
+const kenkuResourceId = 'auto-resource-race-Kenku-MPMM-kenku-recall';
+let kenkuCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: kenku,
+});
+const kenkuResource = getResource(kenkuCharacter, kenkuResourceId);
+assert(kenkuResource?.max === 2 && kenkuResource.reset === 'longRest', 'MPMM Kenku should add proficiency-based Kenku Recall resource');
+kenkuCharacter = levelToFive(kenkuCharacter, fighter, '5r');
+const leveledKenkuResource = getResource(kenkuCharacter, kenkuResourceId);
+assert(leveledKenkuResource?.max === 3, \`MPMM Kenku Recall should refresh to PB 3 at level 5, got \${leveledKenkuResource?.max}\`);
+
+const mpmmKoboldResourceId = 'auto-resource-race-Kobold-MPMM-draconic-cry';
+let mpmmKoboldCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmKobold,
+});
+const mpmmKoboldResource = getResource(mpmmKoboldCharacter, mpmmKoboldResourceId);
+assert(mpmmKoboldResource?.max === 2 && mpmmKoboldResource.reset === 'longRest', 'MPMM Kobold should add proficiency-based Draconic Cry resource');
+mpmmKoboldCharacter = levelToFive(mpmmKoboldCharacter, fighter, '5r');
+const leveledMpmmKoboldResource = getResource(mpmmKoboldCharacter, mpmmKoboldResourceId);
+assert(leveledMpmmKoboldResource?.max === 3, \`MPMM Kobold Draconic Cry should refresh to PB 3 at level 5, got \${leveledMpmmKoboldResource?.max}\`);
+
+const vgmKoboldCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: vgmKobold,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const vgmKoboldResource = getResource(vgmKoboldCharacter, 'auto-resource-race-Kobold-VGM-grovel-cower-and-beg');
+assert(vgmKoboldResource?.max === 1 && vgmKoboldResource.reset === 'shortRest', 'VGM Kobold should add one-use Grovel, Cower, and Beg short-rest resource');
+
+for (const [reborn, source] of [[rhwReborn, 'RHW'], [vrgrReborn, 'VRGR']]) {
+  const resourceId = \`auto-resource-race-Reborn-\${source}-knowledge-from-a-past-life\`;
+  let rebornCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ...baseOptions,
+    race: reborn,
+  });
+  const rebornResource = getResource(rebornCharacter, resourceId);
+  assert(rebornResource?.max === 2 && rebornResource.reset === 'longRest', \`\${source} Reborn should add proficiency-based Knowledge from a Past Life resource\`);
+  rebornCharacter = levelToFive(rebornCharacter, fighter, '5r');
+  const leveledRebornResource = getResource(rebornCharacter, resourceId);
+  assert(leveledRebornResource?.max === 3, \`\${source} Reborn Knowledge from a Past Life should refresh to PB 3 at level 5, got \${leveledRebornResource?.max}\`);
+}
+
+const shadarKaiResourceId = 'auto-resource-race-Shadar-Kai-MPMM-blessing-of-the-raven-queen';
+let shadarKaiCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: shadarKai,
+});
+const shadarKaiResource = getResource(shadarKaiCharacter, shadarKaiResourceId);
+assert(shadarKaiResource?.max === 2 && shadarKaiResource.reset === 'longRest', 'MPMM Shadar-Kai should add proficiency-based Blessing of the Raven Queen resource');
+shadarKaiCharacter = levelToFive(shadarKaiCharacter, fighter, '5r');
+const leveledShadarKaiResource = getResource(shadarKaiCharacter, shadarKaiResourceId);
+assert(leveledShadarKaiResource?.max === 3, \`MPMM Shadar-Kai Blessing of the Raven Queen should refresh to PB 3 at level 5, got \${leveledShadarKaiResource?.max}\`);
+
 const mpmmFirbolgResourceId = 'auto-resource-race-Firbolg-MPMM-hidden-step';
 let mpmmFirbolgCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -669,7 +756,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -685,6 +772,7 @@ export default {
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
     'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
+    'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',

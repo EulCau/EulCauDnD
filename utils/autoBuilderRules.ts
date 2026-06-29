@@ -3606,6 +3606,72 @@ const createOriginResourceOperations = (
       '次数等于熟练加值.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Kenku Recall' || feature.name === '天狗回想')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'kenku-recall',
+      '天狗回想',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Draconic Cry' || feature.name === '龙吼')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'draconic-cry',
+      '龙吼',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Grovel, Cower, and Beg' || feature.name === '摇尾乞怜')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'grovel-cower-and-beg',
+      '摇尾乞怜',
+      1,
+      'shortRest',
+      '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Knowledge from a Past Life' || feature.name === '往昔学识')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'knowledge-from-a-past-life',
+      '往昔学识',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Blessing of the Raven Queen' || feature.name === '鸦后祝福')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'blessing-of-the-raven-queen',
+      '鸦后祝福',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fearless' || feature.name === '无畏')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fearless',
+      '无畏',
+      1,
+      'longRest',
+      '豁免失败时可改为成功.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
       entity,
@@ -4533,6 +4599,11 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Astral Elf', '星界精灵', 'AAG', [{ name: '星光步', englishName: 'Starlight Step', description: '' }]);
   refreshOriginResources('Harengon', '兔人', 'MPMM', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
   refreshOriginResources('Harengon', '兔人', 'WBtW', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
+  refreshOriginResources('Kenku', '天狗', 'MPMM', [{ name: '天狗回想', englishName: 'Kenku Recall', description: '' }]);
+  refreshOriginResources('Kobold', '狗头人', 'MPMM', [{ name: '龙吼', englishName: 'Draconic Cry', description: '' }]);
+  refreshOriginResources('Reborn', '重生者', 'RHW', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
+  refreshOriginResources('Reborn', '重生者', 'VRGR', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
+  refreshOriginResources('Shadar-Kai', '影灵', 'MPMM', [{ name: '鸦后祝福', englishName: 'Blessing of the Raven Queen', description: '' }]);
   refreshOriginResources('Eladrin', '雅灵', 'MPMM', [{ name: '妖精步伐', englishName: 'Fey Step', description: '' }]);
   refreshOriginResources('Firbolg', '费尔伯格人', 'MPMM', [{ name: '神隐步', englishName: 'Hidden Step', description: '' }]);
   refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
