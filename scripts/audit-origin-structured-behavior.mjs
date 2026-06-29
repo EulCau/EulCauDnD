@@ -69,6 +69,8 @@ const baseOptions = {
   spellChoices: { cantrips: [], leveled: [] },
 };
 
+const getResource = (character, id) => character.resources.find(resource => resource.id === id);
+
 const aasimarCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
   race: aasimar,
@@ -90,10 +92,13 @@ assert(
   aasimarCharacter.featureEntries.some(feature => feature.id.endsWith('-fixed-resistances')),
   'Aasimar should still add resistance feature description',
 );
+const aasimarHealingHandsResource = getResource(aasimarCharacter, 'auto-resource-race-Aasimar-MPMM-healing-hands');
+assert(aasimarHealingHandsResource?.max === 1 && aasimarHealingHandsResource.reset === 'longRest', 'Aasimar should add Healing Hands long-rest resource');
 
 const removedAasimar = removeCharacterAdjustments(aasimarCharacter, 'auto-character-5r');
 assert(!removedAasimar.senses.includes('黑暗视觉 60 尺'), 'removing auto-character should remove structured darkvision');
 assert(!removedAasimar.damageResistances.includes('暗蚀'), 'removing auto-character should remove structured fixed resistance');
+assert(!getResource(removedAasimar, 'auto-resource-race-Aasimar-MPMM-healing-hands'), 'removing auto-character should remove Aasimar Healing Hands resource');
 
 const resistanceOptions = getRaceResistanceOptions(dragonborn);
 assert(resistanceOptions.includes('火焰'), \`Dragonborn resistance choices should include 火焰, got \${resistanceOptions.join(', ')}\`);
@@ -152,7 +157,6 @@ const leveledXphbDwarf = buildLevelUpCharacter(xphbDwarfCharacter, content, figh
 });
 assert(leveledXphbDwarf.hpMaxBonus === 2, \`XPHB Dwarf should add +1 HP max bonus on level up, got \${leveledXphbDwarf.hpMaxBonus}\`);
 
-const getResource = (character, id) => character.resources.find(resource => resource.id === id);
 const xphbOrcResourceId = 'auto-resource-race-Orc-XPHB-adrenaline-rush';
 const xphbOrcCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -287,6 +291,7 @@ export default {
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
+    'Healing Hands adds reversible long-rest race resource',
     'chosen race resistance adds reversible structured resistance',
     'structured origin data keeps feature descriptions',
     'fixed race weapon proficiencies normalize source suffixes and affect attacks',

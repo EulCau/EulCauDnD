@@ -3548,6 +3548,17 @@ const createOriginResourceOperations = (
       '生命值降至 0 且未立即死亡时, 可改为降至 1.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Healing Hands' || feature.name === '治愈之手')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'healing-hands',
+      '治愈之手',
+      1,
+      'longRest',
+      entity.source === 'VGM' ? '恢复等同角色等级的生命值.' : '恢复若干 d4, 骰数等同熟练加值.',
+    ));
+  }
   return operations;
 };
 
