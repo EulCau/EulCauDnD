@@ -3748,6 +3748,17 @@ const getFeatResourceOperations = (
       '次数等于熟练加值.',
     )];
   }
+  if (feat.key === 'Gift of the Metallic Dragon') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'protective-wings',
+      '庇护之翼',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,
@@ -3864,6 +3875,14 @@ const createExistingFeatLevelUpOperations = (
   if (hasAppliedFeat(character, 'Gift of the Gem Dragon', 'FTD')) {
     operations.push(...getFeatResourceOperations(
       { key: 'Gift of the Gem Dragon', name: '宝石龙赋礼', source: 'FTD' },
+      '5e',
+      newCharacterLevel,
+    ));
+  }
+
+  if (hasAppliedFeat(character, 'Gift of the Metallic Dragon', 'FTD')) {
+    operations.push(...getFeatResourceOperations(
+      { key: 'Gift of the Metallic Dragon', name: '金属龙赋礼', source: 'FTD' },
       '5e',
       newCharacterLevel,
     ));

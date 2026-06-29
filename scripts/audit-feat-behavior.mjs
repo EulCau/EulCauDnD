@@ -62,6 +62,7 @@ const martialAdept = getFeat('Martial Adept', 'PHB');
 const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
 const gemGift = getFeat('Gift of the Gem Dragon', 'FTD');
+const metallicGift = getFeat('Gift of the Metallic Dragon', 'FTD');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -187,6 +188,30 @@ const gemGiftLevelFive = buildLevelUpCharacter(gemGiftCharacter, content, phbWiz
 const gemLevelFiveResource = gemGiftLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Gem Dragon-FTD-telekinetic-reprisal');
 assert(gemLevelFiveResource?.max === 3, \`Gift of the Gem Dragon at total level 5 should refresh reprisal to proficiency bonus 3, got \${gemLevelFiveResource?.max}\`);
 
+const metallicGiftCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Gift of the Metallic Dragon|FTD',
+    featSpellAbility: 'WIS',
+  },
+});
+const metallicGiftResource = metallicGiftCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Metallic Dragon-FTD-protective-wings');
+assert(metallicGiftResource?.max === 2, \`Gift of the Metallic Dragon at total level 4 should add proficiency bonus Protective Wings uses, got \${metallicGiftResource?.max}\`);
+const metallicGiftProfile = metallicGiftCharacter.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Gift of the Metallic Dragon-FTD-spells');
+assert(
+  metallicGiftProfile?.ability === 'WIS'
+    && metallicGiftProfile.spells.some(spell => spell.name === '疗伤术' && spell.prepared),
+  'Gift of the Metallic Dragon should add prepared Cure Wounds spell',
+);
+const metallicGiftLevelFive = buildLevelUpCharacter(metallicGiftCharacter, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const metallicLevelFiveResource = metallicGiftLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Metallic Dragon-FTD-protective-wings');
+assert(metallicLevelFiveResource?.max === 3, \`Gift of the Metallic Dragon at total level 5 should refresh Protective Wings to proficiency bonus 3, got \${metallicLevelFiveResource?.max}\`);
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -284,7 +309,7 @@ assert(
 );
 
 export default {
-  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, martialAdept.name, metamagicAdept.name, chromaticGift.name, gemGift.name, xphbMageSlayer.name, resilient.name, skillExpert.name, weaponMaster.name],
+  feats: [lightlyArmored.name, phbLucky.name, xphbLucky.name, martialAdept.name, metamagicAdept.name, chromaticGift.name, gemGift.name, metallicGift.name, xphbMageSlayer.name, resilient.name, skillExpert.name, weaponMaster.name],
   checks: [
     'Lightly Armored applies ability, armor, and shield proficiencies',
     'PHB Lucky adds fixed long-rest luck point resource',
@@ -293,6 +318,7 @@ export default {
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',
     'Gift of the Gem Dragon adds and refreshes proficiency-based resource',
+    'Gift of the Metallic Dragon adds prepared Cure Wounds and refreshes proficiency-based resource',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
