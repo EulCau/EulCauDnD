@@ -4011,6 +4011,28 @@ const getFeatResourceOperations = (
       '以通常施法时间施展一道仪式法术, 不消耗法术位.',
     )];
   }
+  if (feat.key === 'Fey Touched' || feat.key === 'Fey-Touched') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'misty-step',
+      '迷踪步',
+      1,
+      'longRest',
+      '不消耗法术位施展迷踪步.',
+    )];
+  }
+  if (feat.key === 'Shadow Touched' || feat.key === 'Shadow-Touched') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'invisibility',
+      '隐形术',
+      1,
+      'longRest',
+      '不消耗法术位施展隐形术.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,

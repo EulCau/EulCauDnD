@@ -85,6 +85,10 @@ const telepathic = getFeat('Telepathic', 'XPHB');
 const boonOfRecovery = getFeat('Boon of Recovery', 'XPHB');
 const boonOfFate = getFeat('Boon of Fate', 'XPHB');
 const ritualCaster = getFeat('Ritual Caster', 'XPHB');
+const tceFeyTouched = getFeat('Fey Touched', 'TCE');
+const xphbFeyTouched = getFeat('Fey-Touched', 'XPHB');
+const tceShadowTouched = getFeat('Shadow Touched', 'TCE');
+const xphbShadowTouched = getFeat('Shadow-Touched', 'XPHB');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -534,6 +538,72 @@ assert(ritualCasterResource?.max === 1, \`XPHB Ritual Caster should add one Quic
 assert(ritualCasterResource?.reset === 'longRest', \`XPHB Ritual Caster Quick Ritual should recover on long rest, got \${ritualCasterResource?.reset}\`);
 assert(ritualCasterResource?.note?.includes('不消耗法术位'), \`XPHB Ritual Caster note should mention no spell slot, got \${ritualCasterResource?.note}\`);
 
+const assertFixedTouchedSpellResource = ({
+  featId,
+  featKey,
+  featSource,
+  ruleSystem,
+  classDefinition,
+  resourceKey,
+  spellName,
+}) => {
+  const character = buildLevelUpCharacter(makeLevelThreeWizard(), content, classDefinition, {
+    ruleSystem,
+    spellChoices: { cantrips: [], leveled: [] },
+    abilityScoreImprovementChoice: {
+      mode: 'feat',
+      featId,
+      featAbility: 'WIS',
+    },
+  });
+  const resource = character.resources.find(item => item.id === \`auto-resource-feat-\${featKey}-\${featSource}-\${resourceKey}\`);
+  assert(resource?.max === 1, \`\${featId} should add one \${spellName} resource, got \${resource?.max}\`);
+  assert(resource?.reset === 'longRest', \`\${featId} \${spellName} should recover on long rest, got \${resource?.reset}\`);
+  assert(resource?.note?.includes('不消耗法术位'), \`\${featId} resource note should mention no spell slot, got \${resource?.note}\`);
+  const profile = character.spellcastingProfiles.find(item => item.id === \`auto-feat-\${featKey}-\${featSource}-spells\`);
+  assert(
+    profile?.spells.some(spell => spell.name === spellName && spell.prepared),
+    \`\${featId} should add prepared \${spellName} feat spell\`,
+  );
+};
+
+assertFixedTouchedSpellResource({
+  featId: 'Fey Touched|TCE',
+  featKey: 'Fey Touched',
+  featSource: 'TCE',
+  ruleSystem: '5e',
+  classDefinition: phbWizard,
+  resourceKey: 'misty-step',
+  spellName: '迷踪步',
+});
+assertFixedTouchedSpellResource({
+  featId: 'Fey-Touched|XPHB',
+  featKey: 'Fey-Touched',
+  featSource: 'XPHB',
+  ruleSystem: '5r',
+  classDefinition: wizard,
+  resourceKey: 'misty-step',
+  spellName: '迷踪步',
+});
+assertFixedTouchedSpellResource({
+  featId: 'Shadow Touched|TCE',
+  featKey: 'Shadow Touched',
+  featSource: 'TCE',
+  ruleSystem: '5e',
+  classDefinition: phbWizard,
+  resourceKey: 'invisibility',
+  spellName: '隐形术',
+});
+assertFixedTouchedSpellResource({
+  featId: 'Shadow-Touched|XPHB',
+  featKey: 'Shadow-Touched',
+  featSource: 'XPHB',
+  ruleSystem: '5r',
+  classDefinition: wizard,
+  resourceKey: 'invisibility',
+  spellName: '隐形术',
+});
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -662,6 +732,10 @@ export default {
     boonOfRecovery.name,
     boonOfFate.name,
     ritualCaster.name,
+    tceFeyTouched.name,
+    xphbFeyTouched.name,
+    tceShadowTouched.name,
+    xphbShadowTouched.name,
     xphbMageSlayer.name,
     resilient.name,
     skillExpert.name,
@@ -694,6 +768,7 @@ export default {
     'XPHB Boon of Recovery adds Last Stand and recovery dice resources',
     'XPHB Boon of Fate adds Fate resource',
     'XPHB Ritual Caster adds Quick Ritual resource',
+    'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
