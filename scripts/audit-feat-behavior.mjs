@@ -83,6 +83,8 @@ const righteousHeritor = getFeat('Righteous Heritor', 'SatO');
 const outlandsEnvoy = getFeat('Outlands Envoy', 'SatO');
 const telepathic = getFeat('Telepathic', 'XPHB');
 const boonOfRecovery = getFeat('Boon of Recovery', 'XPHB');
+const boonOfFate = getFeat('Boon of Fate', 'XPHB');
+const ritualCaster = getFeat('Ritual Caster', 'XPHB');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -504,6 +506,34 @@ const recoveryDiceResource = boonOfRecoveryCharacter.resources.find(resource => 
 assert(recoveryDiceResource?.max === 10, \`XPHB Boon of Recovery should add ten recovery dice, got \${recoveryDiceResource?.max}\`);
 assert(recoveryDiceResource?.note?.includes('10 枚 d10'), \`XPHB Boon of Recovery dice note should mention 10d10 pool, got \${recoveryDiceResource?.note}\`);
 
+const boonOfFateCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Fate|XPHB',
+    featAbility: 'WIS',
+  },
+});
+const boonOfFateResource = boonOfFateCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Boon of Fate-XPHB-fate-points');
+assert(boonOfFateResource?.max === 1, \`XPHB Boon of Fate should add one Fate resource, got \${boonOfFateResource?.max}\`);
+assert(boonOfFateResource?.reset === 'shortRest', \`XPHB Boon of Fate should use short rest reset, got \${boonOfFateResource?.reset}\`);
+assert(boonOfFateResource?.note?.includes('投掷先攻'), \`XPHB Boon of Fate note should mention initiative recovery, got \${boonOfFateResource?.note}\`);
+
+const ritualCasterCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Ritual Caster|XPHB',
+    featAbility: 'INT',
+  },
+});
+const ritualCasterResource = ritualCasterCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Ritual Caster-XPHB-quick-ritual');
+assert(ritualCasterResource?.max === 1, \`XPHB Ritual Caster should add one Quick Ritual resource, got \${ritualCasterResource?.max}\`);
+assert(ritualCasterResource?.reset === 'longRest', \`XPHB Ritual Caster Quick Ritual should recover on long rest, got \${ritualCasterResource?.reset}\`);
+assert(ritualCasterResource?.note?.includes('不消耗法术位'), \`XPHB Ritual Caster note should mention no spell slot, got \${ritualCasterResource?.note}\`);
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -630,6 +660,8 @@ export default {
     outlandsEnvoy.name,
     telepathic.name,
     boonOfRecovery.name,
+    boonOfFate.name,
+    ritualCaster.name,
     xphbMageSlayer.name,
     resilient.name,
     skillExpert.name,
@@ -660,6 +692,8 @@ export default {
     'Outlands Envoy adds Crossroads Emissary resources and spell profile',
     'XPHB Telepathic adds Detect Thoughts resource and spell profile',
     'XPHB Boon of Recovery adds Last Stand and recovery dice resources',
+    'XPHB Boon of Fate adds Fate resource',
+    'XPHB Ritual Caster adds Quick Ritual resource',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',

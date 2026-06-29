@@ -3989,6 +3989,28 @@ const getFeatResourceOperations = (
       ),
     ];
   }
+  if (feat.key === 'Boon of Fate' && feat.source === 'XPHB') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'fate-points',
+      '时来运转',
+      1,
+      'shortRest',
+      '投掷先攻, 完成短休或完成长休后恢复.',
+    )];
+  }
+  if (feat.key === 'Ritual Caster' && feat.source === 'XPHB') {
+    return [makeFeatResource(
+      feat,
+      ruleSystem,
+      'quick-ritual',
+      '快速仪式',
+      1,
+      'longRest',
+      '以通常施法时间施展一道仪式法术, 不消耗法术位.',
+    )];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,
