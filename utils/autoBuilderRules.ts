@@ -3902,6 +3902,28 @@ const getFeatResourceOperations = (
       '次数等于熟练加值.',
     )];
   }
+  if (feat.key === 'Outlands Envoy') {
+    return [
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'crossroads-emissary-misty-step',
+        '交路使者: 迷踪步',
+        1,
+        'longRest',
+        '不消耗法术位施展迷踪步.',
+      ),
+      makeFeatResource(
+        feat,
+        ruleSystem,
+        'crossroads-emissary-tongues',
+        '交路使者: 巧言术',
+        1,
+        'longRest',
+        '不消耗法术位施展巧言术, 且无需材料成分.',
+      ),
+    ];
+  }
   if (feat.key === 'Mage Slayer' && feat.source === 'XPHB') {
     return [makeFeatResource(
       feat,

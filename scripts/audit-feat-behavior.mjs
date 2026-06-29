@@ -77,6 +77,7 @@ const stormGiantSoul = getFeat('Soul of the Storm Giant', 'BGG');
 const agentOfOrder = getFeat('Agent of Order', 'SatO');
 const balefulScion = getFeat('Baleful Scion', 'SatO');
 const righteousHeritor = getFeat('Righteous Heritor', 'SatO');
+const outlandsEnvoy = getFeat('Outlands Envoy', 'SatO');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -423,6 +424,28 @@ assertProficiencyFeatResource({
   label: 'Righteous Heritor',
 });
 
+const outlandsEnvoyCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Outlands Envoy|SatO',
+    featSpellAbility: 'INT',
+  },
+});
+const outlandsMistyStepResource = outlandsEnvoyCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Outlands Envoy-SatO-crossroads-emissary-misty-step');
+assert(outlandsMistyStepResource?.max === 1, \`Outlands Envoy should add one Misty Step resource, got \${outlandsMistyStepResource?.max}\`);
+assert(outlandsMistyStepResource?.reset === 'longRest', \`Outlands Envoy Misty Step should recover on long rest, got \${outlandsMistyStepResource?.reset}\`);
+const outlandsTonguesResource = outlandsEnvoyCharacter.resources.find(resource => resource.id === 'auto-resource-feat-Outlands Envoy-SatO-crossroads-emissary-tongues');
+assert(outlandsTonguesResource?.max === 1, \`Outlands Envoy should add one Tongues resource, got \${outlandsTonguesResource?.max}\`);
+assert(outlandsTonguesResource?.note?.includes('无需材料成分'), \`Outlands Envoy Tongues note should mention no material components, got \${outlandsTonguesResource?.note}\`);
+const outlandsEnvoyProfile = outlandsEnvoyCharacter.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Outlands Envoy-SatO-spells');
+assert(
+  outlandsEnvoyProfile?.spells.some(spell => spell.name === '迷踪步' && spell.prepared)
+    && outlandsEnvoyProfile.spells.some(spell => spell.name === '巧言术' && spell.prepared),
+  'Outlands Envoy should add prepared Misty Step and Tongues feat spells',
+);
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -543,6 +566,7 @@ export default {
     agentOfOrder.name,
     balefulScion.name,
     righteousHeritor.name,
+    outlandsEnvoy.name,
     xphbMageSlayer.name,
     resilient.name,
     skillExpert.name,
@@ -569,6 +593,7 @@ export default {
     'Keenness of the Stone Giant refreshes proficiency-based resource',
     'Soul of the Storm Giant refreshes proficiency-based resource',
     'SatO planar successor feats refresh proficiency-based resources',
+    'Outlands Envoy adds Crossroads Emissary resources and spell profile',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',
