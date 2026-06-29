@@ -3595,6 +3595,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Rabbit Hop' || feature.name === '兔子跳跃')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'rabbit-hop',
+      '兔子跳跃',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
       entity,
@@ -3771,6 +3782,12 @@ const createOriginOperations = (
   }
   if (entity.size?.length === 1) {
     operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(entity.size[0]) });
+  }
+  if (
+    kind === 'race'
+    && (entity.features || []).some(feature => feature.englishName === 'Hare-Trigger' || feature.name === '野兔敏锐')
+  ) {
+    operations.push({ type: 'addNumber', path: 'initiativeBonus', value: calculateProficiencyBonus(Math.max(1, characterLevel)) });
   }
 
   return operations;
@@ -4514,6 +4531,8 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Aasimar', '阿斯莫', 'MPMM', [{ name: '天界启示', englishName: 'Celestial Revelation', description: '' }]);
   refreshOriginResources('Aasimar', '阿斯莫', 'XPHB', [{ name: '天界启示', englishName: 'Celestial Revelation', description: '' }]);
   refreshOriginResources('Astral Elf', '星界精灵', 'AAG', [{ name: '星光步', englishName: 'Starlight Step', description: '' }]);
+  refreshOriginResources('Harengon', '兔人', 'MPMM', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
+  refreshOriginResources('Harengon', '兔人', 'WBtW', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
   refreshOriginResources('Eladrin', '雅灵', 'MPMM', [{ name: '妖精步伐', englishName: 'Fey Step', description: '' }]);
   refreshOriginResources('Firbolg', '费尔伯格人', 'MPMM', [{ name: '神隐步', englishName: 'Hidden Step', description: '' }]);
   refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
@@ -4538,6 +4557,14 @@ const createExistingOriginLevelUpOperations = (
     { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
     { name: '金属吐息武器', englishName: 'Metallic Breath Weapon', description: '' },
   ]);
+  if (hasAppliedRace(character, 'Harengon', 'MPMM') || hasAppliedRace(character, 'Harengon', 'WBtW')) {
+    const oldBonus = calculateProficiencyBonus(Math.max(1, oldCharacterLevel));
+    const newBonus = calculateProficiencyBonus(Math.max(1, newCharacterLevel));
+    const bonusDelta = newBonus - oldBonus;
+    if (bonusDelta > 0) {
+      operations.push({ type: 'addNumber', path: 'initiativeBonus', value: bonusDelta });
+    }
+  }
   return operations;
 };
 

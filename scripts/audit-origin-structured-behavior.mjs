@@ -44,6 +44,8 @@ const mpmmOrc = content.races.find(item => item.key === 'Orc' && item.source ===
 const halfOrc = content.races.find(item => item.key === 'Half-Orc' && item.source === 'PHB');
 const mpmmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'MPMM');
 const vgmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'VGM');
+const mpmmHarengon = content.races.find(item => item.key === 'Harengon' && item.source === 'MPMM');
+const wbtwHarengon = content.races.find(item => item.key === 'Harengon' && item.source === 'WBtW');
 const mpmmFirbolg = content.races.find(item => item.key === 'Firbolg' && item.source === 'MPMM');
 const vgmFirbolg = content.races.find(item => item.key === 'Firbolg' && item.source === 'VGM');
 const mpmmGoblin = content.races.find(item => item.key === 'Goblin' && item.source === 'MPMM');
@@ -82,6 +84,8 @@ assert(mpmmOrc, 'missing MPMM Orc fixture');
 assert(halfOrc, 'missing PHB Half-Orc fixture');
 assert(mpmmGoliath, 'missing MPMM Goliath fixture');
 assert(vgmGoliath, 'missing VGM Goliath fixture');
+assert(mpmmHarengon, 'missing MPMM Harengon fixture');
+assert(wbtwHarengon, 'missing WBtW Harengon fixture');
 assert(mpmmFirbolg, 'missing MPMM Firbolg fixture');
 assert(vgmFirbolg, 'missing VGM Firbolg fixture');
 assert(mpmmGoblin, 'missing MPMM Goblin fixture');
@@ -392,6 +396,45 @@ const vgmGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, w
 const vgmGoliathResource = getResource(vgmGoliathCharacter, 'auto-resource-race-Goliath-VGM-stones-endurance');
 assert(vgmGoliathResource?.max === 1 && vgmGoliathResource.reset === 'shortRest', 'VGM Goliath should add one-use Stone Endurance short-rest resource');
 
+const mpmmHarengonResourceId = 'auto-resource-race-Harengon-MPMM-rabbit-hop';
+let mpmmHarengonCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmHarengon,
+});
+const mpmmHarengonResource = getResource(mpmmHarengonCharacter, mpmmHarengonResourceId);
+assert(mpmmHarengonResource?.max === 2 && mpmmHarengonResource.reset === 'longRest', 'MPMM Harengon should add proficiency-based Rabbit Hop resource');
+assert(mpmmHarengonCharacter.initiativeBonus === 2, \`MPMM Harengon should add PB to initiative at level 1, got \${mpmmHarengonCharacter.initiativeBonus}\`);
+for (let index = 0; index < 4; index += 1) {
+  mpmmHarengonCharacter = buildLevelUpCharacter(mpmmHarengonCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledMpmmHarengonResource = getResource(mpmmHarengonCharacter, mpmmHarengonResourceId);
+assert(leveledMpmmHarengonResource?.max === 3, \`MPMM Harengon Rabbit Hop should refresh to PB 3 at level 5, got \${leveledMpmmHarengonResource?.max}\`);
+assert(mpmmHarengonCharacter.initiativeBonus === 3, \`MPMM Harengon initiative bonus should refresh to PB 3 at level 5, got \${mpmmHarengonCharacter.initiativeBonus}\`);
+
+const wbtwHarengonResourceId = 'auto-resource-race-Harengon-WBtW-rabbit-hop';
+let wbtwHarengonCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: wbtwHarengon,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const wbtwHarengonResource = getResource(wbtwHarengonCharacter, wbtwHarengonResourceId);
+assert(wbtwHarengonResource?.max === 2 && wbtwHarengonResource.reset === 'longRest', 'WBtW Harengon should add proficiency-based Rabbit Hop resource');
+assert(wbtwHarengonCharacter.initiativeBonus === 2, \`WBtW Harengon should add PB to initiative at level 1, got \${wbtwHarengonCharacter.initiativeBonus}\`);
+for (let index = 0; index < 4; index += 1) {
+  wbtwHarengonCharacter = buildLevelUpCharacter(wbtwHarengonCharacter, content, wizard, {
+    ruleSystem: '5e',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledWbtwHarengonResource = getResource(wbtwHarengonCharacter, wbtwHarengonResourceId);
+assert(leveledWbtwHarengonResource?.max === 3, \`WBtW Harengon Rabbit Hop should refresh to PB 3 at level 5, got \${leveledWbtwHarengonResource?.max}\`);
+assert(wbtwHarengonCharacter.initiativeBonus === 3, \`WBtW Harengon initiative bonus should refresh to PB 3 at level 5, got \${wbtwHarengonCharacter.initiativeBonus}\`);
+
 const mpmmFirbolgResourceId = 'auto-resource-race-Firbolg-MPMM-hidden-step';
 let mpmmFirbolgCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -626,7 +669,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -641,6 +684,7 @@ export default {
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
+    'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
