@@ -240,6 +240,8 @@ const hasPhbSharpshooter = (character: CharacterData): boolean => hasFeatSource(
 const hasXphbSharpshooter = (character: CharacterData): boolean => hasFeatSource(character, 'Sharpshooter', 'XPHB');
 const hasPhbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'PHB');
 const hasXphbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'XPHB');
+const hasPhbCrossbowExpert = (character: CharacterData): boolean => hasFeatSource(character, 'Crossbow Expert', 'PHB');
+const hasXphbCrossbowExpert = (character: CharacterData): boolean => hasFeatSource(character, 'Crossbow Expert', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -247,6 +249,16 @@ const hasDivineSmite = (character: CharacterData): boolean => hasFeature(charact
 const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['精通至圣斩', 'Improved Divine Smite', '光耀打击', 'Radiant Strikes']);
 const hasPhbDualWielder = (character: CharacterData): boolean => (
   character.featureEntries.some(feature => feature.sourceId === 'auto-feat-Dual Wielder-PHB')
+);
+
+const isCrossbow = (weapon: AutoBuilderWeapon): boolean => (
+  /crossbow/i.test(`${weapon.key} ${weapon.englishName || ''}`)
+  || weapon.name.includes('弩')
+);
+
+const isHandCrossbow = (weapon: AutoBuilderWeapon): boolean => (
+  /hand crossbow/i.test(`${weapon.key} ${weapon.englishName || ''}`)
+  || weapon.name.includes('手弩')
 );
 
 const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
@@ -648,6 +660,15 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
     properties.push('神射手: 远程武器攻击无视掩护, 近距和长射程不具有劣势');
   } else if (isRangedWeapon(weapon) && hasPhbSharpshooter(character)) {
     properties.push('神射手: 远程攻击长射程不劣势, 无视半身/四分之三掩护; 熟练远程武器可选 -5 命中 +10 伤害');
+  }
+  if (isRangedWeapon(weapon) && hasPhbCrossbowExpert(character)) {
+    properties.push('强弩专家: 5 尺内远程攻击不具有劣势');
+    if (isCrossbow(weapon)) properties.push('强弩专家: 使用弩时忽略装填属性');
+    if (isHandCrossbow(weapon)) properties.push('强弩专家: 攻击动作使用单手武器后可附赠动作手弩攻击');
+  }
+  if (isCrossbow(weapon) && hasXphbCrossbowExpert(character)) {
+    properties.push('强弩专家: 弩攻击 5 尺内不具有劣势, 忽略装填属性');
+    if (hasProperty(weapon, 'L')) properties.push('强弩专家: 轻型弩额外攻击可加入属性调整值');
   }
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');

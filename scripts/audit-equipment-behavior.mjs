@@ -80,6 +80,8 @@ const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasP
 const nonLightMeleeWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H') && String(weapon.type || '').split('|')[0] === 'M' && weapon.dmg1);
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
 const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
+const handCrossbow = weapons.find(weapon => weapon.key === 'Hand Crossbow' && weapon.source === 'PHB');
+const xphbHandCrossbow = weapons.find(weapon => weapon.key === 'Hand Crossbow' && weapon.source === 'XPHB');
 const bludgeoningWeapon = weapons.find(weapon => weapon.dmgType === 'B' && weapon.dmg1);
 const piercingWeapon = weapons.find(weapon => weapon.dmgType === 'P' && weapon.dmg1);
 const slashingWeapon = weapons.find(weapon => weapon.dmgType === 'S' && weapon.dmg1);
@@ -108,6 +110,8 @@ assert(nonLightWeapon, 'missing non-light weapon fixture');
 assert(nonLightMeleeWeapon, 'missing non-light one-handed melee weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
 assert(rangedWeapon, 'missing ranged weapon fixture');
+assert(handCrossbow, 'missing PHB hand crossbow fixture');
+assert(xphbHandCrossbow, 'missing XPHB hand crossbow fixture');
 assert(bludgeoningWeapon, 'missing bludgeoning weapon fixture');
 assert(piercingWeapon, 'missing piercing weapon fixture');
 assert(slashingWeapon, 'missing slashing weapon fixture');
@@ -698,6 +702,40 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '强弩专家', 'auto-feat-Crossbow Expert-PHB');
+character = equipWeapon(character, rangedWeapon, content);
+const phbCrossbowExpertRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbCrossbowExpertRangedAttack, 'PHB Crossbow Expert ranged fixture should add attack');
+assert(
+  phbCrossbowExpertRangedAttack.notes.includes('强弩专家') && phbCrossbowExpertRangedAttack.notes.includes('5 尺内远程攻击不具有劣势') && !phbCrossbowExpertRangedAttack.notes.includes('忽略装填'),
+  \`PHB Crossbow Expert non-crossbow ranged attack should include close-range note only, got \${phbCrossbowExpertRangedAttack.notes}\`,
+);
+character = equipWeapon(character, handCrossbow, content);
+const phbCrossbowExpertHandCrossbowAttack = getAttack(character, \`equip-weapon-\${handCrossbow.id}\`);
+assert(phbCrossbowExpertHandCrossbowAttack, 'PHB Crossbow Expert hand crossbow fixture should add attack');
+assert(
+  phbCrossbowExpertHandCrossbowAttack.notes.includes('忽略装填') && phbCrossbowExpertHandCrossbowAttack.notes.includes('附赠动作手弩攻击'),
+  \`PHB Crossbow Expert hand crossbow attack should include loading and bonus-action notes, got \${phbCrossbowExpertHandCrossbowAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '强弩专家', 'auto-feat-Crossbow Expert-XPHB');
+character = equipWeapon(character, xphbHandCrossbow, content);
+const xphbCrossbowExpertHandCrossbowAttack = getAttack(character, \`equip-weapon-\${xphbHandCrossbow.id}\`);
+assert(xphbCrossbowExpertHandCrossbowAttack, 'XPHB Crossbow Expert hand crossbow fixture should add attack');
+assert(
+  xphbCrossbowExpertHandCrossbowAttack.notes.includes('强弩专家') && xphbCrossbowExpertHandCrossbowAttack.notes.includes('轻型弩额外攻击可加入属性调整值'),
+  \`XPHB Crossbow Expert hand crossbow attack should include light crossbow extra attack note, got \${xphbCrossbowExpertHandCrossbowAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const xphbCrossbowExpertRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbCrossbowExpertRangedAttack, 'XPHB Crossbow Expert non-crossbow ranged fixture should add attack');
+assert(
+  !xphbCrossbowExpertRangedAttack.notes.includes('强弩专家'),
+  \`XPHB Crossbow Expert should not apply to non-crossbow ranged attacks, got \${xphbCrossbowExpertRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -742,6 +780,8 @@ export default {
   nonLightMeleeWeapon: nonLightMeleeWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
   rangedWeapon: rangedWeapon.name,
+  handCrossbow: handCrossbow.name,
+  xphbHandCrossbow: xphbHandCrossbow.name,
   bludgeoningWeapon: bludgeoningWeapon.name,
   piercingWeapon: piercingWeapon.name,
   slashingWeapon: slashingWeapon.name,
@@ -822,6 +862,7 @@ console.log(JSON.stringify({
     'Crusher, Piercer, and Slasher add damage-type weapon notes',
     'PHB and XPHB Sharpshooter add source-specific ranged notes',
     'PHB and XPHB Great Weapon Master add source-specific heavy weapon notes',
+    'PHB and XPHB Crossbow Expert add source-specific crossbow notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
