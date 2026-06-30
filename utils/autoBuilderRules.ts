@@ -3727,6 +3727,17 @@ const createOriginResourceOperations = (
       '为避免或结束昏迷状态的豁免失败时可改为成功. 使用后需要完成 1d4 次长休才可再次使用.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Partially Amphibious' || feature.name === '临时两栖')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'partially-amphibious',
+      '临时两栖',
+      1,
+      'longRest',
+      '可在水下呼吸最多 1 小时. 达到时限后, 直到完成长休前不能再次使用.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
       entity,
