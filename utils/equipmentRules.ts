@@ -250,6 +250,8 @@ const hasPhbSentinel = (character: CharacterData): boolean => hasFeatSource(char
 const hasXphbSentinel = (character: CharacterData): boolean => hasFeatSource(character, 'Sentinel', 'XPHB');
 const hasPhbDefensiveDuelist = (character: CharacterData): boolean => hasFeatSource(character, 'Defensive Duelist', 'PHB');
 const hasXphbDefensiveDuelist = (character: CharacterData): boolean => hasFeatSource(character, 'Defensive Duelist', 'XPHB');
+const hasPhbShieldMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Shield Master', 'PHB');
+const hasXphbShieldMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Shield Master', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -719,6 +721,13 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   }
   if (hasProperty(weapon, 'F') && hasXphbDefensiveDuelist(character)) {
     properties.push(`防御式决斗: 反应使近战攻击 AC +${calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)))}, 持续到下回合开始`);
+  }
+  if (!isRangedWeapon(weapon) && getEquippedShieldId(character) && hasPhbShieldMaster(character)) {
+    properties.push('盾牌大师: 攻击动作后可附赠动作以盾牌推撞 5 尺内目标');
+  }
+  if (!isRangedWeapon(weapon) && getEquippedShieldId(character) && hasXphbShieldMaster(character)) {
+    const dc = 8 + calculateModifier(character.abilities.STR) + calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)));
+    properties.push(`盾牌大师: 每回合一次近战命中后盾击, 力量豁免 DC ${dc}, 失败推离 5 尺或倒地`);
   }
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');
@@ -1473,7 +1482,7 @@ export const equipShield = (
 	  const sourceId = `equip-shield-${shield.id}`;
 	  const bonus = Number(shield.ac) || 2;
 	  next = removeAutomaticDualWielderArmorBonus(removeAutomaticArmorClass(removeEquippedShields(next)));
-	  return refreshAutomaticArmorClass(applyCharacterAdjustments(next, {
+	  const equipped = refreshAutomaticArmorClass(applyCharacterAdjustments(next, {
 	    id: sourceId,
 	    sourceId,
 	    sourceName: shield.name,
@@ -1492,6 +1501,9 @@ export const equipShield = (
 	      },
 	    ],
 	  }));
+	  return content
+	    ? refreshEquippedMagicWeapons(refreshEquippedWeapons(equipped, content), content)
+	    : equipped;
 	};
 
 export const unequipShield = (

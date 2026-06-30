@@ -318,6 +318,41 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '盾牌大师', 'auto-feat-Shield Master-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+let phbShieldMasterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbShieldMasterMeleeAttack, 'PHB Shield Master melee fixture should add attack');
+assert(
+  !phbShieldMasterMeleeAttack.notes.includes('盾牌大师'),
+  \`PHB Shield Master should not apply before shield is equipped, got \${phbShieldMasterMeleeAttack.notes}\`,
+);
+character = equipShield(character, shield, content);
+phbShieldMasterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbShieldMasterMeleeAttack, 'PHB Shield Master melee fixture should keep attack after shield equip');
+assert(
+  phbShieldMasterMeleeAttack.notes.includes('盾牌大师') && phbShieldMasterMeleeAttack.notes.includes('附赠动作'),
+  \`PHB Shield Master melee attack should refresh with shield bash note after shield equip, got \${phbShieldMasterMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '盾牌大师', 'auto-feat-Shield Master-XPHB');
+character = equipShield(character, shield, content);
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const xphbShieldMasterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(xphbShieldMasterMeleeAttack, 'XPHB Shield Master melee fixture should add attack');
+assert(
+  xphbShieldMasterMeleeAttack.notes.includes('盾牌大师') && xphbShieldMasterMeleeAttack.notes.includes('DC 14') && xphbShieldMasterMeleeAttack.notes.includes('倒地'),
+  \`XPHB Shield Master melee attack should include shield bash DC note, got \${xphbShieldMasterMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const xphbShieldMasterRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbShieldMasterRangedAttack, 'XPHB Shield Master ranged fixture should add attack');
+assert(
+  !xphbShieldMasterRangedAttack.notes.includes('盾牌大师'),
+  \`XPHB Shield Master should not apply to ranged attacks, got \${xphbShieldMasterRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipWeapon(character, nonLightWeapon, content);
 const magicWeapon = {
   ...lightWeapon,
@@ -1014,6 +1049,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Charger add source-specific melee notes',
     'PHB and XPHB Sentinel add source-specific melee notes',
     'PHB and XPHB Defensive Duelist add source-specific finesse weapon notes',
+    'PHB and XPHB Shield Master add shield-gated melee notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
