@@ -805,6 +805,33 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '哨兵', 'auto-feat-Sentinel-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbSentinelMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbSentinelMeleeAttack, 'PHB Sentinel melee fixture should add attack');
+assert(
+  phbSentinelMeleeAttack.notes.includes('哨兵') && phbSentinelMeleeAttack.notes.includes('撤离仍触发借机攻击'),
+  \`PHB Sentinel melee attack should include disengage opportunity note, got \${phbSentinelMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbSentinelRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbSentinelRangedAttack, 'PHB Sentinel ranged fixture should add attack');
+assert(
+  !phbSentinelRangedAttack.notes.includes('哨兵'),
+  \`PHB Sentinel should not apply to ranged attacks, got \${phbSentinelRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '哨兵', 'auto-feat-Sentinel-XPHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const xphbSentinelMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(xphbSentinelMeleeAttack, 'XPHB Sentinel melee fixture should add attack');
+assert(
+  xphbSentinelMeleeAttack.notes.includes('哨兵') && xphbSentinelMeleeAttack.notes.includes('撤离或攻击他人后'),
+  \`XPHB Sentinel melee attack should include 2024 guardian note, got \${xphbSentinelMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -938,6 +965,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Crossbow Expert add source-specific crossbow notes',
     'PHB and XPHB Polearm Master add source-specific weapon notes',
     'PHB and XPHB Charger add source-specific melee notes',
+    'PHB and XPHB Sentinel add source-specific melee notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
