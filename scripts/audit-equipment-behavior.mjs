@@ -80,6 +80,9 @@ const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasP
 const nonLightMeleeWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H') && String(weapon.type || '').split('|')[0] === 'M' && weapon.dmg1);
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
 const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
+const bludgeoningWeapon = weapons.find(weapon => weapon.dmgType === 'B' && weapon.dmg1);
+const piercingWeapon = weapons.find(weapon => weapon.dmgType === 'P' && weapon.dmg1);
+const slashingWeapon = weapons.find(weapon => weapon.dmgType === 'S' && weapon.dmg1);
 const thrownWeapon = weapons.find(weapon => hasProperty(weapon, 'T') && weapon.range && weapon.dmg1);
 const loadingAmmunitionWeapon = weapons.find(weapon => hasProperty(weapon, 'A') && hasProperty(weapon, 'LD') && weapon.range && weapon.dmg1);
 const reachWeapon = weapons.find(weapon => hasProperty(weapon, 'R') && !hasProperty(weapon, 'S') && weapon.dmg1);
@@ -105,6 +108,9 @@ assert(nonLightWeapon, 'missing non-light weapon fixture');
 assert(nonLightMeleeWeapon, 'missing non-light one-handed melee weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
 assert(rangedWeapon, 'missing ranged weapon fixture');
+assert(bludgeoningWeapon, 'missing bludgeoning weapon fixture');
+assert(piercingWeapon, 'missing piercing weapon fixture');
+assert(slashingWeapon, 'missing slashing weapon fixture');
 assert(thrownWeapon, 'missing thrown weapon fixture');
 assert(loadingAmmunitionWeapon, 'missing ammunition/loading weapon fixture');
 assert(reachWeapon, 'missing reach weapon fixture');
@@ -601,6 +607,36 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '粉碎者', 'auto-feat-Crusher-TCE');
+character = equipWeapon(character, bludgeoningWeapon, content);
+const crusherAttack = getAttack(character, \`equip-weapon-\${bludgeoningWeapon.id}\`);
+assert(crusherAttack, 'Crusher fixture should add attack');
+assert(
+  crusherAttack.notes.includes('粉碎者') && crusherAttack.notes.includes('钝击'),
+  \`Crusher bludgeoning attack should include Crusher note, got \${crusherAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '穿刺者', 'auto-feat-Piercer-TCE');
+character = equipWeapon(character, piercingWeapon, content);
+const piercerAttack = getAttack(character, \`equip-weapon-\${piercingWeapon.id}\`);
+assert(piercerAttack, 'Piercer fixture should add attack');
+assert(
+  piercerAttack.notes.includes('穿刺者') && piercerAttack.notes.includes('穿刺重击'),
+  \`Piercer piercing attack should include Piercer note, got \${piercerAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '劈砍者', 'auto-feat-Slasher-TCE');
+character = equipWeapon(character, slashingWeapon, content);
+const slasherAttack = getAttack(character, \`equip-weapon-\${slashingWeapon.id}\`);
+assert(slasherAttack, 'Slasher fixture should add attack');
+assert(
+  slasherAttack.notes.includes('劈砍者') && slasherAttack.notes.includes('挥砍'),
+  \`Slasher slashing attack should include Slasher note, got \${slasherAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -645,6 +681,9 @@ export default {
   nonLightMeleeWeapon: nonLightMeleeWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
   rangedWeapon: rangedWeapon.name,
+  bludgeoningWeapon: bludgeoningWeapon.name,
+  piercingWeapon: piercingWeapon.name,
+  slashingWeapon: slashingWeapon.name,
   thrownWeapon: thrownWeapon.name,
   loadingAmmunitionWeapon: loadingAmmunitionWeapon.name,
   reachWeapon: reachWeapon.name,
@@ -719,6 +758,7 @@ console.log(JSON.stringify({
     'Savage Attacks does not add ranged attack note',
     'PHB Savage Attacker adds melee-only damage reroll note',
     'XPHB Savage Attacker adds ranged weapon hit damage note',
+    'Crusher, Piercer, and Slasher add damage-type weapon notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],

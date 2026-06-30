@@ -207,6 +207,10 @@ const hasFeatSource = (character: CharacterData, key: string, source: string): b
   character.featureEntries.some(feature => feature.sourceId === `auto-feat-${key}-${source}`)
 );
 
+const hasFeatKey = (character: CharacterData, key: string): boolean => (
+  character.featureEntries.some(feature => feature.sourceId.startsWith(`auto-feat-${key}-`))
+);
+
 const hasOriginFeature = (
   character: CharacterData,
   raceKey: string,
@@ -232,6 +236,9 @@ const hasSneakAttack = (character: CharacterData): boolean => hasFeature(charact
 const hasSavageAttacks = (character: CharacterData): boolean => hasFeature(character, ['凶蛮攻击', 'Savage Attacks']);
 const hasPhbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'PHB');
 const hasXphbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'XPHB');
+const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
+const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
+const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
 const hasDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['至圣斩', 'Divine Smite', '圣武斩', "Paladin's Smite"]);
 const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['精通至圣斩', 'Improved Divine Smite', '光耀打击', 'Radiant Strikes']);
 const hasPhbDualWielder = (character: CharacterData): boolean => (
@@ -607,6 +614,15 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
     properties.push('凶蛮打手: 每回合一次武器命中时伤害骰掷两次择优');
   } else if (!isRangedWeapon(weapon) && hasPhbSavageAttacker(character)) {
     properties.push('凶蛮打手: 每回合一次重掷近战武器伤害骰并择优');
+  }
+  if (weapon.dmgType === 'B' && hasCrusherFeat(character)) {
+    properties.push('粉碎者: 每回合一次钝击命中可移动目标 5 尺; 钝击重击后攻击目标具有优势');
+  }
+  if (weapon.dmgType === 'P' && hasPiercerFeat(character)) {
+    properties.push('穿刺者: 每回合一次重骰一颗穿刺伤害骰; 穿刺重击额外一颗伤害骰');
+  }
+  if (weapon.dmgType === 'S' && hasSlasherFeat(character)) {
+    properties.push('劈砍者: 每回合一次挥砍命中使速度 -10 尺; 挥砍重击后目标攻击具有劣势');
   }
   if (!isRangedWeapon(weapon) && hasDivineSmite(character)) {
     properties.push('命中后可消耗法术位使用神圣打击');
