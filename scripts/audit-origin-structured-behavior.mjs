@@ -476,12 +476,19 @@ const leveledWbtwHarengonResource = getResource(wbtwHarengonCharacter, wbtwHaren
 assert(leveledWbtwHarengonResource?.max === 3, \`WBtW Harengon Rabbit Hop should refresh to PB 3 at level 5, got \${leveledWbtwHarengonResource?.max}\`);
 assert(wbtwHarengonCharacter.initiativeBonus === 3, \`WBtW Harengon initiative bonus should refresh to PB 3 at level 5, got \${wbtwHarengonCharacter.initiativeBonus}\`);
 
-const kenderCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+const kenderTauntResourceId = 'auto-resource-race-Kender-DSotDQ-taunt';
+let kenderCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
   race: kender,
 });
 const kenderFearlessResource = getResource(kenderCharacter, 'auto-resource-race-Kender-DSotDQ-fearless');
 assert(kenderFearlessResource?.max === 1 && kenderFearlessResource.reset === 'longRest', 'DSotDQ Kender should add one-use Fearless long-rest resource');
+const kenderTauntResource = getResource(kenderCharacter, kenderTauntResourceId);
+assert(kenderTauntResource?.max === 2 && kenderTauntResource.reset === 'longRest', 'DSotDQ Kender should add proficiency-based Taunt resource');
+assert(kenderTauntResource?.note.includes('DC = 8'), 'DSotDQ Kender Taunt resource should keep save DC note');
+kenderCharacter = levelToFive(kenderCharacter, fighter, '5r');
+const leveledKenderTauntResource = getResource(kenderCharacter, kenderTauntResourceId);
+assert(leveledKenderTauntResource?.max === 3, 'DSotDQ Kender Taunt should refresh to PB 3 at level 5');
 
 const kenkuResourceId = 'auto-resource-race-Kenku-MPMM-kenku-recall';
 let kenkuCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
@@ -960,6 +967,7 @@ export default {
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
     'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
     'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',
+    'Kender Taunt refreshes proficiency-based uses',
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
     'Hobgoblin Fey Gift refreshes proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',

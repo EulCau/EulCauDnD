@@ -3606,6 +3606,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Taunt' || feature.name === '嘲讽')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'taunt',
+      '嘲讽',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 以附赠动作迫使目标进行感知豁免, DC = 8 + 熟练加值 + 智力, 感知或魅力调整值.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Kenku Recall' || feature.name === '天狗回想')) {
     operations.push(makeOriginResource(
       entity,
@@ -4665,6 +4676,7 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Astral Elf', '星界精灵', 'AAG', [{ name: '星光步', englishName: 'Starlight Step', description: '' }]);
   refreshOriginResources('Harengon', '兔人', 'MPMM', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
   refreshOriginResources('Harengon', '兔人', 'WBtW', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
+  refreshOriginResources('Kender', '坎德人', 'DSotDQ', [{ name: '嘲讽', englishName: 'Taunt', description: '' }]);
   refreshOriginResources('Kenku', '天狗', 'MPMM', [{ name: '天狗回想', englishName: 'Kenku Recall', description: '' }]);
   refreshOriginResources('Kobold', '狗头人', 'MPMM', [{ name: '龙吼', englishName: 'Draconic Cry', description: '' }]);
   refreshOriginResources('Reborn', '重生者', 'RHW', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
