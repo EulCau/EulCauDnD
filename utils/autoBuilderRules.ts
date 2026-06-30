@@ -3705,6 +3705,17 @@ const createOriginResourceOperations = (
       entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Vampiric Bite' || feature.name === '吸血啃咬')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'vampiric-bite',
+      entity.source === 'RHW' ? '吸血啃咬增幅' : '吸血啃咬强化',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 命中非构装和非亡灵生物时, 可恢复生命值或强化下一次属性检定/攻击检定.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Shifting' || feature.name === '化形')) {
     const usesProficiency = entity.source === 'MPMM' || entity.source === 'EFA';
     operations.push(makeOriginResource(
@@ -4607,6 +4618,8 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Eladrin', '雅灵', 'MPMM', [{ name: '妖精步伐', englishName: 'Fey Step', description: '' }]);
   refreshOriginResources('Firbolg', '费尔伯格人', 'MPMM', [{ name: '神隐步', englishName: 'Hidden Step', description: '' }]);
   refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
+  refreshOriginResources('Dhampir', '半血裔', 'RHW', [{ name: '吸血啃咬', englishName: 'Vampiric Bite', description: '' }]);
+  refreshOriginResources('Dhampir', '半血裔', 'VRGR', [{ name: '吸血啃咬', englishName: 'Vampiric Bite', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'EFA', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'MPMM', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Goblin', '地精', 'MPMM', [{ name: '小个子的怒火', englishName: 'Fury of the Small', description: '' }]);

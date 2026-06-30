@@ -58,6 +58,8 @@ const mpmmHobgoblin = content.races.find(item => item.key === 'Hobgoblin' && ite
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const mpmmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'MPMM');
 const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'VGM');
+const rhwDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'RHW');
+const vrgrDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'VRGR');
 const efaShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'EFA');
 const erlwShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'ERLW');
 const mpmmShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'MPMM');
@@ -108,6 +110,8 @@ assert(mpmmHobgoblin, 'missing MPMM Hobgoblin fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(mpmmLizardfolk, 'missing MPMM Lizardfolk fixture');
 assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
+assert(rhwDhampir, 'missing RHW Dhampir fixture');
+assert(vrgrDhampir, 'missing VRGR Dhampir fixture');
 assert(efaShifter, 'missing EFA Shifter fixture');
 assert(erlwShifter, 'missing ERLW Shifter fixture');
 assert(mpmmShifter, 'missing MPMM Shifter fixture');
@@ -633,6 +637,49 @@ const vgmLizardfolkCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content
 const vgmLizardfolkResource = getResource(vgmLizardfolkCharacter, 'auto-resource-race-Lizardfolk-VGM-hungry-jaws');
 assert(vgmLizardfolkResource?.max === 1 && vgmLizardfolkResource.reset === 'shortRest', 'VGM Lizardfolk should add one-use Hungry Jaws short-rest resource');
 
+for (const [dhampir, source, resourceName] of [
+  [rhwDhampir, 'RHW', '吸血啃咬增幅'],
+  [vrgrDhampir, 'VRGR', '吸血啃咬强化'],
+]) {
+  const resourceId = \`auto-resource-race-Dhampir-\${source}-vampiric-bite\`;
+  let dhampirCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ...baseOptions,
+    race: dhampir,
+  });
+  const dhampirResource = getResource(dhampirCharacter, resourceId);
+  assert(dhampirResource?.name === resourceName, \`\${source} Dhampir should add source-specific Vampiric Bite resource name\`);
+  assert(dhampirResource?.max === 2 && dhampirResource.reset === 'longRest', \`\${source} Dhampir should add proficiency-based Vampiric Bite resource\`);
+
+  const biteAttackId = \`auto-race-attack-dhampir-\${source.toLowerCase()}-vampiric-bite\`;
+  const biteAttack = getAttack(dhampirCharacter, biteAttackId);
+  assert(biteAttack?.name === '吸血啃咬', \`\${source} Dhampir should add Vampiric Bite attack\`);
+  assert(biteAttack?.bonus === '+2', \`\${source} Dhampir Vampiric Bite should use CON plus proficiency at level 1, got \${biteAttack?.bonus}\`);
+  assert(biteAttack?.damage === '1d4 穿刺', \`\${source} Dhampir Vampiric Bite damage should use CON, got \${biteAttack?.damage}\`);
+  assert(biteAttack?.notes.includes(source === 'VRGR' ? '生命值不高于一半' : '增幅次数'), \`\${source} Dhampir Vampiric Bite should keep source-specific notes\`);
+
+  const conDhampir = refreshAutomaticStyleAttacks({
+    ...dhampirCharacter,
+    abilities: {
+      ...dhampirCharacter.abilities,
+      CON: 14,
+    },
+  });
+  const conBiteAttack = getAttack(conDhampir, biteAttackId);
+  assert(conBiteAttack?.bonus === '+4', \`\${source} Dhampir Vampiric Bite should add CON modifier to attack, got \${conBiteAttack?.bonus}\`);
+  assert(conBiteAttack?.damage === '1d4+2 穿刺', \`\${source} Dhampir Vampiric Bite should add CON modifier to damage, got \${conBiteAttack?.damage}\`);
+
+  for (let index = 0; index < 4; index += 1) {
+    dhampirCharacter = buildLevelUpCharacter(dhampirCharacter, content, fighter, {
+      ruleSystem: '5r',
+      spellChoices: { cantrips: [], leveled: [] },
+    });
+  }
+  const leveledDhampirResource = getResource(dhampirCharacter, resourceId);
+  const leveledBiteAttack = getAttack(dhampirCharacter, biteAttackId);
+  assert(leveledDhampirResource?.max === 3, \`\${source} Dhampir Vampiric Bite resource should refresh to PB 3 at level 5, got \${leveledDhampirResource?.max}\`);
+  assert(leveledBiteAttack?.bonus === '+3', \`\${source} Dhampir Vampiric Bite attack should refresh to PB 3 at level 5, got \${leveledBiteAttack?.bonus}\`);
+}
+
 const efaShifterResourceId = 'auto-resource-race-Shifter-EFA-shifting';
 let efaShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -820,7 +867,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -839,6 +886,7 @@ export default {
     'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
+    'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
