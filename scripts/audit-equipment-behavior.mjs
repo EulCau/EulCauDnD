@@ -637,6 +637,33 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '神射手', 'auto-feat-Sharpshooter-PHB');
+character = equipWeapon(character, rangedWeapon, content);
+const phbSharpshooterRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbSharpshooterRangedAttack, 'PHB Sharpshooter ranged fixture should add attack');
+assert(
+  phbSharpshooterRangedAttack.notes.includes('神射手') && phbSharpshooterRangedAttack.notes.includes('-5 命中 +10 伤害'),
+  \`PHB Sharpshooter ranged attack should include power attack note, got \${phbSharpshooterRangedAttack.notes}\`,
+);
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbSharpshooterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbSharpshooterMeleeAttack, 'PHB Sharpshooter melee fixture should add attack');
+assert(
+  !phbSharpshooterMeleeAttack.notes.includes('神射手'),
+  \`PHB Sharpshooter should not apply to melee attacks, got \${phbSharpshooterMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '神射手', 'auto-feat-Sharpshooter-XPHB');
+character = equipWeapon(character, rangedWeapon, content);
+const xphbSharpshooterRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbSharpshooterRangedAttack, 'XPHB Sharpshooter ranged fixture should add attack');
+assert(
+  xphbSharpshooterRangedAttack.notes.includes('神射手') && xphbSharpshooterRangedAttack.notes.includes('近距') && !xphbSharpshooterRangedAttack.notes.includes('-5'),
+  \`XPHB Sharpshooter ranged attack should include 2024 ranged notes without PHB power attack, got \${xphbSharpshooterRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -759,6 +786,7 @@ console.log(JSON.stringify({
     'PHB Savage Attacker adds melee-only damage reroll note',
     'XPHB Savage Attacker adds ranged weapon hit damage note',
     'Crusher, Piercer, and Slasher add damage-type weapon notes',
+    'PHB and XPHB Sharpshooter add source-specific ranged notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],

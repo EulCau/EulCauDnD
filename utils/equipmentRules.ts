@@ -236,6 +236,8 @@ const hasSneakAttack = (character: CharacterData): boolean => hasFeature(charact
 const hasSavageAttacks = (character: CharacterData): boolean => hasFeature(character, ['凶蛮攻击', 'Savage Attacks']);
 const hasPhbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'PHB');
 const hasXphbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'XPHB');
+const hasPhbSharpshooter = (character: CharacterData): boolean => hasFeatSource(character, 'Sharpshooter', 'PHB');
+const hasXphbSharpshooter = (character: CharacterData): boolean => hasFeatSource(character, 'Sharpshooter', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -631,6 +633,11 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
     properties.push('每次命中 +1d8 光耀');
   }
   if (isRangedWeapon(weapon) && hasFeature(character, ['箭术', 'Archery'])) properties.push('箭术 +2 命中');
+  if (isRangedWeapon(weapon) && hasXphbSharpshooter(character)) {
+    properties.push('神射手: 远程武器攻击无视掩护, 近距和长射程不具有劣势');
+  } else if (isRangedWeapon(weapon) && hasPhbSharpshooter(character)) {
+    properties.push('神射手: 远程攻击长射程不劣势, 无视半身/四分之三掩护; 熟练远程武器可选 -5 命中 +10 伤害');
+  }
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');
   if (hasTwoWeaponStyle(character) && hasProperty(weapon, 'L')) properties.push('双武器战斗: 轻型额外攻击可加属性调整值');
