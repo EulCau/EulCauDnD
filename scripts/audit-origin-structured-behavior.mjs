@@ -591,11 +591,15 @@ const vgmGoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wi
 const vgmGoblinResource = getResource(vgmGoblinCharacter, 'auto-resource-race-Goblin-VGM-fury-of-the-small');
 assert(vgmGoblinResource?.max === 1 && vgmGoblinResource.reset === 'shortRest', 'VGM Goblin should add one-use Fury of the Small short-rest resource');
 
+const mpmmHobgoblinFeyGiftResourceId = 'auto-resource-race-Hobgoblin-MPMM-fey-gift';
 const mpmmHobgoblinResourceId = 'auto-resource-race-Hobgoblin-MPMM-fortune-from-the-many';
 let mpmmHobgoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
   race: mpmmHobgoblin,
 });
+const mpmmHobgoblinFeyGiftResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinFeyGiftResourceId);
+assert(mpmmHobgoblinFeyGiftResource?.max === 2 && mpmmHobgoblinFeyGiftResource.reset === 'longRest', 'MPMM Hobgoblin should add proficiency-based Fey Gift resource');
+assert(mpmmHobgoblinFeyGiftResource?.note.includes('协助动作'), 'MPMM Hobgoblin Fey Gift resource should keep Help action note');
 const mpmmHobgoblinResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinResourceId);
 assert(mpmmHobgoblinResource?.max === 2 && mpmmHobgoblinResource.reset === 'longRest', 'MPMM Hobgoblin should add proficiency-based Fortune from the Many resource');
 for (let index = 0; index < 4; index += 1) {
@@ -604,6 +608,8 @@ for (let index = 0; index < 4; index += 1) {
     spellChoices: { cantrips: [], leveled: [] },
   });
 }
+const leveledMpmmHobgoblinFeyGiftResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinFeyGiftResourceId);
+assert(leveledMpmmHobgoblinFeyGiftResource?.max === 3, \`MPMM Hobgoblin Fey Gift should refresh to PB 3 at level 5, got \${leveledMpmmHobgoblinFeyGiftResource?.max}\`);
 const leveledMpmmHobgoblinResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinResourceId);
 assert(leveledMpmmHobgoblinResource?.max === 3, \`MPMM Hobgoblin Fortune from the Many should refresh to PB 3 at level 5, got \${leveledMpmmHobgoblinResource?.max}\`);
 
@@ -955,6 +961,7 @@ export default {
     'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
     'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
+    'Hobgoblin Fey Gift refreshes proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
     'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',

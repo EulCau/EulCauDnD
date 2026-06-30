@@ -3760,6 +3760,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值. 每回合一次, 使用简易或军用武器命中时额外造成等同熟练加值的力场伤害.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fey Gift' || feature.name === '精类赠礼')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fey-gift',
+      '精类赠礼',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 可用附赠动作执行协助动作; 3 级后可附加好客, 通行或恶意效果.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Shifting' || feature.name === '化形')) {
     const usesProficiency = entity.source === 'MPMM' || entity.source === 'EFA';
     operations.push(makeOriginResource(
@@ -4671,6 +4682,7 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Shifter', '化兽者', 'EFA', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'MPMM', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Goblin', '地精', 'MPMM', [{ name: '小个子的怒火', englishName: 'Fury of the Small', description: '' }]);
+  refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '精类赠礼', englishName: 'Fey Gift', description: '' }]);
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '集众之运', englishName: 'Fortune from the Many', description: '' }]);
   refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
   refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [
