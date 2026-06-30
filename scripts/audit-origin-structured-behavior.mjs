@@ -78,6 +78,7 @@ const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && it
 const aarakocra = content.races.find(item => item.key === 'Aarakocra' && item.source === 'MPMM');
 const mpmmCentaur = content.races.find(item => item.key === 'Centaur' && item.source === 'MPMM');
 const mpmmMinotaur = content.races.find(item => item.key === 'Minotaur' && item.source === 'MPMM');
+const naga = content.races.find(item => item.key === 'Naga' && item.source === 'PSA');
 const leonin = content.races.find(item => item.key === 'Leonin' && item.source === 'MOT');
 const lupin = content.races.find(item => item.key === 'Lupin' && item.source === 'RHW');
 const khoravar = content.races.find(item => item.key === 'Khoravar' && item.source === 'EFA');
@@ -142,6 +143,7 @@ assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
 assert(aarakocra, 'missing MPMM Aarakocra fixture');
 assert(mpmmCentaur, 'missing MPMM Centaur fixture');
 assert(mpmmMinotaur, 'missing MPMM Minotaur fixture');
+assert(naga, 'missing PSA Naga fixture');
 assert(leonin, 'missing MOT Leonin fixture');
 assert(lupin, 'missing RHW Lupin fixture');
 assert(khoravar, 'missing EFA Khoravar fixture');
@@ -1018,6 +1020,20 @@ const naturalAttackCases = [
     damage: '1d6 穿刺',
   },
   {
+    race: naga,
+    sourceId: 'auto-race-attack-naga-psa-bite',
+    name: '咬击',
+    damage: '1d4 穿刺',
+    noteIncludes: ['体质豁免', '1d4 毒素伤害'],
+  },
+  {
+    race: naga,
+    sourceId: 'auto-race-attack-naga-psa-constrict',
+    name: '紧束',
+    damage: '1d6 钝击',
+    noteIncludes: ['受擒', '逃脱 DC = 8 + 熟练加值 + 力量调整值'],
+  },
+  {
     race: mpmmLizardfolk,
     sourceId: 'auto-race-attack-lizardfolk-mpmm-bite',
     name: '啃咬',
@@ -1044,6 +1060,9 @@ for (const item of naturalAttackCases) {
   assert(attack?.notes.includes('天然武器'), \`\${item.race.key} natural attack should keep feature notes\`);
   if (item.race.key === 'Minotaur') {
     assert(attack.notes.includes('角锤') && attack.notes.includes('DC = 8 + 熟练加值 + 力量调整值'), 'Minotaur horns should keep Hammering Horns push DC note');
+  }
+  for (const noteText of item.noteIncludes || []) {
+    assert(attack?.notes.includes(noteText), \`\${item.race.key} natural attack should keep note \${noteText}\`);
   }
   const refreshedCharacter = refreshAutomaticStyleAttacks(character);
   const refreshedAttacks = refreshedCharacter.attacks.filter(nextAttack => nextAttack.sourceId === item.sourceId);
@@ -1084,7 +1103,7 @@ const removedInspiredXphbHuman = removeCharacterAdjustments(inspiredXphbHuman, '
 assert(removedInspiredXphbHuman.inspiration === true, 'removing XPHB Human should preserve pre-existing inspiration');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1124,6 +1143,7 @@ export default {
     'Autognome Built for Success refreshes proficiency-based uses',
     'constant racial armor formulas update armor class',
     'natural weapon race features add refreshable attack entries',
+    'Naga Natural Weapons add bite and constrict attack entries',
     'Warforged integrated protection adds reversible armor bonus',
     'XPHB Human Resourceful applies reversible heroic inspiration',
   ],
