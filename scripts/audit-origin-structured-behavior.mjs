@@ -769,6 +769,9 @@ const autognomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fi
   ...baseOptions,
   race: autognome,
 });
+const autognomeBuiltForSuccessResource = getResource(autognomeCharacter, 'auto-resource-race-Autognome-AAG-built-for-success');
+assert(autognomeBuiltForSuccessResource?.max === 2 && autognomeBuiltForSuccessResource.reset === 'longRest', 'AAG Autognome should add proficiency-based Built for Success resource');
+assert(autognomeBuiltForSuccessResource?.note.includes('1d4'), 'AAG Autognome Built for Success resource should keep d4 note');
 assert(
   autognomeCharacter.conditionImmunities.includes('疾病'),
   \`Autognome should add structured condition immunity, got \${autognomeCharacter.conditionImmunities.join(', ')}\`,
@@ -779,6 +782,16 @@ assert(
 );
 const removedAutognome = removeCharacterAdjustments(autognomeCharacter, 'auto-character-5r');
 assert(!removedAutognome.conditionImmunities.includes('疾病'), 'removing auto-character should remove structured condition immunity');
+assert(!getResource(removedAutognome, 'auto-resource-race-Autognome-AAG-built-for-success'), 'removing auto-character should remove Autognome Built for Success resource');
+let leveledAutognomeCharacter = autognomeCharacter;
+for (let index = 0; index < 4; index += 1) {
+  leveledAutognomeCharacter = buildLevelUpCharacter(leveledAutognomeCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledAutognomeBuiltForSuccessResource = getResource(leveledAutognomeCharacter, 'auto-resource-race-Autognome-AAG-built-for-success');
+assert(leveledAutognomeBuiltForSuccessResource?.max === 3, \`AAG Autognome Built for Success should refresh to PB 3 at level 5, got \${leveledAutognomeBuiltForSuccessResource?.max}\`);
 
 const yuanTiCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
   ruleSystem: '5e',
@@ -911,6 +924,7 @@ export default {
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
+    'Autognome Built for Success refreshes proficiency-based uses',
     'constant racial armor formulas update armor class',
     'natural weapon race features add refreshable attack entries',
     'Warforged integrated protection adds reversible armor bonus',
