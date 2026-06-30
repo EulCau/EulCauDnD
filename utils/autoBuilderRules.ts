@@ -3738,6 +3738,17 @@ const createOriginResourceOperations = (
       '可在水下呼吸最多 1 小时. 达到时限后, 直到完成长休前不能再次使用.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Eerie Token' || feature.name === '神秘信物')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'eerie-token',
+      '神秘信物',
+      1,
+      'longRest',
+      '以附赠动作创造魔法信物. 信物可用于远程传信或遥远视野, 完成长休后恢复.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Resourceful' || feature.name === '适应力')) {
     operations.push({ type: 'setBooleanField', field: 'inspiration', value: true });
   }

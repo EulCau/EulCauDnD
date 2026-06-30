@@ -62,6 +62,8 @@ const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && it
 const rhwDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'RHW');
 const vrgrDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'VRGR');
 const vampire = content.races.find(item => item.key === 'Vampire' && item.source === 'PSZ');
+const rhwHexblood = content.races.find(item => item.key === 'Hexblood' && item.source === 'RHW');
+const vrgrHexblood = content.races.find(item => item.key === 'Hexblood' && item.source === 'VRGR');
 const deepGnome = content.races.find(item => item.key === 'Deep Gnome' && item.source === 'MPMM');
 const hadozee = content.races.find(item => item.key === 'Hadozee' && item.source === 'AAG');
 const giff = content.races.find(item => item.key === 'Giff' && item.source === 'AAG');
@@ -124,6 +126,8 @@ assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
 assert(rhwDhampir, 'missing RHW Dhampir fixture');
 assert(vrgrDhampir, 'missing VRGR Dhampir fixture');
 assert(vampire, 'missing PSZ Vampire fixture');
+assert(rhwHexblood, 'missing RHW Hexblood fixture');
+assert(vrgrHexblood, 'missing VRGR Hexblood fixture');
 assert(deepGnome, 'missing MPMM Deep Gnome fixture');
 assert(hadozee, 'missing AAG Hadozee fixture');
 assert(giff, 'missing AAG Giff fixture');
@@ -748,6 +752,22 @@ vampireCharacter = levelToFive(vampireCharacter, fighter, '5r');
 vampireBloodThirstAttack = getAttack(vampireCharacter, vampireBloodThirstAttackId);
 assert(vampireBloodThirstAttack?.bonus === '+3', \`PSZ Vampire Blood Thirst should refresh proficiency bonus at level 5, got \${vampireBloodThirstAttack?.bonus}\`);
 
+for (const [hexblood, source] of [
+  [rhwHexblood, 'RHW'],
+  [vrgrHexblood, 'VRGR'],
+]) {
+  const resourceId = \`auto-resource-race-Hexblood-\${source}-eerie-token\`;
+  const hexbloodCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ...baseOptions,
+    race: hexblood,
+  });
+  const hexbloodResource = getResource(hexbloodCharacter, resourceId);
+  assert(hexbloodResource?.max === 1 && hexbloodResource.reset === 'longRest', \`\${source} Hexblood should add one-use Eerie Token long-rest resource\`);
+  assert(hexbloodResource?.note.includes('远程传信') && hexbloodResource?.note.includes('遥远视野'), \`\${source} Hexblood Eerie Token should keep token mode notes\`);
+  const removedHexblood = removeCharacterAdjustments(hexbloodCharacter, 'auto-character-5r');
+  assert(!getResource(removedHexblood, resourceId), \`removing auto-character should remove \${source} Hexblood Eerie Token resource\`);
+}
+
 const deepGnomeResourceId = 'auto-resource-race-Deep Gnome-MPMM-svirfneblin-camouflage';
 let deepGnomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -1061,7 +1081,7 @@ const removedInspiredXphbHuman = removeCharacterAdjustments(inspiredXphbHuman, '
 assert(removedInspiredXphbHuman.inspiration === true, 'removing XPHB Human should preserve pre-existing inspiration');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1086,6 +1106,7 @@ export default {
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
     'PSZ Vampire Blood Thirst adds fixed-damage race attack',
+    'Hexblood Eerie Token adds source-specific long-rest resource',
     'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
     'Hadozee Dodge refreshes proficiency-based uses',
     'Giff Astral Spark refreshes proficiency-based uses',
