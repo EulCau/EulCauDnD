@@ -242,6 +242,8 @@ const hasPhbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSo
 const hasXphbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'XPHB');
 const hasPhbCrossbowExpert = (character: CharacterData): boolean => hasFeatSource(character, 'Crossbow Expert', 'PHB');
 const hasXphbCrossbowExpert = (character: CharacterData): boolean => hasFeatSource(character, 'Crossbow Expert', 'XPHB');
+const hasPhbPolearmMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Polearm Master', 'PHB');
+const hasXphbPolearmMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Polearm Master', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -259,6 +261,24 @@ const isCrossbow = (weapon: AutoBuilderWeapon): boolean => (
 const isHandCrossbow = (weapon: AutoBuilderWeapon): boolean => (
   /hand crossbow/i.test(`${weapon.key} ${weapon.englishName || ''}`)
   || weapon.name.includes('手弩')
+);
+
+const hasWeaponKey = (weapon: AutoBuilderWeapon, keys: string[]): boolean => (
+  keys.includes(weapon.key)
+  || (weapon.englishName ? keys.includes(weapon.englishName) : false)
+);
+
+const isPhbPolearmMasterWeapon = (weapon: AutoBuilderWeapon): boolean => (
+  !isRangedWeapon(weapon)
+  && hasWeaponKey(weapon, ['Glaive', 'Halberd', 'Quarterstaff', 'Pike', 'Spear'])
+);
+
+const isXphbPolearmMasterWeapon = (weapon: AutoBuilderWeapon): boolean => (
+  !isRangedWeapon(weapon)
+  && (
+    hasWeaponKey(weapon, ['Quarterstaff', 'Spear'])
+    || (hasProperty(weapon, 'H') && hasProperty(weapon, 'R'))
+  )
 );
 
 const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
@@ -669,6 +689,12 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   if (isCrossbow(weapon) && hasXphbCrossbowExpert(character)) {
     properties.push('强弩专家: 弩攻击 5 尺内不具有劣势, 忽略装填属性');
     if (hasProperty(weapon, 'L')) properties.push('强弩专家: 轻型弩额外攻击可加入属性调整值');
+  }
+  if (isPhbPolearmMasterWeapon(weapon) && hasPhbPolearmMaster(character)) {
+    properties.push('长柄武器大师: 攻击动作后可附赠动作尾击 1d4 钝击; 生物进入触及范围时可借机攻击');
+  }
+  if (isXphbPolearmMasterWeapon(weapon) && hasXphbPolearmMaster(character)) {
+    properties.push('长柄武器大师: 攻击动作后可附赠动作尾击 1d4 钝击; 生物进入触及范围时可反应攻击');
   }
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');

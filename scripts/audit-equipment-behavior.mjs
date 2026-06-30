@@ -88,6 +88,10 @@ const slashingWeapon = weapons.find(weapon => weapon.dmgType === 'S' && weapon.d
 const thrownWeapon = weapons.find(weapon => hasProperty(weapon, 'T') && weapon.range && weapon.dmg1);
 const loadingAmmunitionWeapon = weapons.find(weapon => hasProperty(weapon, 'A') && hasProperty(weapon, 'LD') && weapon.range && weapon.dmg1);
 const reachWeapon = weapons.find(weapon => hasProperty(weapon, 'R') && !hasProperty(weapon, 'S') && weapon.dmg1);
+const phbGlaive = weapons.find(weapon => weapon.key === 'Glaive' && weapon.source === 'PHB');
+const phbQuarterstaff = weapons.find(weapon => weapon.key === 'Quarterstaff' && weapon.source === 'PHB');
+const xphbGlaive = weapons.find(weapon => weapon.key === 'Glaive' && weapon.source === 'XPHB');
+const xphbWhip = weapons.find(weapon => weapon.key === 'Whip' && weapon.source === 'XPHB');
 const versatileWeapon = weapons.find(weapon => hasProperty(weapon, 'V') && weapon.dmg1 && weapon.dmg2);
 const specialWeapon = weapons.find(weapon => hasProperty(weapon, 'S') && weapon.entries?.length);
 const heavyMelee5eWeapon = weapons.find(weapon => (
@@ -118,6 +122,10 @@ assert(slashingWeapon, 'missing slashing weapon fixture');
 assert(thrownWeapon, 'missing thrown weapon fixture');
 assert(loadingAmmunitionWeapon, 'missing ammunition/loading weapon fixture');
 assert(reachWeapon, 'missing reach weapon fixture');
+assert(phbGlaive, 'missing PHB glaive fixture');
+assert(phbQuarterstaff, 'missing PHB quarterstaff fixture');
+assert(xphbGlaive, 'missing XPHB glaive fixture');
+assert(xphbWhip, 'missing XPHB whip fixture');
 assert(versatileWeapon, 'missing versatile weapon fixture');
 assert(specialWeapon, 'missing special weapon fixture');
 assert(heavyMelee5eWeapon, 'missing PHB heavy melee weapon fixture');
@@ -736,6 +744,40 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '长柄武器大师', 'auto-feat-Polearm Master-PHB');
+character = equipWeapon(character, phbGlaive, content);
+const phbPolearmGlaiveAttack = getAttack(character, \`equip-weapon-\${phbGlaive.id}\`);
+assert(phbPolearmGlaiveAttack, 'PHB Polearm Master glaive fixture should add attack');
+assert(
+  phbPolearmGlaiveAttack.notes.includes('长柄武器大师') && phbPolearmGlaiveAttack.notes.includes('尾击 1d4 钝击'),
+  \`PHB Polearm Master glaive attack should include bonus-action butt attack note, got \${phbPolearmGlaiveAttack.notes}\`,
+);
+character = equipWeapon(character, phbQuarterstaff, content);
+const phbPolearmQuarterstaffAttack = getAttack(character, \`equip-weapon-\${phbQuarterstaff.id}\`);
+assert(phbPolearmQuarterstaffAttack, 'PHB Polearm Master quarterstaff fixture should add attack');
+assert(
+  phbPolearmQuarterstaffAttack.notes.includes('长柄武器大师') && phbPolearmQuarterstaffAttack.notes.includes('借机攻击'),
+  \`PHB Polearm Master quarterstaff attack should include opportunity attack note, got \${phbPolearmQuarterstaffAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '长柄武器大师', 'auto-feat-Polearm Master-XPHB');
+character = equipWeapon(character, xphbGlaive, content);
+const xphbPolearmGlaiveAttack = getAttack(character, \`equip-weapon-\${xphbGlaive.id}\`);
+assert(xphbPolearmGlaiveAttack, 'XPHB Polearm Master glaive fixture should add attack');
+assert(
+  xphbPolearmGlaiveAttack.notes.includes('长柄武器大师') && xphbPolearmGlaiveAttack.notes.includes('反应攻击'),
+  \`XPHB Polearm Master heavy reach weapon should include reaction attack note, got \${xphbPolearmGlaiveAttack.notes}\`,
+);
+character = equipWeapon(character, xphbWhip, content);
+const xphbPolearmWhipAttack = getAttack(character, \`equip-weapon-\${xphbWhip.id}\`);
+assert(xphbPolearmWhipAttack, 'XPHB Polearm Master whip fixture should add attack');
+assert(
+  !xphbPolearmWhipAttack.notes.includes('长柄武器大师'),
+  \`XPHB Polearm Master should not apply to non-heavy reach weapons, got \${xphbPolearmWhipAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -788,6 +830,10 @@ export default {
   thrownWeapon: thrownWeapon.name,
   loadingAmmunitionWeapon: loadingAmmunitionWeapon.name,
   reachWeapon: reachWeapon.name,
+  phbGlaive: phbGlaive.name,
+  phbQuarterstaff: phbQuarterstaff.name,
+  xphbGlaive: xphbGlaive.name,
+  xphbWhip: xphbWhip.name,
   versatileWeapon: versatileWeapon.name,
   specialWeapon: specialWeapon.name,
   heavyMelee5eWeapon: heavyMelee5eWeapon.name,
@@ -863,6 +909,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Sharpshooter add source-specific ranged notes',
     'PHB and XPHB Great Weapon Master add source-specific heavy weapon notes',
     'PHB and XPHB Crossbow Expert add source-specific crossbow notes',
+    'PHB and XPHB Polearm Master add source-specific weapon notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
