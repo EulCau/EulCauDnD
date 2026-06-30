@@ -62,6 +62,7 @@ const rhwDhampir = content.races.find(item => item.key === 'Dhampir' && item.sou
 const vrgrDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'VRGR');
 const deepGnome = content.races.find(item => item.key === 'Deep Gnome' && item.source === 'MPMM');
 const hadozee = content.races.find(item => item.key === 'Hadozee' && item.source === 'AAG');
+const giff = content.races.find(item => item.key === 'Giff' && item.source === 'AAG');
 const efaShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'EFA');
 const erlwShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'ERLW');
 const mpmmShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'MPMM');
@@ -116,6 +117,7 @@ assert(rhwDhampir, 'missing RHW Dhampir fixture');
 assert(vrgrDhampir, 'missing VRGR Dhampir fixture');
 assert(deepGnome, 'missing MPMM Deep Gnome fixture');
 assert(hadozee, 'missing AAG Hadozee fixture');
+assert(giff, 'missing AAG Giff fixture');
 assert(efaShifter, 'missing EFA Shifter fixture');
 assert(erlwShifter, 'missing ERLW Shifter fixture');
 assert(mpmmShifter, 'missing MPMM Shifter fixture');
@@ -718,6 +720,23 @@ for (let index = 0; index < 4; index += 1) {
 const leveledHadozeeResource = getResource(hadozeeCharacter, hadozeeResourceId);
 assert(leveledHadozeeResource?.max === 3, \`AAG Hadozee Dodge should refresh to PB 3 at level 5, got \${leveledHadozeeResource?.max}\`);
 
+const giffResourceId = 'auto-resource-race-Giff-AAG-astral-spark';
+let giffCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: giff,
+});
+const giffResource = getResource(giffCharacter, giffResourceId);
+assert(giffResource?.max === 2 && giffResource.reset === 'longRest', 'AAG Giff should add proficiency-based Astral Spark resource');
+assert(giffResource?.note.includes('力场'), 'AAG Giff Astral Spark resource should keep force damage note');
+for (let index = 0; index < 4; index += 1) {
+  giffCharacter = buildLevelUpCharacter(giffCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledGiffResource = getResource(giffCharacter, giffResourceId);
+assert(leveledGiffResource?.max === 3, \`AAG Giff Astral Spark should refresh to PB 3 at level 5, got \${leveledGiffResource?.max}\`);
+
 const efaShifterResourceId = 'auto-resource-race-Shifter-EFA-shifting';
 let efaShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -918,7 +937,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -940,6 +959,7 @@ export default {
     'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
     'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
     'Hadozee Dodge refreshes proficiency-based uses',
+    'Giff Astral Spark refreshes proficiency-based uses',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
