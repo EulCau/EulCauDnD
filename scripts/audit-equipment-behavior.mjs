@@ -353,6 +353,42 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '擒抱者', 'auto-feat-Grappler-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbGrapplerWeaponAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbGrapplerWeaponAttack, 'PHB Grappler weapon fixture should add attack');
+assert(
+  phbGrapplerWeaponAttack.notes.includes('擒抱者') && phbGrapplerWeaponAttack.notes.includes('具有优势'),
+  \`PHB Grappler weapon attack should include advantage against grappled target note, got \${phbGrapplerWeaponAttack.notes}\`,
+);
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const phbGrapplerUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(phbGrapplerUnarmedAttack, 'PHB Grappler unarmed fixture should add attack');
+assert(
+  phbGrapplerUnarmedAttack.notes.includes('压制被你擒抱的生物'),
+  \`PHB Grappler unarmed attack should include pin note, got \${phbGrapplerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '擒抱者', 'auto-feat-Grappler-XPHB');
+character = equipWeapon(character, rangedWeapon, content);
+const xphbGrapplerWeaponAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbGrapplerWeaponAttack, 'XPHB Grappler weapon fixture should add attack');
+assert(
+  xphbGrapplerWeaponAttack.notes.includes('擒抱者') && xphbGrapplerWeaponAttack.notes.includes('具有优势'),
+  \`XPHB Grappler weapon attack should include advantage against grappled target note, got \${xphbGrapplerWeaponAttack.notes}\`,
+);
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const xphbGrapplerUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(xphbGrapplerUnarmedAttack, 'XPHB Grappler unarmed fixture should add attack');
+assert(
+  xphbGrapplerUnarmedAttack.notes.includes('同时造成伤害并擒抱') && xphbGrapplerUnarmedAttack.notes.includes('拖行'),
+  \`XPHB Grappler unarmed attack should include punch-and-grab and fast drag notes, got \${xphbGrapplerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipWeapon(character, nonLightWeapon, content);
 const magicWeapon = {
   ...lightWeapon,
@@ -1050,6 +1086,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Sentinel add source-specific melee notes',
     'PHB and XPHB Defensive Duelist add source-specific finesse weapon notes',
     'PHB and XPHB Shield Master add shield-gated melee notes',
+    'PHB and XPHB Grappler add weapon and unarmed strike notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
