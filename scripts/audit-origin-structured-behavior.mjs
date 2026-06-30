@@ -86,6 +86,7 @@ const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source
 const vedalken = content.races.find(item => item.key === 'Vedalken' && item.source === 'GGR');
 const verdan = content.races.find(item => item.key === 'Verdan' && item.source === 'AI');
 const xphbHuman = content.races.find(item => item.key === 'Human' && item.source === 'XPHB');
+const mpmmSatyr = content.races.find(item => item.key === 'Satyr' && item.source === 'MPMM');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
@@ -152,6 +153,7 @@ assert(loxodon, 'missing GGR Loxodon fixture');
 assert(vedalken, 'missing GGR Vedalken fixture');
 assert(verdan, 'missing AI Verdan fixture');
 assert(xphbHuman, 'missing XPHB Human fixture');
+assert(mpmmSatyr, 'missing MPMM Satyr fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
 assert(battleaxe, 'missing PHB Battleaxe fixture');
@@ -1048,6 +1050,12 @@ const naturalAttackCases = [
     damage: '1d6 挥砍',
   },
   {
+    race: mpmmSatyr,
+    sourceId: 'auto-race-attack-satyr-mpmm-ram',
+    name: '攻城槌',
+    damage: '1d6 穿刺',
+  },
+  {
     race: tortle,
     sourceId: 'auto-race-attack-tortle-mpmm-claws',
     name: '爪击',
@@ -1121,7 +1129,7 @@ const removedVerdanLevelFive = removeCharacterAdjustments(verdanCharacter, 'auto
 assert(removedVerdanLevelFive.bodyType === '小型', 'removing level 5 adjustment should restore AI Verdan Small size');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, mpmmSatyr.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1163,6 +1171,7 @@ export default {
     'constant racial armor formulas update armor class',
     'natural weapon race features add refreshable attack entries',
     'Naga Natural Weapons add bite and constrict attack entries',
+    'Satyr Ram adds source-specific natural attack entry',
     'Warforged integrated protection adds reversible armor bonus',
     'XPHB Human Resourceful applies reversible heroic inspiration',
     'AI Verdan changes from Small to Medium at level 5',
