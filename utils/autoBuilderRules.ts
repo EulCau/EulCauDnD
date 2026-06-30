@@ -3716,6 +3716,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值. 命中非构装和非亡灵生物时, 可恢复生命值或强化下一次属性检定/攻击检定.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Svirfneblin Camouflage' || feature.name === '斯涅布力伪装')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'svirfneblin-camouflage',
+      '斯涅布力伪装',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 使用时使一次敏捷(隐匿)检定具有优势.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Shifting' || feature.name === '化形')) {
     const usesProficiency = entity.source === 'MPMM' || entity.source === 'EFA';
     operations.push(makeOriginResource(
@@ -4620,6 +4631,7 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
   refreshOriginResources('Dhampir', '半血裔', 'RHW', [{ name: '吸血啃咬', englishName: 'Vampiric Bite', description: '' }]);
   refreshOriginResources('Dhampir', '半血裔', 'VRGR', [{ name: '吸血啃咬', englishName: 'Vampiric Bite', description: '' }]);
+  refreshOriginResources('Deep Gnome', '地底侏儒', 'MPMM', [{ name: '斯涅布力伪装', englishName: 'Svirfneblin Camouflage', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'EFA', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'MPMM', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Goblin', '地精', 'MPMM', [{ name: '小个子的怒火', englishName: 'Fury of the Small', description: '' }]);

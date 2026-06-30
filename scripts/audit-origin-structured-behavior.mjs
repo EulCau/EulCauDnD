@@ -60,6 +60,7 @@ const mpmmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && i
 const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'VGM');
 const rhwDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'RHW');
 const vrgrDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'VRGR');
+const deepGnome = content.races.find(item => item.key === 'Deep Gnome' && item.source === 'MPMM');
 const efaShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'EFA');
 const erlwShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'ERLW');
 const mpmmShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'MPMM');
@@ -112,6 +113,7 @@ assert(mpmmLizardfolk, 'missing MPMM Lizardfolk fixture');
 assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
 assert(rhwDhampir, 'missing RHW Dhampir fixture');
 assert(vrgrDhampir, 'missing VRGR Dhampir fixture');
+assert(deepGnome, 'missing MPMM Deep Gnome fixture');
 assert(efaShifter, 'missing EFA Shifter fixture');
 assert(erlwShifter, 'missing ERLW Shifter fixture');
 assert(mpmmShifter, 'missing MPMM Shifter fixture');
@@ -680,6 +682,23 @@ for (const [dhampir, source, resourceName] of [
   assert(leveledBiteAttack?.bonus === '+3', \`\${source} Dhampir Vampiric Bite attack should refresh to PB 3 at level 5, got \${leveledBiteAttack?.bonus}\`);
 }
 
+const deepGnomeResourceId = 'auto-resource-race-Deep Gnome-MPMM-svirfneblin-camouflage';
+let deepGnomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: deepGnome,
+});
+const deepGnomeResource = getResource(deepGnomeCharacter, deepGnomeResourceId);
+assert(deepGnomeResource?.max === 2 && deepGnomeResource.reset === 'longRest', 'MPMM Deep Gnome should add proficiency-based Svirfneblin Camouflage resource');
+assert(deepGnomeResource?.note.includes('隐匿'), 'MPMM Deep Gnome Svirfneblin Camouflage resource should keep stealth advantage note');
+for (let index = 0; index < 4; index += 1) {
+  deepGnomeCharacter = buildLevelUpCharacter(deepGnomeCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledDeepGnomeResource = getResource(deepGnomeCharacter, deepGnomeResourceId);
+assert(leveledDeepGnomeResource?.max === 3, \`MPMM Deep Gnome Svirfneblin Camouflage should refresh to PB 3 at level 5, got \${leveledDeepGnomeResource?.max}\`);
+
 const efaShifterResourceId = 'auto-resource-race-Shifter-EFA-shifting';
 let efaShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -867,7 +886,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -887,6 +906,7 @@ export default {
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
+    'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
