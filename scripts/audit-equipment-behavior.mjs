@@ -421,6 +421,41 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '酒馆斗殴者', 'auto-feat-Tavern Brawler-PHB');
+character = refreshCharacterAutomation(character, content);
+const phbTavernBrawlerUnarmedAttack = getAttack(character, 'auto-feat-attack-tavern-brawler-unarmed');
+assert(phbTavernBrawlerUnarmedAttack, 'PHB Tavern Brawler should add an unarmed strike attack');
+assert(
+  phbTavernBrawlerUnarmedAttack.damage.includes('1d4+3')
+    && phbTavernBrawlerUnarmedAttack.notes.includes('附赠动作擒抱'),
+  \`PHB Tavern Brawler unarmed strike should use d4 and include bonus grapple note, got \${phbTavernBrawlerUnarmedAttack.damage} / \${phbTavernBrawlerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '酒馆斗殴者', 'auto-feat-Tavern Brawler-XPHB');
+character = refreshCharacterAutomation(character, content);
+const xphbTavernBrawlerUnarmedAttack = getAttack(character, 'auto-feat-attack-tavern-brawler-unarmed');
+assert(xphbTavernBrawlerUnarmedAttack, 'XPHB Tavern Brawler should add an unarmed strike attack');
+assert(
+  xphbTavernBrawlerUnarmedAttack.damage.includes('1d4+3')
+    && xphbTavernBrawlerUnarmedAttack.notes.includes('掷出 1 可重掷'),
+  \`XPHB Tavern Brawler unarmed strike should use d4 and include reroll note, got \${xphbTavernBrawlerUnarmedAttack.damage} / \${xphbTavernBrawlerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '酒馆斗殴者', 'auto-feat-Tavern Brawler-XPHB');
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const xphbTavernBrawlerStyleAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(xphbTavernBrawlerStyleAttack, 'XPHB Tavern Brawler with Unarmed Fighting should keep style attack');
+assert(
+  !getAttack(character, 'auto-feat-attack-tavern-brawler-unarmed')
+    && xphbTavernBrawlerStyleAttack.notes.includes('酒馆斗殴者')
+    && xphbTavernBrawlerStyleAttack.notes.includes('掷出 1 可重掷'),
+  \`XPHB Tavern Brawler should annotate existing unarmed style attack without adding duplicate, got \${xphbTavernBrawlerStyleAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipWeapon(character, nonLightWeapon, content);
 const magicWeapon = {
   ...lightWeapon,
@@ -1120,6 +1155,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Shield Master add shield-gated melee notes',
     'PHB and XPHB Grappler add weapon and unarmed strike notes',
     'PHB and XPHB Mage Slayer add source-specific concentration notes',
+    'PHB and XPHB Tavern Brawler add unarmed strike notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],

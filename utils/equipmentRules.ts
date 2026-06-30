@@ -256,6 +256,8 @@ const hasPhbGrappler = (character: CharacterData): boolean => hasFeatSource(char
 const hasXphbGrappler = (character: CharacterData): boolean => hasFeatSource(character, 'Grappler', 'XPHB');
 const hasPhbMageSlayer = (character: CharacterData): boolean => hasFeatSource(character, 'Mage Slayer', 'PHB');
 const hasXphbMageSlayer = (character: CharacterData): boolean => hasFeatSource(character, 'Mage Slayer', 'XPHB');
+const hasPhbTavernBrawler = (character: CharacterData): boolean => hasFeatSource(character, 'Tavern Brawler', 'PHB');
+const hasXphbTavernBrawler = (character: CharacterData): boolean => hasFeatSource(character, 'Tavern Brawler', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -314,6 +316,17 @@ const getMageSlayerAttackNotes = (character: CharacterData, meleeWeapon = false)
   }
   if (hasXphbMageSlayer(character)) {
     notes.push('巫师杀手: 对专注目标造成伤害后, 其维持专注豁免具有劣势');
+  }
+  return notes;
+};
+
+const getTavernBrawlerUnarmedNotes = (character: CharacterData): string[] => {
+  const notes: string[] = [];
+  if (hasPhbTavernBrawler(character)) {
+    notes.push('酒馆斗殴者: 徒手打击伤害骰为 d4; 徒手打击或临时武器命中后可附赠动作擒抱');
+  }
+  if (hasXphbTavernBrawler(character)) {
+    notes.push('酒馆斗殴者: 徒手打击可造成 1d4 + 力量调整值钝击; 徒手伤害骰掷出 1 可重掷');
   }
   return notes;
 };
@@ -1406,6 +1419,7 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       type: '徒手打击',
       notes: [
         '徒手战斗: 未持握武器和盾牌时伤害骰为 1d8. 回合开始时可对受擒目标造成 1d4 钝击.',
+        ...getTavernBrawlerUnarmedNotes(next),
         ...getMageSlayerAttackNotes(next),
         ...getGrapplerAttackNotes(next, true),
       ].join(' '),
@@ -1438,6 +1452,7 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       type: '徒手打击',
       notes: [
         `武艺: 可用${ability.label}进行徒手打击和武僧武器攻击. 武艺骰 ${die}.`,
+        ...getTavernBrawlerUnarmedNotes(next),
         ...getMageSlayerAttackNotes(next),
         ...getGrapplerAttackNotes(next, true),
       ].join(' '),
@@ -1447,6 +1462,34 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       id: sourceId,
       sourceId,
       sourceName: '武艺',
+      operations: [
+        { type: 'addAttack', attack },
+      ],
+    });
+  }
+
+  if ((hasPhbTavernBrawler(next) || hasXphbTavernBrawler(next)) && !hasUnarmedFightingStyle(next) && !hasMartialArts(next)) {
+    const sourceId = 'auto-feat-attack-tavern-brawler-unarmed';
+    const attack: Attack = {
+      id: `${sourceId}-attack`,
+      sourceId,
+      sourceName: '酒馆斗殴者',
+      automatic: true,
+      name: '徒手打击',
+      bonus: formatModifier(strMod + profBonus),
+      damage: `1d4${strMod === 0 ? '' : formatModifier(strMod)} 钝击`,
+      type: '徒手打击',
+      notes: [
+        ...getTavernBrawlerUnarmedNotes(next),
+        ...getMageSlayerAttackNotes(next),
+        ...getGrapplerAttackNotes(next, true),
+      ].join(' '),
+    };
+
+    next = applyCharacterAdjustments(next, {
+      id: sourceId,
+      sourceId,
+      sourceName: '酒馆斗殴者',
       operations: [
         { type: 'addAttack', attack },
       ],
