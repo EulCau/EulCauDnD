@@ -79,6 +79,8 @@ const aarakocra = content.races.find(item => item.key === 'Aarakocra' && item.so
 const mpmmCentaur = content.races.find(item => item.key === 'Centaur' && item.source === 'MPMM');
 const mpmmMinotaur = content.races.find(item => item.key === 'Minotaur' && item.source === 'MPMM');
 const naga = content.races.find(item => item.key === 'Naga' && item.source === 'PSA');
+const mpmmTabaxi = content.races.find(item => item.key === 'Tabaxi' && item.source === 'MPMM');
+const vgmTabaxi = content.races.find(item => item.key === 'Tabaxi' && item.source === 'VGM');
 const leonin = content.races.find(item => item.key === 'Leonin' && item.source === 'MOT');
 const lupin = content.races.find(item => item.key === 'Lupin' && item.source === 'RHW');
 const khoravar = content.races.find(item => item.key === 'Khoravar' && item.source === 'EFA');
@@ -146,6 +148,8 @@ assert(aarakocra, 'missing MPMM Aarakocra fixture');
 assert(mpmmCentaur, 'missing MPMM Centaur fixture');
 assert(mpmmMinotaur, 'missing MPMM Minotaur fixture');
 assert(naga, 'missing PSA Naga fixture');
+assert(mpmmTabaxi, 'missing MPMM Tabaxi fixture');
+assert(vgmTabaxi, 'missing VGM Tabaxi fixture');
 assert(leonin, 'missing MOT Leonin fixture');
 assert(lupin, 'missing RHW Lupin fixture');
 assert(khoravar, 'missing EFA Khoravar fixture');
@@ -873,6 +877,21 @@ const erlwShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, 
 const erlwShifterResource = getResource(erlwShifterCharacter, 'auto-resource-race-Shifter-ERLW-shifting');
 assert(erlwShifterResource?.max === 1 && erlwShifterResource.reset === 'shortRest', 'ERLW Shifter should add one-use Shifting short-rest resource');
 
+for (const [tabaxi, source, ruleSystem] of [[mpmmTabaxi, 'MPMM', '5r'], [vgmTabaxi, 'VGM', '5e']]) {
+  const tabaxiCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ruleSystem,
+    race: tabaxi,
+    background: ruleSystem === '5e' ? phbBackground : background,
+    skillChoices: [],
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+  const tabaxiResource = getResource(tabaxiCharacter, \`auto-resource-race-Tabaxi-\${source}-feline-agility\`);
+  assert(tabaxiResource?.max === 1 && tabaxiResource.reset === 'manual', \`\${source} Tabaxi should add manual Feline Agility resource\`);
+  assert(tabaxiResource?.note.includes('移动 0 尺'), \`\${source} Tabaxi Feline Agility resource should keep recharge condition\`);
+  const removedTabaxi = removeCharacterAdjustments(tabaxiCharacter, \`auto-character-\${ruleSystem}\`);
+  assert(!getResource(removedTabaxi, \`auto-resource-race-Tabaxi-\${source}-feline-agility\`), \`removing auto-character should remove \${source} Tabaxi Feline Agility resource\`);
+}
+
 const leoninCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
   ruleSystem: '5e',
   race: leonin,
@@ -1129,7 +1148,7 @@ const removedVerdanLevelFive = removeCharacterAdjustments(verdanCharacter, 'auto
 assert(removedVerdanLevelFive.bodyType === '小型', 'removing level 5 adjustment should restore AI Verdan Small size');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, mpmmSatyr.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, mpmmTabaxi.name, vgmTabaxi.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, mpmmSatyr.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1160,6 +1179,7 @@ export default {
     'Hadozee Dodge refreshes proficiency-based uses',
     'Giff Astral Spark refreshes proficiency-based uses',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
+    'Tabaxi Feline Agility adds manual recovery resource',
     'Leonin Daunting Roar adds one-use short-rest resource',
     'Lupin Howl refreshes proficiency-based uses',
     'Khoravar Lethargy Resilience adds manual recovery resource',

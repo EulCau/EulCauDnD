@@ -3760,6 +3760,17 @@ const createOriginResourceOperations = (
       '以附赠动作创造魔法信物. 信物可用于远程传信或遥远视野, 完成长休后恢复.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Feline Agility' || feature.name === '猫之迅捷')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'feline-agility',
+      '猫之迅捷',
+      1,
+      'manual',
+      '移动时可让速度翻倍直到回合结束. 使用后, 除非在自己的一个回合移动 0 尺, 否则不能再次使用.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Resourceful' || feature.name === '适应力')) {
     operations.push({ type: 'setBooleanField', field: 'inspiration', value: true });
   }
