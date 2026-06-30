@@ -126,6 +126,12 @@ export type AdjustmentOperation =
       previousValue?: string;
     }
   | {
+      type: 'setBooleanField';
+      field: 'inspiration';
+      value: boolean;
+      previousValue?: boolean;
+    }
+  | {
       type: 'setClasses';
       value: ClassItem[];
       previousValue?: ClassItem[];

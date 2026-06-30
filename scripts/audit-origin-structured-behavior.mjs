@@ -44,6 +44,7 @@ const mpmmOrc = content.races.find(item => item.key === 'Orc' && item.source ===
 const halfOrc = content.races.find(item => item.key === 'Half-Orc' && item.source === 'PHB');
 const mpmmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'MPMM');
 const vgmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'VGM');
+const xphbGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'XPHB');
 const mpmmHarengon = content.races.find(item => item.key === 'Harengon' && item.source === 'MPMM');
 const wbtwHarengon = content.races.find(item => item.key === 'Harengon' && item.source === 'WBtW');
 const kender = content.races.find(item => item.key === 'Kender' && item.source === 'DSotDQ');
@@ -60,6 +61,9 @@ const mpmmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && i
 const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'VGM');
 const rhwDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'RHW');
 const vrgrDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'VRGR');
+const vampire = content.races.find(item => item.key === 'Vampire' && item.source === 'PSZ');
+const rhwHexblood = content.races.find(item => item.key === 'Hexblood' && item.source === 'RHW');
+const vrgrHexblood = content.races.find(item => item.key === 'Hexblood' && item.source === 'VRGR');
 const deepGnome = content.races.find(item => item.key === 'Deep Gnome' && item.source === 'MPMM');
 const hadozee = content.races.find(item => item.key === 'Hadozee' && item.source === 'AAG');
 const giff = content.races.find(item => item.key === 'Giff' && item.source === 'AAG');
@@ -74,9 +78,14 @@ const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && it
 const aarakocra = content.races.find(item => item.key === 'Aarakocra' && item.source === 'MPMM');
 const mpmmCentaur = content.races.find(item => item.key === 'Centaur' && item.source === 'MPMM');
 const mpmmMinotaur = content.races.find(item => item.key === 'Minotaur' && item.source === 'MPMM');
+const naga = content.races.find(item => item.key === 'Naga' && item.source === 'PSA');
 const leonin = content.races.find(item => item.key === 'Leonin' && item.source === 'MOT');
 const lupin = content.races.find(item => item.key === 'Lupin' && item.source === 'RHW');
+const khoravar = content.races.find(item => item.key === 'Khoravar' && item.source === 'EFA');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
+const vedalken = content.races.find(item => item.key === 'Vedalken' && item.source === 'GGR');
+const verdan = content.races.find(item => item.key === 'Verdan' && item.source === 'AI');
+const xphbHuman = content.races.find(item => item.key === 'Human' && item.source === 'XPHB');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
@@ -101,6 +110,7 @@ assert(mpmmOrc, 'missing MPMM Orc fixture');
 assert(halfOrc, 'missing PHB Half-Orc fixture');
 assert(mpmmGoliath, 'missing MPMM Goliath fixture');
 assert(vgmGoliath, 'missing VGM Goliath fixture');
+assert(xphbGoliath, 'missing XPHB Goliath fixture');
 assert(mpmmHarengon, 'missing MPMM Harengon fixture');
 assert(wbtwHarengon, 'missing WBtW Harengon fixture');
 assert(kender, 'missing DSotDQ Kender fixture');
@@ -117,6 +127,9 @@ assert(mpmmLizardfolk, 'missing MPMM Lizardfolk fixture');
 assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
 assert(rhwDhampir, 'missing RHW Dhampir fixture');
 assert(vrgrDhampir, 'missing VRGR Dhampir fixture');
+assert(vampire, 'missing PSZ Vampire fixture');
+assert(rhwHexblood, 'missing RHW Hexblood fixture');
+assert(vrgrHexblood, 'missing VRGR Hexblood fixture');
 assert(deepGnome, 'missing MPMM Deep Gnome fixture');
 assert(hadozee, 'missing AAG Hadozee fixture');
 assert(giff, 'missing AAG Giff fixture');
@@ -131,9 +144,14 @@ assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
 assert(aarakocra, 'missing MPMM Aarakocra fixture');
 assert(mpmmCentaur, 'missing MPMM Centaur fixture');
 assert(mpmmMinotaur, 'missing MPMM Minotaur fixture');
+assert(naga, 'missing PSA Naga fixture');
 assert(leonin, 'missing MOT Leonin fixture');
 assert(lupin, 'missing RHW Lupin fixture');
+assert(khoravar, 'missing EFA Khoravar fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
+assert(vedalken, 'missing GGR Vedalken fixture');
+assert(verdan, 'missing AI Verdan fixture');
+assert(xphbHuman, 'missing XPHB Human fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
 assert(battleaxe, 'missing PHB Battleaxe fixture');
@@ -448,6 +466,25 @@ const vgmGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, w
 const vgmGoliathResource = getResource(vgmGoliathCharacter, 'auto-resource-race-Goliath-VGM-stones-endurance');
 assert(vgmGoliathResource?.max === 1 && vgmGoliathResource.reset === 'shortRest', 'VGM Goliath should add one-use Stone Endurance short-rest resource');
 
+const xphbGoliathGiantAncestryResourceId = 'auto-resource-race-Goliath-XPHB-giant-ancestry';
+const xphbGoliathLargeFormResourceId = 'auto-resource-race-Goliath-XPHB-large-form';
+let xphbGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: xphbGoliath,
+});
+let xphbGoliathGiantAncestryResource = getResource(xphbGoliathCharacter, xphbGoliathGiantAncestryResourceId);
+assert(xphbGoliathGiantAncestryResource?.max === 2 && xphbGoliathGiantAncestryResource.reset === 'longRest', 'XPHB Goliath should add proficiency-based Giant Ancestry long-rest resource');
+assert(xphbGoliathGiantAncestryResource?.note.includes('巨人先祖恩惠'), 'XPHB Goliath Giant Ancestry resource should keep selected ancestry note');
+assert(!getResource(xphbGoliathCharacter, xphbGoliathLargeFormResourceId), 'XPHB Goliath should not add Large Form before level 5');
+xphbGoliathCharacter = levelToFive(xphbGoliathCharacter, fighter, '5r');
+xphbGoliathGiantAncestryResource = getResource(xphbGoliathCharacter, xphbGoliathGiantAncestryResourceId);
+assert(xphbGoliathGiantAncestryResource?.max === 3, \`XPHB Goliath Giant Ancestry should refresh to PB 3 at level 5, got \${xphbGoliathGiantAncestryResource?.max}\`);
+const xphbGoliathLargeFormResource = getResource(xphbGoliathCharacter, xphbGoliathLargeFormResourceId);
+assert(xphbGoliathLargeFormResource?.max === 1 && xphbGoliathLargeFormResource.reset === 'longRest', 'XPHB Goliath should add one-use Large Form long-rest resource at level 5');
+assert(xphbGoliathLargeFormResource?.note.includes('速度增加 10 尺'), 'XPHB Goliath Large Form resource should keep speed bonus note');
+const removedXphbGoliath = removeCharacterAdjustments(xphbGoliathCharacter, 'auto-Fighter-XPHB-level-5');
+assert(!getResource(removedXphbGoliath, xphbGoliathLargeFormResourceId), 'removing level-up adjustment should remove XPHB Goliath Large Form resource');
+
 const mpmmHarengonResourceId = 'auto-resource-race-Harengon-MPMM-rabbit-hop';
 let mpmmHarengonCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -710,6 +747,37 @@ for (const [dhampir, source, resourceName] of [
   assert(leveledBiteAttack?.bonus === '+3', \`\${source} Dhampir Vampiric Bite attack should refresh to PB 3 at level 5, got \${leveledBiteAttack?.bonus}\`);
 }
 
+let vampireCharacter = refreshAutomaticStyleAttacks(buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: vampire,
+}));
+const vampireBloodThirstAttackId = 'auto-race-attack-vampire-psz-blood-thirst';
+let vampireBloodThirstAttack = getAttack(vampireCharacter, vampireBloodThirstAttackId);
+assert(vampireBloodThirstAttack?.name === '嗜血', 'PSZ Vampire should add Blood Thirst attack');
+assert(vampireBloodThirstAttack?.bonus === '+2', \`PSZ Vampire Blood Thirst should use STR plus proficiency at level 1, got \${vampireBloodThirstAttack?.bonus}\`);
+assert(vampireBloodThirstAttack?.damage === '1 穿刺 + 1d6 暗蚀', \`PSZ Vampire Blood Thirst should use fixed damage, got \${vampireBloodThirstAttack?.damage}\`);
+assert(vampireBloodThirstAttack?.type === '种族攻击', 'PSZ Vampire Blood Thirst should be typed as race attack');
+assert(vampireBloodThirstAttack?.notes.includes('最大生命值降低'), 'PSZ Vampire Blood Thirst should keep healing and max HP reduction notes');
+vampireCharacter = levelToFive(vampireCharacter, fighter, '5r');
+vampireBloodThirstAttack = getAttack(vampireCharacter, vampireBloodThirstAttackId);
+assert(vampireBloodThirstAttack?.bonus === '+3', \`PSZ Vampire Blood Thirst should refresh proficiency bonus at level 5, got \${vampireBloodThirstAttack?.bonus}\`);
+
+for (const [hexblood, source] of [
+  [rhwHexblood, 'RHW'],
+  [vrgrHexblood, 'VRGR'],
+]) {
+  const resourceId = \`auto-resource-race-Hexblood-\${source}-eerie-token\`;
+  const hexbloodCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ...baseOptions,
+    race: hexblood,
+  });
+  const hexbloodResource = getResource(hexbloodCharacter, resourceId);
+  assert(hexbloodResource?.max === 1 && hexbloodResource.reset === 'longRest', \`\${source} Hexblood should add one-use Eerie Token long-rest resource\`);
+  assert(hexbloodResource?.note.includes('远程传信') && hexbloodResource?.note.includes('遥远视野'), \`\${source} Hexblood Eerie Token should keep token mode notes\`);
+  const removedHexblood = removeCharacterAdjustments(hexbloodCharacter, 'auto-character-5r');
+  assert(!getResource(removedHexblood, resourceId), \`removing auto-character should remove \${source} Hexblood Eerie Token resource\`);
+}
+
 const deepGnomeResourceId = 'auto-resource-race-Deep Gnome-MPMM-svirfneblin-camouflage';
 let deepGnomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -828,6 +896,29 @@ lupinCharacter = levelToFive(lupinCharacter, fighter, '5r');
 const leveledLupinHowlResource = getResource(lupinCharacter, lupinResourceId);
 assert(leveledLupinHowlResource?.max === 3, 'RHW Lupin Howl should refresh to PB 3 at level 5');
 
+const khoravarCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: khoravar,
+});
+const khoravarLethargyResource = getResource(khoravarCharacter, 'auto-resource-race-Khoravar-EFA-lethargy-resilience');
+assert(khoravarLethargyResource?.max === 1 && khoravarLethargyResource.reset === 'manual', 'EFA Khoravar should add manual Lethargy Resilience resource');
+assert(khoravarLethargyResource?.note.includes('1d4 次长休'), 'EFA Khoravar Lethargy Resilience resource should keep recovery note');
+const removedKhoravar = removeCharacterAdjustments(khoravarCharacter, 'auto-character-5r');
+assert(!getResource(removedKhoravar, 'auto-resource-race-Khoravar-EFA-lethargy-resilience'), 'removing auto-character should remove Khoravar Lethargy Resilience resource');
+
+const vedalkenCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: vedalken,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const vedalkenAmphibiousResource = getResource(vedalkenCharacter, 'auto-resource-race-Vedalken-GGR-partially-amphibious');
+assert(vedalkenAmphibiousResource?.max === 1 && vedalkenAmphibiousResource.reset === 'longRest', 'GGR Vedalken should add one-use Partially Amphibious long-rest resource');
+assert(vedalkenAmphibiousResource?.note.includes('水下呼吸'), 'GGR Vedalken Partially Amphibious resource should keep underwater breathing note');
+const removedVedalken = removeCharacterAdjustments(vedalkenCharacter, 'auto-character-5e');
+assert(!getResource(removedVedalken, 'auto-resource-race-Vedalken-GGR-partially-amphibious'), 'removing auto-character should remove Vedalken Partially Amphibious resource');
+
 const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
 assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
 assert(hobgoblinWeaponChoices[0].count === 2, \`Hobgoblin should choose two martial weapons, got \${hobgoblinWeaponChoices[0].count}\`);
@@ -937,6 +1028,20 @@ const naturalAttackCases = [
     damage: '1d6 穿刺',
   },
   {
+    race: naga,
+    sourceId: 'auto-race-attack-naga-psa-bite',
+    name: '咬击',
+    damage: '1d4 穿刺',
+    noteIncludes: ['体质豁免', '1d4 毒素伤害'],
+  },
+  {
+    race: naga,
+    sourceId: 'auto-race-attack-naga-psa-constrict',
+    name: '紧束',
+    damage: '1d6 钝击',
+    noteIncludes: ['受擒', '逃脱 DC = 8 + 熟练加值 + 力量调整值'],
+  },
+  {
     race: mpmmLizardfolk,
     sourceId: 'auto-race-attack-lizardfolk-mpmm-bite',
     name: '啃咬',
@@ -961,6 +1066,12 @@ for (const item of naturalAttackCases) {
   assert(attack?.damage === item.damage, \`\${item.race.key} natural attack damage should be \${item.damage}, got \${attack?.damage}\`);
   assert(attack?.type === '徒手打击', \`\${item.race.key} natural attack should be typed as unarmed strike\`);
   assert(attack?.notes.includes('天然武器'), \`\${item.race.key} natural attack should keep feature notes\`);
+  if (item.race.key === 'Minotaur') {
+    assert(attack.notes.includes('角锤') && attack.notes.includes('DC = 8 + 熟练加值 + 力量调整值'), 'Minotaur horns should keep Hammering Horns push DC note');
+  }
+  for (const noteText of item.noteIncludes || []) {
+    assert(attack?.notes.includes(noteText), \`\${item.race.key} natural attack should keep note \${noteText}\`);
+  }
   const refreshedCharacter = refreshAutomaticStyleAttacks(character);
   const refreshedAttacks = refreshedCharacter.attacks.filter(nextAttack => nextAttack.sourceId === item.sourceId);
   assert(refreshedAttacks.length === 1, \`\${item.race.key} natural attack refresh should not duplicate attack entries\`);
@@ -985,8 +1096,32 @@ assert(warforgedCharacter.armorBonus === 1, \`Warforged integrated protection sh
 const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-character-5e');
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
+const xphbHumanCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: xphbHuman,
+});
+assert(xphbHumanCharacter.inspiration === true, 'XPHB Human Resourceful should set heroic inspiration');
+const removedXphbHuman = removeCharacterAdjustments(xphbHumanCharacter, 'auto-character-5r');
+assert(removedXphbHuman.inspiration === false, 'removing XPHB Human should restore previous inspiration state');
+const inspiredXphbHuman = buildLevelOneCharacter({ ...INITIAL_CHARACTER, inspiration: true }, content, fighter, {
+  ...baseOptions,
+  race: xphbHuman,
+});
+const removedInspiredXphbHuman = removeCharacterAdjustments(inspiredXphbHuman, 'auto-character-5r');
+assert(removedInspiredXphbHuman.inspiration === true, 'removing XPHB Human should preserve pre-existing inspiration');
+
+let verdanCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: verdan,
+});
+assert(verdanCharacter.bodyType === '小型', \`AI Verdan should start as Small at level 1, got \${verdanCharacter.bodyType}\`);
+verdanCharacter = levelToFive(verdanCharacter, fighter, '5r');
+assert(verdanCharacter.bodyType === '中型', \`AI Verdan should become Medium at level 5, got \${verdanCharacter.bodyType}\`);
+const removedVerdanLevelFive = removeCharacterAdjustments(verdanCharacter, 'auto-Fighter-XPHB-level-5');
+assert(removedVerdanLevelFive.bodyType === '小型', 'removing level 5 adjustment should restore AI Verdan Small size');
+
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1002,6 +1137,8 @@ export default {
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
+    'XPHB Goliath Giant Ancestry refreshes proficiency-based uses',
+    'XPHB Goliath Large Form adds level-gated long-rest resource',
     'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
     'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',
     'Kender Taunt refreshes proficiency-based uses',
@@ -1009,19 +1146,26 @@ export default {
     'Hobgoblin Fey Gift refreshes proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
+    'PSZ Vampire Blood Thirst adds fixed-damage race attack',
+    'Hexblood Eerie Token adds source-specific long-rest resource',
     'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
     'Hadozee Dodge refreshes proficiency-based uses',
     'Giff Astral Spark refreshes proficiency-based uses',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
     'Leonin Daunting Roar adds one-use short-rest resource',
     'Lupin Howl refreshes proficiency-based uses',
+    'Khoravar Lethargy Resilience adds manual recovery resource',
+    'Vedalken Partially Amphibious adds one-use long-rest resource',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
     'Autognome Built for Success refreshes proficiency-based uses',
     'constant racial armor formulas update armor class',
     'natural weapon race features add refreshable attack entries',
+    'Naga Natural Weapons add bite and constrict attack entries',
     'Warforged integrated protection adds reversible armor bonus',
+    'XPHB Human Resourceful applies reversible heroic inspiration',
+    'AI Verdan changes from Small to Medium at level 5',
   ],
 };
 `;

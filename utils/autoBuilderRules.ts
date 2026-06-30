@@ -3595,6 +3595,17 @@ const createOriginResourceOperations = (
       '以反应降低受到的伤害.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Giant Ancestry' || feature.name === '巨人先祖')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'giant-ancestry',
+      '巨人先祖',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 使用你选择的巨人先祖恩惠, 如传送, 额外伤害, 减速, 击倒, 减伤或反击雷鸣伤害.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Starlight Step' || feature.name === '星光步')) {
     operations.push(makeOriginResource(
       entity,
@@ -3715,6 +3726,42 @@ const createOriginResourceOperations = (
       'longRest',
       '次数等于熟练加值. 以附赠动作迫使 15 尺内目标进行感知豁免, DC = 8 + 熟练加值 + 体质调整值, 失败则攻击检定和豁免检定具有劣势直到你的下一回合开始.',
     ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Lethargy Resilience' || feature.name === '怠惰恢复力')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'lethargy-resilience',
+      '怠惰恢复力',
+      1,
+      'manual',
+      '为避免或结束昏迷状态的豁免失败时可改为成功. 使用后需要完成 1d4 次长休才可再次使用.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Partially Amphibious' || feature.name === '临时两栖')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'partially-amphibious',
+      '临时两栖',
+      1,
+      'longRest',
+      '可在水下呼吸最多 1 小时. 达到时限后, 直到完成长休前不能再次使用.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Eerie Token' || feature.name === '神秘信物')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'eerie-token',
+      '神秘信物',
+      1,
+      'longRest',
+      '以附赠动作创造魔法信物. 信物可用于远程传信或遥远视野, 完成长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Resourceful' || feature.name === '适应力')) {
+    operations.push({ type: 'setBooleanField', field: 'inspiration', value: true });
   }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
@@ -3928,6 +3975,20 @@ const createOriginResourceOperations = (
       '5 级起可使用第二种吐息武器.',
     ));
   }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Large Form' || feature.name === '大型形态')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'large-form',
+      '大型形态',
+      1,
+      'longRest',
+      '以附赠动作变为大型, 持续 10 分钟. 持续期间力量检定具有优势, 速度增加 10 尺.',
+    ));
+  }
   return operations;
 };
 
@@ -3958,6 +4019,9 @@ const createOriginOperations = (
   }
   if (entity.size?.length === 1) {
     operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(entity.size[0]) });
+  }
+  if (kind === 'race' && entity.key === 'Verdan' && entity.source === 'AI') {
+    operations.push({ type: 'setStringField', field: 'bodyType', value: '小型' });
   }
   if (
     kind === 'race'
@@ -4702,6 +4766,9 @@ const createExistingOriginLevelUpOperations = (
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
     operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
   }
+  if (oldCharacterLevel < 5 && newCharacterLevel >= 5 && hasAppliedRace(character, 'Verdan', 'AI')) {
+    operations.push({ type: 'setStringField', field: 'bodyType', value: '中型' });
+  }
   refreshOriginResources('Dwarf', '矮人', 'XPHB', [{ name: '石中精妙', englishName: 'Stonecunning', description: '' }]);
   refreshOriginResources('Orc', '兽人', 'XPHB', []);
   refreshOriginResources('Orc', '兽人', 'MPMM', []);
@@ -4732,6 +4799,10 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '精类赠礼', englishName: 'Fey Gift', description: '' }]);
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '集众之运', englishName: 'Fortune from the Many', description: '' }]);
   refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
+  refreshOriginResources('Goliath', '歌利亚', 'XPHB', [
+    { name: '巨人先祖', englishName: 'Giant Ancestry', description: '' },
+    { name: '大型形态', englishName: 'Large Form', description: '' },
+  ]);
   refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [
     { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
     { name: '龙族飞翼', englishName: 'Draconic Flight', description: '' },
