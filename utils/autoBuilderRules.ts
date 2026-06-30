@@ -3537,6 +3537,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值. 使用时获得等同熟练加值的临时生命值.',
     ));
   }
+  if (entity.key === 'Dwarf' && entity.source === 'XPHB') {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'stonecunning',
+      '石中精妙',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 以附赠动作获得 60 尺震颤感知, 持续 10 分钟, 需位于或触碰岩石表面.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Relentless Endurance' || feature.name === '坚韧不屈')) {
     operations.push(makeOriginResource(
       entity,
@@ -3606,6 +3617,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Taunt' || feature.name === '嘲讽')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'taunt',
+      '嘲讽',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 以附赠动作迫使目标进行感知豁免, DC = 8 + 熟练加值 + 智力, 感知或魅力调整值.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Kenku Recall' || feature.name === '天狗回想')) {
     operations.push(makeOriginResource(
       entity,
@@ -3672,6 +3694,28 @@ const createOriginResourceOperations = (
       '豁免失败时可改为成功.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Daunting Roar' || feature.name === '畏惧咆哮')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'daunting-roar',
+      '畏惧咆哮',
+      1,
+      'shortRest',
+      '完成短休或长休后恢复. 以附赠动作迫使 10 尺内目标进行感知豁免, DC = 8 + 熟练加值 + 体质调整值, 失败则陷入恐慌直到你的下回合结束.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Howl' || feature.name === '尖啸')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'howl',
+      '尖啸',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 以附赠动作迫使 15 尺内目标进行感知豁免, DC = 8 + 熟练加值 + 体质调整值, 失败则攻击检定和豁免检定具有劣势直到你的下一回合开始.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
       entity,
@@ -3703,6 +3747,72 @@ const createOriginResourceOperations = (
       entity.source === 'MPMM' ? profBonus : 1,
       entity.source === 'MPMM' ? 'longRest' : 'shortRest',
       entity.source === 'MPMM' ? '次数等于熟练加值.' : '完成短休或长休后恢复.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Vampiric Bite' || feature.name === '吸血啃咬')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'vampiric-bite',
+      entity.source === 'RHW' ? '吸血啃咬增幅' : '吸血啃咬强化',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 命中非构装和非亡灵生物时, 可恢复生命值或强化下一次属性检定/攻击检定.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Svirfneblin Camouflage' || feature.name === '斯涅布力伪装')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'svirfneblin-camouflage',
+      '斯涅布力伪装',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 使用时使一次敏捷(隐匿)检定具有优势.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Built for Success' || feature.name === '铸订成功')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'built-for-success',
+      '铸订成功',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 看到 d20 后, 可为一次攻击检定, 属性检定或豁免检定追加 1d4.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Hadozee Dodge' || feature.name === '哈多兹闪避')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'hadozee-dodge',
+      '哈多兹闪避',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 受伤时可以反应降低 1d6 + 熟练加值的伤害.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Astral Spark' || feature.name === '星界火花')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'astral-spark',
+      '星界火花',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 每回合一次, 使用简易或军用武器命中时额外造成等同熟练加值的力场伤害.',
+    ));
+  }
+  if ((entity.features || []).some(feature => feature.englishName === 'Fey Gift' || feature.name === '精类赠礼')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'fey-gift',
+      '精类赠礼',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 可用附赠动作执行协助动作; 3 级后可附加好客, 通行或恶意效果.',
     ));
   }
   if ((entity.features || []).some(feature => feature.englishName === 'Shifting' || feature.name === '化形')) {
@@ -4592,6 +4702,7 @@ const createExistingOriginLevelUpOperations = (
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
     operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
   }
+  refreshOriginResources('Dwarf', '矮人', 'XPHB', [{ name: '石中精妙', englishName: 'Stonecunning', description: '' }]);
   refreshOriginResources('Orc', '兽人', 'XPHB', []);
   refreshOriginResources('Orc', '兽人', 'MPMM', []);
   refreshOriginResources('Aasimar', '阿斯莫', 'MPMM', [{ name: '天界启示', englishName: 'Celestial Revelation', description: '' }]);
@@ -4599,7 +4710,9 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Astral Elf', '星界精灵', 'AAG', [{ name: '星光步', englishName: 'Starlight Step', description: '' }]);
   refreshOriginResources('Harengon', '兔人', 'MPMM', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
   refreshOriginResources('Harengon', '兔人', 'WBtW', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
+  refreshOriginResources('Kender', '坎德人', 'DSotDQ', [{ name: '嘲讽', englishName: 'Taunt', description: '' }]);
   refreshOriginResources('Kenku', '天狗', 'MPMM', [{ name: '天狗回想', englishName: 'Kenku Recall', description: '' }]);
+  refreshOriginResources('Lupin', '人狼裔', 'RHW', [{ name: '尖啸', englishName: 'Howl', description: '' }]);
   refreshOriginResources('Kobold', '狗头人', 'MPMM', [{ name: '龙吼', englishName: 'Draconic Cry', description: '' }]);
   refreshOriginResources('Reborn', '重生者', 'RHW', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
   refreshOriginResources('Reborn', '重生者', 'VRGR', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
@@ -4607,9 +4720,16 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Eladrin', '雅灵', 'MPMM', [{ name: '妖精步伐', englishName: 'Fey Step', description: '' }]);
   refreshOriginResources('Firbolg', '费尔伯格人', 'MPMM', [{ name: '神隐步', englishName: 'Hidden Step', description: '' }]);
   refreshOriginResources('Lizardfolk', '蜥蜴人', 'MPMM', [{ name: '饥渴之喉', englishName: 'Hungry Jaws', description: '' }]);
+  refreshOriginResources('Dhampir', '半血裔', 'RHW', [{ name: '吸血啃咬', englishName: 'Vampiric Bite', description: '' }]);
+  refreshOriginResources('Dhampir', '半血裔', 'VRGR', [{ name: '吸血啃咬', englishName: 'Vampiric Bite', description: '' }]);
+  refreshOriginResources('Deep Gnome', '地底侏儒', 'MPMM', [{ name: '斯涅布力伪装', englishName: 'Svirfneblin Camouflage', description: '' }]);
+  refreshOriginResources('Autognome', '自动侏儒', 'AAG', [{ name: '铸订成功', englishName: 'Built for Success', description: '' }]);
+  refreshOriginResources('Hadozee', '哈多兹', 'AAG', [{ name: '哈多兹闪避', englishName: 'Hadozee Dodge', description: '' }]);
+  refreshOriginResources('Giff', '诘弗人', 'AAG', [{ name: '星界火花', englishName: 'Astral Spark', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'EFA', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'MPMM', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Goblin', '地精', 'MPMM', [{ name: '小个子的怒火', englishName: 'Fury of the Small', description: '' }]);
+  refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '精类赠礼', englishName: 'Fey Gift', description: '' }]);
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '集众之运', englishName: 'Fortune from the Many', description: '' }]);
   refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
   refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [

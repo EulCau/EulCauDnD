@@ -61,6 +61,7 @@ type NaturalAttackDefinition = {
   sourceName: string;
   attackKey: string;
   name: string;
+  ability?: 'STR' | 'CON';
   die: string;
   damageType: string;
   notes: string;
@@ -273,6 +274,30 @@ const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
     die: '1d6',
     damageType: '钝击',
     notes: '天然武器: 可用力量进行徒手打击. 冲锋后可用附赠动作蹄击.',
+  },
+  {
+    raceKey: 'Dhampir',
+    raceSource: 'RHW',
+    featureNames: ['吸血啃咬', 'Vampiric Bite'],
+    sourceName: '吸血啃咬',
+    attackKey: 'dhampir-rhw-vampiric-bite',
+    name: '吸血啃咬',
+    ability: 'CON',
+    die: '1d4',
+    damageType: '穿刺',
+    notes: '天然武器: 可用体质进行徒手打击. 命中非构装和非亡灵生物时可消耗增幅次数, 恢复等同伤害的生命值, 或让下一次属性检定或攻击检定获得等同伤害的加值.',
+  },
+  {
+    raceKey: 'Dhampir',
+    raceSource: 'VRGR',
+    featureNames: ['吸血啃咬', 'Vampiric Bite'],
+    sourceName: '吸血啃咬',
+    attackKey: 'dhampir-vrgr-vampiric-bite',
+    name: '吸血啃咬',
+    ability: 'CON',
+    die: '1d4',
+    damageType: '穿刺',
+    notes: '天然武器: 可用体质进行徒手打击. 生命值不高于一半时攻击检定具有优势. 命中非构装和非亡灵生物时可消耗强化次数, 恢复等同伤害的生命值, 或让下一次属性检定或攻击检定获得等同伤害的加值.',
   },
   {
     raceKey: 'Lizardfolk',
@@ -1104,7 +1129,7 @@ const removeAutomaticStyleAttacks = (character: CharacterData): CharacterData =>
 
 const createNaturalAttack = (
   definition: NaturalAttackDefinition,
-  strMod: number,
+  abilityMod: number,
   profBonus: number,
 ): Attack => {
   const sourceId = `auto-race-attack-${definition.attackKey}`;
@@ -1114,8 +1139,8 @@ const createNaturalAttack = (
     sourceName: definition.sourceName,
     automatic: true,
     name: definition.name,
-    bonus: formatModifier(strMod + profBonus),
-    damage: `${definition.die}${strMod === 0 ? '' : formatModifier(strMod)} ${definition.damageType}`,
+    bonus: formatModifier(abilityMod + profBonus),
+    damage: `${definition.die}${abilityMod === 0 ? '' : formatModifier(abilityMod)} ${definition.damageType}`,
     type: '徒手打击',
     notes: definition.notes,
   };
@@ -1125,11 +1150,13 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
   let next = removeAutomaticStyleAttacks(character);
   const profBonus = calculateProficiencyBonus(getTotalLevel(next.classes));
   const strMod = calculateModifier(next.abilities.STR);
+  const conMod = calculateModifier(next.abilities.CON);
 
   for (const definition of NATURAL_ATTACKS) {
     if (!hasOriginFeature(next, definition.raceKey, definition.raceSource, definition.featureNames)) continue;
     const sourceId = `auto-race-attack-${definition.attackKey}`;
-    const attack = createNaturalAttack(definition, strMod, profBonus);
+    const abilityMod = definition.ability === 'CON' ? conMod : strMod;
+    const attack = createNaturalAttack(definition, abilityMod, profBonus);
     next = applyCharacterAdjustments(next, {
       id: sourceId,
       sourceId,

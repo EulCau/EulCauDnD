@@ -58,6 +58,11 @@ const mpmmHobgoblin = content.races.find(item => item.key === 'Hobgoblin' && ite
 const hobgoblin = content.races.find(item => item.key === 'Hobgoblin' && item.source === 'VGM');
 const mpmmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'MPMM');
 const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'VGM');
+const rhwDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'RHW');
+const vrgrDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'VRGR');
+const deepGnome = content.races.find(item => item.key === 'Deep Gnome' && item.source === 'MPMM');
+const hadozee = content.races.find(item => item.key === 'Hadozee' && item.source === 'AAG');
+const giff = content.races.find(item => item.key === 'Giff' && item.source === 'AAG');
 const efaShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'EFA');
 const erlwShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'ERLW');
 const mpmmShifter = content.races.find(item => item.key === 'Shifter' && item.source === 'MPMM');
@@ -69,6 +74,8 @@ const yuanTi = content.races.find(item => item.key === 'Yuan-ti Pureblood' && it
 const aarakocra = content.races.find(item => item.key === 'Aarakocra' && item.source === 'MPMM');
 const mpmmCentaur = content.races.find(item => item.key === 'Centaur' && item.source === 'MPMM');
 const mpmmMinotaur = content.races.find(item => item.key === 'Minotaur' && item.source === 'MPMM');
+const leonin = content.races.find(item => item.key === 'Leonin' && item.source === 'MOT');
+const lupin = content.races.find(item => item.key === 'Lupin' && item.source === 'RHW');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
@@ -108,6 +115,11 @@ assert(mpmmHobgoblin, 'missing MPMM Hobgoblin fixture');
 assert(hobgoblin, 'missing VGM Hobgoblin fixture');
 assert(mpmmLizardfolk, 'missing MPMM Lizardfolk fixture');
 assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
+assert(rhwDhampir, 'missing RHW Dhampir fixture');
+assert(vrgrDhampir, 'missing VRGR Dhampir fixture');
+assert(deepGnome, 'missing MPMM Deep Gnome fixture');
+assert(hadozee, 'missing AAG Hadozee fixture');
+assert(giff, 'missing AAG Giff fixture');
 assert(efaShifter, 'missing EFA Shifter fixture');
 assert(erlwShifter, 'missing ERLW Shifter fixture');
 assert(mpmmShifter, 'missing MPMM Shifter fixture');
@@ -119,6 +131,8 @@ assert(yuanTi, 'missing VGM Yuan-ti Pureblood fixture');
 assert(aarakocra, 'missing MPMM Aarakocra fixture');
 assert(mpmmCentaur, 'missing MPMM Centaur fixture');
 assert(mpmmMinotaur, 'missing MPMM Minotaur fixture');
+assert(leonin, 'missing MOT Leonin fixture');
+assert(lupin, 'missing RHW Lupin fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
@@ -351,13 +365,20 @@ const xphbDwarfCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fi
   race: xphbDwarf,
 });
 assert(xphbDwarfCharacter.hpMaxBonus === 1, \`XPHB Dwarf should add +1 HP max bonus at level 1, got \${xphbDwarfCharacter.hpMaxBonus}\`);
+const xphbDwarfStonecunningResourceId = 'auto-resource-race-Dwarf-XPHB-stonecunning';
+const xphbDwarfStonecunningResource = getResource(xphbDwarfCharacter, xphbDwarfStonecunningResourceId);
+assert(xphbDwarfStonecunningResource?.max === 2 && xphbDwarfStonecunningResource.reset === 'longRest', 'XPHB Dwarf should add proficiency-based Stonecunning resource');
+assert(xphbDwarfStonecunningResource?.note.includes('震颤感知'), 'XPHB Dwarf Stonecunning resource should keep tremorsense note');
 const removedXphbDwarf = removeCharacterAdjustments(xphbDwarfCharacter, 'auto-character-5r');
 assert(removedXphbDwarf.hpMaxBonus === 0, 'removing auto-character should remove XPHB Dwarf HP max bonus');
+assert(!getResource(removedXphbDwarf, xphbDwarfStonecunningResourceId), 'removing auto-character should remove XPHB Dwarf Stonecunning resource');
 const leveledXphbDwarf = buildLevelUpCharacter(xphbDwarfCharacter, content, fighter, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
 });
 assert(leveledXphbDwarf.hpMaxBonus === 2, \`XPHB Dwarf should add +1 HP max bonus on level up, got \${leveledXphbDwarf.hpMaxBonus}\`);
+const leveledXphbDwarfStonecunning = getResource(levelToFive(xphbDwarfCharacter, fighter, '5r'), xphbDwarfStonecunningResourceId);
+assert(leveledXphbDwarfStonecunning?.max === 3, 'XPHB Dwarf Stonecunning should refresh to PB 3 at level 5');
 
 const xphbOrcResourceId = 'auto-resource-race-Orc-XPHB-adrenaline-rush';
 const xphbOrcCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
@@ -466,12 +487,19 @@ const leveledWbtwHarengonResource = getResource(wbtwHarengonCharacter, wbtwHaren
 assert(leveledWbtwHarengonResource?.max === 3, \`WBtW Harengon Rabbit Hop should refresh to PB 3 at level 5, got \${leveledWbtwHarengonResource?.max}\`);
 assert(wbtwHarengonCharacter.initiativeBonus === 3, \`WBtW Harengon initiative bonus should refresh to PB 3 at level 5, got \${wbtwHarengonCharacter.initiativeBonus}\`);
 
-const kenderCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+const kenderTauntResourceId = 'auto-resource-race-Kender-DSotDQ-taunt';
+let kenderCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
   race: kender,
 });
 const kenderFearlessResource = getResource(kenderCharacter, 'auto-resource-race-Kender-DSotDQ-fearless');
 assert(kenderFearlessResource?.max === 1 && kenderFearlessResource.reset === 'longRest', 'DSotDQ Kender should add one-use Fearless long-rest resource');
+const kenderTauntResource = getResource(kenderCharacter, kenderTauntResourceId);
+assert(kenderTauntResource?.max === 2 && kenderTauntResource.reset === 'longRest', 'DSotDQ Kender should add proficiency-based Taunt resource');
+assert(kenderTauntResource?.note.includes('DC = 8'), 'DSotDQ Kender Taunt resource should keep save DC note');
+kenderCharacter = levelToFive(kenderCharacter, fighter, '5r');
+const leveledKenderTauntResource = getResource(kenderCharacter, kenderTauntResourceId);
+assert(leveledKenderTauntResource?.max === 3, 'DSotDQ Kender Taunt should refresh to PB 3 at level 5');
 
 const kenkuResourceId = 'auto-resource-race-Kenku-MPMM-kenku-recall';
 let kenkuCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
@@ -581,11 +609,15 @@ const vgmGoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wi
 const vgmGoblinResource = getResource(vgmGoblinCharacter, 'auto-resource-race-Goblin-VGM-fury-of-the-small');
 assert(vgmGoblinResource?.max === 1 && vgmGoblinResource.reset === 'shortRest', 'VGM Goblin should add one-use Fury of the Small short-rest resource');
 
+const mpmmHobgoblinFeyGiftResourceId = 'auto-resource-race-Hobgoblin-MPMM-fey-gift';
 const mpmmHobgoblinResourceId = 'auto-resource-race-Hobgoblin-MPMM-fortune-from-the-many';
 let mpmmHobgoblinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
   race: mpmmHobgoblin,
 });
+const mpmmHobgoblinFeyGiftResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinFeyGiftResourceId);
+assert(mpmmHobgoblinFeyGiftResource?.max === 2 && mpmmHobgoblinFeyGiftResource.reset === 'longRest', 'MPMM Hobgoblin should add proficiency-based Fey Gift resource');
+assert(mpmmHobgoblinFeyGiftResource?.note.includes('协助动作'), 'MPMM Hobgoblin Fey Gift resource should keep Help action note');
 const mpmmHobgoblinResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinResourceId);
 assert(mpmmHobgoblinResource?.max === 2 && mpmmHobgoblinResource.reset === 'longRest', 'MPMM Hobgoblin should add proficiency-based Fortune from the Many resource');
 for (let index = 0; index < 4; index += 1) {
@@ -594,6 +626,8 @@ for (let index = 0; index < 4; index += 1) {
     spellChoices: { cantrips: [], leveled: [] },
   });
 }
+const leveledMpmmHobgoblinFeyGiftResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinFeyGiftResourceId);
+assert(leveledMpmmHobgoblinFeyGiftResource?.max === 3, \`MPMM Hobgoblin Fey Gift should refresh to PB 3 at level 5, got \${leveledMpmmHobgoblinFeyGiftResource?.max}\`);
 const leveledMpmmHobgoblinResource = getResource(mpmmHobgoblinCharacter, mpmmHobgoblinResourceId);
 assert(leveledMpmmHobgoblinResource?.max === 3, \`MPMM Hobgoblin Fortune from the Many should refresh to PB 3 at level 5, got \${leveledMpmmHobgoblinResource?.max}\`);
 
@@ -632,6 +666,100 @@ const vgmLizardfolkCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content
 });
 const vgmLizardfolkResource = getResource(vgmLizardfolkCharacter, 'auto-resource-race-Lizardfolk-VGM-hungry-jaws');
 assert(vgmLizardfolkResource?.max === 1 && vgmLizardfolkResource.reset === 'shortRest', 'VGM Lizardfolk should add one-use Hungry Jaws short-rest resource');
+
+for (const [dhampir, source, resourceName] of [
+  [rhwDhampir, 'RHW', '吸血啃咬增幅'],
+  [vrgrDhampir, 'VRGR', '吸血啃咬强化'],
+]) {
+  const resourceId = \`auto-resource-race-Dhampir-\${source}-vampiric-bite\`;
+  let dhampirCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ...baseOptions,
+    race: dhampir,
+  });
+  const dhampirResource = getResource(dhampirCharacter, resourceId);
+  assert(dhampirResource?.name === resourceName, \`\${source} Dhampir should add source-specific Vampiric Bite resource name\`);
+  assert(dhampirResource?.max === 2 && dhampirResource.reset === 'longRest', \`\${source} Dhampir should add proficiency-based Vampiric Bite resource\`);
+
+  const biteAttackId = \`auto-race-attack-dhampir-\${source.toLowerCase()}-vampiric-bite\`;
+  const biteAttack = getAttack(dhampirCharacter, biteAttackId);
+  assert(biteAttack?.name === '吸血啃咬', \`\${source} Dhampir should add Vampiric Bite attack\`);
+  assert(biteAttack?.bonus === '+2', \`\${source} Dhampir Vampiric Bite should use CON plus proficiency at level 1, got \${biteAttack?.bonus}\`);
+  assert(biteAttack?.damage === '1d4 穿刺', \`\${source} Dhampir Vampiric Bite damage should use CON, got \${biteAttack?.damage}\`);
+  assert(biteAttack?.notes.includes(source === 'VRGR' ? '生命值不高于一半' : '增幅次数'), \`\${source} Dhampir Vampiric Bite should keep source-specific notes\`);
+
+  const conDhampir = refreshAutomaticStyleAttacks({
+    ...dhampirCharacter,
+    abilities: {
+      ...dhampirCharacter.abilities,
+      CON: 14,
+    },
+  });
+  const conBiteAttack = getAttack(conDhampir, biteAttackId);
+  assert(conBiteAttack?.bonus === '+4', \`\${source} Dhampir Vampiric Bite should add CON modifier to attack, got \${conBiteAttack?.bonus}\`);
+  assert(conBiteAttack?.damage === '1d4+2 穿刺', \`\${source} Dhampir Vampiric Bite should add CON modifier to damage, got \${conBiteAttack?.damage}\`);
+
+  for (let index = 0; index < 4; index += 1) {
+    dhampirCharacter = buildLevelUpCharacter(dhampirCharacter, content, fighter, {
+      ruleSystem: '5r',
+      spellChoices: { cantrips: [], leveled: [] },
+    });
+  }
+  const leveledDhampirResource = getResource(dhampirCharacter, resourceId);
+  const leveledBiteAttack = getAttack(dhampirCharacter, biteAttackId);
+  assert(leveledDhampirResource?.max === 3, \`\${source} Dhampir Vampiric Bite resource should refresh to PB 3 at level 5, got \${leveledDhampirResource?.max}\`);
+  assert(leveledBiteAttack?.bonus === '+3', \`\${source} Dhampir Vampiric Bite attack should refresh to PB 3 at level 5, got \${leveledBiteAttack?.bonus}\`);
+}
+
+const deepGnomeResourceId = 'auto-resource-race-Deep Gnome-MPMM-svirfneblin-camouflage';
+let deepGnomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: deepGnome,
+});
+const deepGnomeResource = getResource(deepGnomeCharacter, deepGnomeResourceId);
+assert(deepGnomeResource?.max === 2 && deepGnomeResource.reset === 'longRest', 'MPMM Deep Gnome should add proficiency-based Svirfneblin Camouflage resource');
+assert(deepGnomeResource?.note.includes('隐匿'), 'MPMM Deep Gnome Svirfneblin Camouflage resource should keep stealth advantage note');
+for (let index = 0; index < 4; index += 1) {
+  deepGnomeCharacter = buildLevelUpCharacter(deepGnomeCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledDeepGnomeResource = getResource(deepGnomeCharacter, deepGnomeResourceId);
+assert(leveledDeepGnomeResource?.max === 3, \`MPMM Deep Gnome Svirfneblin Camouflage should refresh to PB 3 at level 5, got \${leveledDeepGnomeResource?.max}\`);
+
+const hadozeeResourceId = 'auto-resource-race-Hadozee-AAG-hadozee-dodge';
+let hadozeeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: hadozee,
+});
+const hadozeeResource = getResource(hadozeeCharacter, hadozeeResourceId);
+assert(hadozeeResource?.max === 2 && hadozeeResource.reset === 'longRest', 'AAG Hadozee should add proficiency-based Hadozee Dodge resource');
+assert(hadozeeResource?.note.includes('1d6'), 'AAG Hadozee Dodge resource should keep damage reduction note');
+for (let index = 0; index < 4; index += 1) {
+  hadozeeCharacter = buildLevelUpCharacter(hadozeeCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledHadozeeResource = getResource(hadozeeCharacter, hadozeeResourceId);
+assert(leveledHadozeeResource?.max === 3, \`AAG Hadozee Dodge should refresh to PB 3 at level 5, got \${leveledHadozeeResource?.max}\`);
+
+const giffResourceId = 'auto-resource-race-Giff-AAG-astral-spark';
+let giffCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: giff,
+});
+const giffResource = getResource(giffCharacter, giffResourceId);
+assert(giffResource?.max === 2 && giffResource.reset === 'longRest', 'AAG Giff should add proficiency-based Astral Spark resource');
+assert(giffResource?.note.includes('力场'), 'AAG Giff Astral Spark resource should keep force damage note');
+for (let index = 0; index < 4; index += 1) {
+  giffCharacter = buildLevelUpCharacter(giffCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledGiffResource = getResource(giffCharacter, giffResourceId);
+assert(leveledGiffResource?.max === 3, \`AAG Giff Astral Spark should refresh to PB 3 at level 5, got \${leveledGiffResource?.max}\`);
 
 const efaShifterResourceId = 'auto-resource-race-Shifter-EFA-shifting';
 let efaShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
@@ -675,6 +803,31 @@ const erlwShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, 
 const erlwShifterResource = getResource(erlwShifterCharacter, 'auto-resource-race-Shifter-ERLW-shifting');
 assert(erlwShifterResource?.max === 1 && erlwShifterResource.reset === 'shortRest', 'ERLW Shifter should add one-use Shifting short-rest resource');
 
+const leoninCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+  ruleSystem: '5e',
+  race: leonin,
+  background: phbBackground,
+  skillChoices: [],
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const leoninRoarResource = getResource(leoninCharacter, 'auto-resource-race-Leonin-MOT-daunting-roar');
+assert(leoninRoarResource?.max === 1 && leoninRoarResource.reset === 'shortRest', 'MOT Leonin should add one-use Daunting Roar short-rest resource');
+assert(leoninRoarResource?.note.includes('DC = 8') && leoninRoarResource.note.includes('恐慌'), 'MOT Leonin Daunting Roar resource should keep DC and frightened note');
+const removedLeonin = removeCharacterAdjustments(leoninCharacter, 'auto-character-5e');
+assert(!getResource(removedLeonin, 'auto-resource-race-Leonin-MOT-daunting-roar'), 'removing auto-character should remove Leonin Daunting Roar resource');
+
+const lupinResourceId = 'auto-resource-race-Lupin-RHW-howl';
+let lupinCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: lupin,
+});
+const lupinHowlResource = getResource(lupinCharacter, lupinResourceId);
+assert(lupinHowlResource?.max === 2 && lupinHowlResource.reset === 'longRest', 'RHW Lupin should add proficiency-based Howl long-rest resource');
+assert(lupinHowlResource?.note.includes('DC = 8') && lupinHowlResource.note.includes('劣势'), 'RHW Lupin Howl resource should keep DC and disadvantage note');
+lupinCharacter = levelToFive(lupinCharacter, fighter, '5r');
+const leveledLupinHowlResource = getResource(lupinCharacter, lupinResourceId);
+assert(leveledLupinHowlResource?.max === 3, 'RHW Lupin Howl should refresh to PB 3 at level 5');
+
 const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
 assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
 assert(hobgoblinWeaponChoices[0].count === 2, \`Hobgoblin should choose two martial weapons, got \${hobgoblinWeaponChoices[0].count}\`);
@@ -703,6 +856,9 @@ const autognomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fi
   ...baseOptions,
   race: autognome,
 });
+const autognomeBuiltForSuccessResource = getResource(autognomeCharacter, 'auto-resource-race-Autognome-AAG-built-for-success');
+assert(autognomeBuiltForSuccessResource?.max === 2 && autognomeBuiltForSuccessResource.reset === 'longRest', 'AAG Autognome should add proficiency-based Built for Success resource');
+assert(autognomeBuiltForSuccessResource?.note.includes('1d4'), 'AAG Autognome Built for Success resource should keep d4 note');
 assert(
   autognomeCharacter.conditionImmunities.includes('疾病'),
   \`Autognome should add structured condition immunity, got \${autognomeCharacter.conditionImmunities.join(', ')}\`,
@@ -713,6 +869,16 @@ assert(
 );
 const removedAutognome = removeCharacterAdjustments(autognomeCharacter, 'auto-character-5r');
 assert(!removedAutognome.conditionImmunities.includes('疾病'), 'removing auto-character should remove structured condition immunity');
+assert(!getResource(removedAutognome, 'auto-resource-race-Autognome-AAG-built-for-success'), 'removing auto-character should remove Autognome Built for Success resource');
+let leveledAutognomeCharacter = autognomeCharacter;
+for (let index = 0; index < 4; index += 1) {
+  leveledAutognomeCharacter = buildLevelUpCharacter(leveledAutognomeCharacter, content, fighter, {
+    ruleSystem: '5r',
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+}
+const leveledAutognomeBuiltForSuccessResource = getResource(leveledAutognomeCharacter, 'auto-resource-race-Autognome-AAG-built-for-success');
+assert(leveledAutognomeBuiltForSuccessResource?.max === 3, \`AAG Autognome Built for Success should refresh to PB 3 at level 5, got \${leveledAutognomeBuiltForSuccessResource?.max}\`);
 
 const yuanTiCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
   ruleSystem: '5e',
@@ -820,7 +986,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -832,17 +998,27 @@ export default {
     'structured origin data keeps feature descriptions',
     'fixed race weapon proficiencies normalize source suffixes and affect attacks',
     'XPHB Dwarf adds reversible HP max bonus and scales it on level up',
+    'XPHB Dwarf Stonecunning refreshes proficiency-based uses',
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
     'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
     'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',
+    'Kender Taunt refreshes proficiency-based uses',
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
+    'Hobgoblin Fey Gift refreshes proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
+    'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
+    'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
+    'Hadozee Dodge refreshes proficiency-based uses',
+    'Giff Astral Spark refreshes proficiency-based uses',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
+    'Leonin Daunting Roar adds one-use short-rest resource',
+    'Lupin Howl refreshes proficiency-based uses',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',
+    'Autognome Built for Success refreshes proficiency-based uses',
     'constant racial armor formulas update armor class',
     'natural weapon race features add refreshable attack entries',
     'Warforged integrated protection adds reversible armor bonus',
