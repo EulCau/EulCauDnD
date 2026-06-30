@@ -664,6 +664,40 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '巨武器大师', 'auto-feat-Great Weapon Master-PHB');
+character = equipWeapon(character, heavyMelee5eWeapon, content);
+const phbGreatWeaponMasterMeleeAttack = getAttack(character, \`equip-weapon-\${heavyMelee5eWeapon.id}\`);
+assert(phbGreatWeaponMasterMeleeAttack, 'PHB Great Weapon Master heavy melee fixture should add attack');
+assert(
+  phbGreatWeaponMasterMeleeAttack.notes.includes('巨武器大师') && phbGreatWeaponMasterMeleeAttack.notes.includes('-5 命中 +10 伤害'),
+  \`PHB Great Weapon Master heavy melee attack should include power attack note, got \${phbGreatWeaponMasterMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, heavyRanged5rWeapon, content);
+const phbGreatWeaponMasterRangedAttack = getAttack(character, \`equip-weapon-\${heavyRanged5rWeapon.id}\`);
+assert(phbGreatWeaponMasterRangedAttack, 'PHB Great Weapon Master ranged fixture should add attack');
+assert(
+  !phbGreatWeaponMasterRangedAttack.notes.includes('巨武器大师'),
+  \`PHB Great Weapon Master should not apply to ranged attacks, got \${phbGreatWeaponMasterRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '巨武器大师', 'auto-feat-Great Weapon Master-XPHB');
+character = equipWeapon(character, heavyRanged5rWeapon, content);
+const xphbGreatWeaponMasterRangedAttack = getAttack(character, \`equip-weapon-\${heavyRanged5rWeapon.id}\`);
+assert(xphbGreatWeaponMasterRangedAttack, 'XPHB Great Weapon Master heavy ranged fixture should add attack');
+assert(
+  xphbGreatWeaponMasterRangedAttack.notes.includes('巨武器大师') && xphbGreatWeaponMasterRangedAttack.notes.includes('+3 伤害'),
+  \`XPHB Great Weapon Master heavy ranged attack should include proficiency damage note, got \${xphbGreatWeaponMasterRangedAttack.notes}\`,
+);
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const xphbGreatWeaponMasterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(xphbGreatWeaponMasterMeleeAttack, 'XPHB Great Weapon Master melee fixture should add attack');
+assert(
+  xphbGreatWeaponMasterMeleeAttack.notes.includes('巨武器大师') && xphbGreatWeaponMasterMeleeAttack.notes.includes('附赠动作攻击') && !xphbGreatWeaponMasterMeleeAttack.notes.includes('+3 伤害'),
+  \`XPHB Great Weapon Master non-heavy melee attack should include cleaver note only, got \${xphbGreatWeaponMasterMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -787,6 +821,7 @@ console.log(JSON.stringify({
     'XPHB Savage Attacker adds ranged weapon hit damage note',
     'Crusher, Piercer, and Slasher add damage-type weapon notes',
     'PHB and XPHB Sharpshooter add source-specific ranged notes',
+    'PHB and XPHB Great Weapon Master add source-specific heavy weapon notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],

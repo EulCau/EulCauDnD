@@ -238,6 +238,8 @@ const hasPhbSavageAttacker = (character: CharacterData): boolean => hasFeatSourc
 const hasXphbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'XPHB');
 const hasPhbSharpshooter = (character: CharacterData): boolean => hasFeatSource(character, 'Sharpshooter', 'PHB');
 const hasXphbSharpshooter = (character: CharacterData): boolean => hasFeatSource(character, 'Sharpshooter', 'XPHB');
+const hasPhbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'PHB');
+const hasXphbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -625,6 +627,15 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   }
   if (weapon.dmgType === 'S' && hasSlasherFeat(character)) {
     properties.push('劈砍者: 每回合一次挥砍命中使速度 -10 尺; 挥砍重击后目标攻击具有劣势');
+  }
+  if (!isRangedWeapon(weapon) && hasProperty(weapon, 'H') && hasPhbGreatWeaponMaster(character)) {
+    properties.push('巨武器大师: 重型近战武器可选 -5 命中 +10 伤害; 近战重击或击杀后可附赠动作攻击');
+  }
+  if (hasProperty(weapon, 'H') && hasXphbGreatWeaponMaster(character)) {
+    properties.push(`巨武器大师: 攻击动作中重型武器命中可 +${calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)))} 伤害`);
+  }
+  if (!isRangedWeapon(weapon) && hasXphbGreatWeaponMaster(character)) {
+    properties.push('巨武器大师: 近战重击或击杀后可附赠动作攻击');
   }
   if (!isRangedWeapon(weapon) && hasDivineSmite(character)) {
     properties.push('命中后可消耗法术位使用神圣打击');
