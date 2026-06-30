@@ -42,6 +42,9 @@ const xphbDwarf = content.races.find(item => item.key === 'Dwarf' && item.source
 const xphbOrc = content.races.find(item => item.key === 'Orc' && item.source === 'XPHB');
 const mpmmOrc = content.races.find(item => item.key === 'Orc' && item.source === 'MPMM');
 const halfOrc = content.races.find(item => item.key === 'Half-Orc' && item.source === 'PHB');
+const erlwBugbear = content.races.find(item => item.key === 'Bugbear' && item.source === 'ERLW');
+const mpmmBugbear = content.races.find(item => item.key === 'Bugbear' && item.source === 'MPMM');
+const vgmBugbear = content.races.find(item => item.key === 'Bugbear' && item.source === 'VGM');
 const mpmmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'MPMM');
 const vgmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'VGM');
 const xphbGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'XPHB');
@@ -79,6 +82,8 @@ const aarakocra = content.races.find(item => item.key === 'Aarakocra' && item.so
 const mpmmCentaur = content.races.find(item => item.key === 'Centaur' && item.source === 'MPMM');
 const mpmmMinotaur = content.races.find(item => item.key === 'Minotaur' && item.source === 'MPMM');
 const naga = content.races.find(item => item.key === 'Naga' && item.source === 'PSA');
+const mpmmTabaxi = content.races.find(item => item.key === 'Tabaxi' && item.source === 'MPMM');
+const vgmTabaxi = content.races.find(item => item.key === 'Tabaxi' && item.source === 'VGM');
 const leonin = content.races.find(item => item.key === 'Leonin' && item.source === 'MOT');
 const lupin = content.races.find(item => item.key === 'Lupin' && item.source === 'RHW');
 const khoravar = content.races.find(item => item.key === 'Khoravar' && item.source === 'EFA');
@@ -86,6 +91,7 @@ const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source
 const vedalken = content.races.find(item => item.key === 'Vedalken' && item.source === 'GGR');
 const verdan = content.races.find(item => item.key === 'Verdan' && item.source === 'AI');
 const xphbHuman = content.races.find(item => item.key === 'Human' && item.source === 'XPHB');
+const mpmmSatyr = content.races.find(item => item.key === 'Satyr' && item.source === 'MPMM');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
@@ -108,6 +114,9 @@ assert(xphbDwarf, 'missing XPHB Dwarf fixture');
 assert(xphbOrc, 'missing XPHB Orc fixture');
 assert(mpmmOrc, 'missing MPMM Orc fixture');
 assert(halfOrc, 'missing PHB Half-Orc fixture');
+assert(erlwBugbear, 'missing ERLW Bugbear fixture');
+assert(mpmmBugbear, 'missing MPMM Bugbear fixture');
+assert(vgmBugbear, 'missing VGM Bugbear fixture');
 assert(mpmmGoliath, 'missing MPMM Goliath fixture');
 assert(vgmGoliath, 'missing VGM Goliath fixture');
 assert(xphbGoliath, 'missing XPHB Goliath fixture');
@@ -145,6 +154,8 @@ assert(aarakocra, 'missing MPMM Aarakocra fixture');
 assert(mpmmCentaur, 'missing MPMM Centaur fixture');
 assert(mpmmMinotaur, 'missing MPMM Minotaur fixture');
 assert(naga, 'missing PSA Naga fixture');
+assert(mpmmTabaxi, 'missing MPMM Tabaxi fixture');
+assert(vgmTabaxi, 'missing VGM Tabaxi fixture');
 assert(leonin, 'missing MOT Leonin fixture');
 assert(lupin, 'missing RHW Lupin fixture');
 assert(khoravar, 'missing EFA Khoravar fixture');
@@ -152,6 +163,7 @@ assert(loxodon, 'missing GGR Loxodon fixture');
 assert(vedalken, 'missing GGR Vedalken fixture');
 assert(verdan, 'missing AI Verdan fixture');
 assert(xphbHuman, 'missing XPHB Human fixture');
+assert(mpmmSatyr, 'missing MPMM Satyr fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
 assert(battleaxe, 'missing PHB Battleaxe fixture');
@@ -570,6 +582,26 @@ const vgmKoboldCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wi
 const vgmKoboldResource = getResource(vgmKoboldCharacter, 'auto-resource-race-Kobold-VGM-grovel-cower-and-beg');
 assert(vgmKoboldResource?.max === 1 && vgmKoboldResource.reset === 'shortRest', 'VGM Kobold should add one-use Grovel, Cower, and Beg short-rest resource');
 
+for (const [bugbear, source] of [[erlwBugbear, 'ERLW'], [vgmBugbear, 'VGM']]) {
+  const bugbearCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
+    ruleSystem: '5e',
+    race: bugbear,
+    background: phbBackground,
+    skillChoices: [],
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+  const bugbearResource = getResource(bugbearCharacter, \`auto-resource-race-Bugbear-\${source}-surprise-attack\`);
+  assert(bugbearResource?.max === 1 && bugbearResource.reset === 'manual', \`\${source} Bugbear should add manual Surprise Attack resource\`);
+  assert(bugbearResource?.note.includes('每场战斗一次') && bugbearResource.note.includes('2d6'), \`\${source} Bugbear Surprise Attack resource should keep per-combat damage note\`);
+  const removedBugbear = removeCharacterAdjustments(bugbearCharacter, 'auto-character-5e');
+  assert(!getResource(removedBugbear, \`auto-resource-race-Bugbear-\${source}-surprise-attack\`), \`removing auto-character should remove \${source} Bugbear Surprise Attack resource\`);
+}
+const mpmmBugbearCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: mpmmBugbear,
+});
+assert(!getResource(mpmmBugbearCharacter, 'auto-resource-race-Bugbear-MPMM-surprise-attack'), 'MPMM Bugbear Surprise Attack should remain passive and not add one-use resource');
+
 for (const [reborn, source] of [[rhwReborn, 'RHW'], [vrgrReborn, 'VRGR']]) {
   const resourceId = \`auto-resource-race-Reborn-\${source}-knowledge-from-a-past-life\`;
   let rebornCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
@@ -871,6 +903,21 @@ const erlwShifterCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, 
 const erlwShifterResource = getResource(erlwShifterCharacter, 'auto-resource-race-Shifter-ERLW-shifting');
 assert(erlwShifterResource?.max === 1 && erlwShifterResource.reset === 'shortRest', 'ERLW Shifter should add one-use Shifting short-rest resource');
 
+for (const [tabaxi, source, ruleSystem] of [[mpmmTabaxi, 'MPMM', '5r'], [vgmTabaxi, 'VGM', '5e']]) {
+  const tabaxiCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+    ruleSystem,
+    race: tabaxi,
+    background: ruleSystem === '5e' ? phbBackground : background,
+    skillChoices: [],
+    spellChoices: { cantrips: [], leveled: [] },
+  });
+  const tabaxiResource = getResource(tabaxiCharacter, \`auto-resource-race-Tabaxi-\${source}-feline-agility\`);
+  assert(tabaxiResource?.max === 1 && tabaxiResource.reset === 'manual', \`\${source} Tabaxi should add manual Feline Agility resource\`);
+  assert(tabaxiResource?.note.includes('移动 0 尺'), \`\${source} Tabaxi Feline Agility resource should keep recharge condition\`);
+  const removedTabaxi = removeCharacterAdjustments(tabaxiCharacter, \`auto-character-\${ruleSystem}\`);
+  assert(!getResource(removedTabaxi, \`auto-resource-race-Tabaxi-\${source}-feline-agility\`), \`removing auto-character should remove \${source} Tabaxi Feline Agility resource\`);
+}
+
 const leoninCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
   ruleSystem: '5e',
   race: leonin,
@@ -1048,6 +1095,12 @@ const naturalAttackCases = [
     damage: '1d6 挥砍',
   },
   {
+    race: mpmmSatyr,
+    sourceId: 'auto-race-attack-satyr-mpmm-ram',
+    name: '攻城槌',
+    damage: '1d6 穿刺',
+  },
+  {
     race: tortle,
     sourceId: 'auto-race-attack-tortle-mpmm-claws',
     name: '爪击',
@@ -1121,7 +1174,7 @@ const removedVerdanLevelFive = removeCharacterAdjustments(verdanCharacter, 'auto
 assert(removedVerdanLevelFive.bodyType === '小型', 'removing level 5 adjustment should restore AI Verdan Small size');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, erlwBugbear.name, mpmmBugbear.name, vgmBugbear.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, mpmmTabaxi.name, vgmTabaxi.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, mpmmSatyr.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1142,6 +1195,7 @@ export default {
     'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
     'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',
     'Kender Taunt refreshes proficiency-based uses',
+    'legacy Bugbear Surprise Attack adds manual per-combat resource',
     'Goblin and Hobgoblin source-specific resources refresh proficiency-based uses',
     'Hobgoblin Fey Gift refreshes proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
@@ -1152,6 +1206,7 @@ export default {
     'Hadozee Dodge refreshes proficiency-based uses',
     'Giff Astral Spark refreshes proficiency-based uses',
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
+    'Tabaxi Feline Agility adds manual recovery resource',
     'Leonin Daunting Roar adds one-use short-rest resource',
     'Lupin Howl refreshes proficiency-based uses',
     'Khoravar Lethargy Resilience adds manual recovery resource',
@@ -1163,6 +1218,7 @@ export default {
     'constant racial armor formulas update armor class',
     'natural weapon race features add refreshable attack entries',
     'Naga Natural Weapons add bite and constrict attack entries',
+    'Satyr Ram adds source-specific natural attack entry',
     'Warforged integrated protection adds reversible armor bonus',
     'XPHB Human Resourceful applies reversible heroic inspiration',
     'AI Verdan changes from Small to Medium at level 5',

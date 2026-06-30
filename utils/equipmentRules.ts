@@ -203,6 +203,14 @@ const hasFeature = (character: CharacterData, names: string[]): boolean => (
   character.featureEntries.some(feature => names.includes(feature.name))
 );
 
+const hasFeatSource = (character: CharacterData, key: string, source: string): boolean => (
+  character.featureEntries.some(feature => feature.sourceId === `auto-feat-${key}-${source}`)
+);
+
+const hasFeatKey = (character: CharacterData, key: string): boolean => (
+  character.featureEntries.some(feature => feature.sourceId.startsWith(`auto-feat-${key}-`))
+);
+
 const hasOriginFeature = (
   character: CharacterData,
   raceKey: string,
@@ -225,6 +233,16 @@ const hasUnarmoredDefense = (character: CharacterData): boolean => hasFeature(ch
 const hasMartialArts = (character: CharacterData): boolean => hasFeature(character, ['武艺', 'Martial Arts']);
 const hasRage = (character: CharacterData): boolean => hasFeature(character, ['狂暴', 'Rage']);
 const hasSneakAttack = (character: CharacterData): boolean => hasFeature(character, ['偷袭', 'Sneak Attack']);
+const hasSavageAttacks = (character: CharacterData): boolean => hasFeature(character, ['凶蛮攻击', 'Savage Attacks']);
+const hasPhbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'PHB');
+const hasXphbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'XPHB');
+const hasPhbSharpshooter = (character: CharacterData): boolean => hasFeatSource(character, 'Sharpshooter', 'PHB');
+const hasXphbSharpshooter = (character: CharacterData): boolean => hasFeatSource(character, 'Sharpshooter', 'XPHB');
+const hasPhbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'PHB');
+const hasXphbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'XPHB');
+const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
+const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
+const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
 const hasDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['至圣斩', 'Divine Smite', '圣武斩', "Paladin's Smite"]);
 const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['精通至圣斩', 'Improved Divine Smite', '光耀打击', 'Radiant Strikes']);
 const hasPhbDualWielder = (character: CharacterData): boolean => (
@@ -377,6 +395,28 @@ const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
     die: '1d6',
     damageType: '钝击',
     notes: '天然武器: 可用力量进行徒手打击. 命中时目标受擒并陷入束缚, 逃脱 DC = 8 + 熟练加值 + 力量调整值. 紧束期间不能紧束另一个目标.',
+  },
+  {
+    raceKey: 'Satyr',
+    raceSource: 'MOT',
+    featureNames: ['攻城槌', 'Ram'],
+    sourceName: '攻城槌',
+    attackKey: 'satyr-mot-ram',
+    name: '攻城槌',
+    die: '1d4',
+    damageType: '钝击',
+    notes: '天然武器: 可用力量进行徒手打击.',
+  },
+  {
+    raceKey: 'Satyr',
+    raceSource: 'MPMM',
+    featureNames: ['攻城槌', 'Ram'],
+    sourceName: '攻城槌',
+    attackKey: 'satyr-mpmm-ram',
+    name: '攻城槌',
+    die: '1d6',
+    damageType: '穿刺',
+    notes: '天然武器: 可用力量进行徒手打击.',
   },
   {
     raceKey: 'Tabaxi',
@@ -568,6 +608,35 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   if (hasSneakAttack(character) && (isRangedWeapon(weapon) || hasProperty(weapon, 'F'))) {
     properties.push(`每回合一次偷袭 +${getSneakAttackDice(character)}`);
   }
+  if (!isRangedWeapon(weapon) && hasFeature(character, ['长肢', 'Long-Limbed'])) {
+    properties.push('长肢: 你的回合内近战攻击触及 +5 尺');
+  }
+  if (!isRangedWeapon(weapon) && hasSavageAttacks(character)) {
+    properties.push('凶蛮攻击: 近战武器重击额外一颗武器伤害骰');
+  }
+  if (hasXphbSavageAttacker(character)) {
+    properties.push('凶蛮打手: 每回合一次武器命中时伤害骰掷两次择优');
+  } else if (!isRangedWeapon(weapon) && hasPhbSavageAttacker(character)) {
+    properties.push('凶蛮打手: 每回合一次重掷近战武器伤害骰并择优');
+  }
+  if (weapon.dmgType === 'B' && hasCrusherFeat(character)) {
+    properties.push('粉碎者: 每回合一次钝击命中可移动目标 5 尺; 钝击重击后攻击目标具有优势');
+  }
+  if (weapon.dmgType === 'P' && hasPiercerFeat(character)) {
+    properties.push('穿刺者: 每回合一次重骰一颗穿刺伤害骰; 穿刺重击额外一颗伤害骰');
+  }
+  if (weapon.dmgType === 'S' && hasSlasherFeat(character)) {
+    properties.push('劈砍者: 每回合一次挥砍命中使速度 -10 尺; 挥砍重击后目标攻击具有劣势');
+  }
+  if (!isRangedWeapon(weapon) && hasProperty(weapon, 'H') && hasPhbGreatWeaponMaster(character)) {
+    properties.push('巨武器大师: 重型近战武器可选 -5 命中 +10 伤害; 近战重击或击杀后可附赠动作攻击');
+  }
+  if (hasProperty(weapon, 'H') && hasXphbGreatWeaponMaster(character)) {
+    properties.push(`巨武器大师: 攻击动作中重型武器命中可 +${calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)))} 伤害`);
+  }
+  if (!isRangedWeapon(weapon) && hasXphbGreatWeaponMaster(character)) {
+    properties.push('巨武器大师: 近战重击或击杀后可附赠动作攻击');
+  }
   if (!isRangedWeapon(weapon) && hasDivineSmite(character)) {
     properties.push('命中后可消耗法术位使用神圣打击');
   }
@@ -575,6 +644,11 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
     properties.push('每次命中 +1d8 光耀');
   }
   if (isRangedWeapon(weapon) && hasFeature(character, ['箭术', 'Archery'])) properties.push('箭术 +2 命中');
+  if (isRangedWeapon(weapon) && hasXphbSharpshooter(character)) {
+    properties.push('神射手: 远程武器攻击无视掩护, 近距和长射程不具有劣势');
+  } else if (isRangedWeapon(weapon) && hasPhbSharpshooter(character)) {
+    properties.push('神射手: 远程攻击长射程不劣势, 无视半身/四分之三掩护; 熟练远程武器可选 -5 命中 +10 伤害');
+  }
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');
   if (hasTwoWeaponStyle(character) && hasProperty(weapon, 'L')) properties.push('双武器战斗: 轻型额外攻击可加属性调整值');

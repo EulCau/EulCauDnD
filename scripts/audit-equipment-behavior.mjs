@@ -80,6 +80,9 @@ const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasP
 const nonLightMeleeWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H') && String(weapon.type || '').split('|')[0] === 'M' && weapon.dmg1);
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
 const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
+const bludgeoningWeapon = weapons.find(weapon => weapon.dmgType === 'B' && weapon.dmg1);
+const piercingWeapon = weapons.find(weapon => weapon.dmgType === 'P' && weapon.dmg1);
+const slashingWeapon = weapons.find(weapon => weapon.dmgType === 'S' && weapon.dmg1);
 const thrownWeapon = weapons.find(weapon => hasProperty(weapon, 'T') && weapon.range && weapon.dmg1);
 const loadingAmmunitionWeapon = weapons.find(weapon => hasProperty(weapon, 'A') && hasProperty(weapon, 'LD') && weapon.range && weapon.dmg1);
 const reachWeapon = weapons.find(weapon => hasProperty(weapon, 'R') && !hasProperty(weapon, 'S') && weapon.dmg1);
@@ -105,6 +108,9 @@ assert(nonLightWeapon, 'missing non-light weapon fixture');
 assert(nonLightMeleeWeapon, 'missing non-light one-handed melee weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
 assert(rangedWeapon, 'missing ranged weapon fixture');
+assert(bludgeoningWeapon, 'missing bludgeoning weapon fixture');
+assert(piercingWeapon, 'missing piercing weapon fixture');
+assert(slashingWeapon, 'missing slashing weapon fixture');
 assert(thrownWeapon, 'missing thrown weapon fixture');
 assert(loadingAmmunitionWeapon, 'missing ammunition/loading weapon fixture');
 assert(reachWeapon, 'missing reach weapon fixture');
@@ -540,6 +546,158 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '长肢');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const longLimbedMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(longLimbedMeleeAttack, 'Long-Limbed melee fixture should add attack');
+assert(
+  longLimbedMeleeAttack.notes.includes('长肢') && longLimbedMeleeAttack.notes.includes('触及 +5 尺'),
+  \`Long-Limbed melee attack should include reach note, got \${longLimbedMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const longLimbedRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(longLimbedRangedAttack, 'Long-Limbed ranged fixture should add attack');
+assert(
+  !longLimbedRangedAttack.notes.includes('长肢'),
+  \`Long-Limbed should not apply to ranged attacks, got \${longLimbedRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '凶蛮攻击');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const savageAttacksMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(savageAttacksMeleeAttack, 'Savage Attacks melee fixture should add attack');
+assert(
+  savageAttacksMeleeAttack.notes.includes('凶蛮攻击') && savageAttacksMeleeAttack.notes.includes('重击'),
+  \`Savage Attacks melee attack should include critical damage note, got \${savageAttacksMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const savageAttacksRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(savageAttacksRangedAttack, 'Savage Attacks ranged fixture should add attack');
+assert(
+  !savageAttacksRangedAttack.notes.includes('凶蛮攻击'),
+  \`Savage Attacks should not apply to ranged attacks, got \${savageAttacksRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '凶蛮打手', 'auto-feat-Savage Attacker-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbSavageAttackerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbSavageAttackerMeleeAttack, 'PHB Savage Attacker melee fixture should add attack');
+assert(
+  phbSavageAttackerMeleeAttack.notes.includes('凶蛮打手') && phbSavageAttackerMeleeAttack.notes.includes('重掷近战武器伤害骰'),
+  \`PHB Savage Attacker melee attack should include melee reroll note, got \${phbSavageAttackerMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbSavageAttackerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbSavageAttackerRangedAttack, 'PHB Savage Attacker ranged fixture should add attack');
+assert(
+  !phbSavageAttackerRangedAttack.notes.includes('凶蛮打手'),
+  \`PHB Savage Attacker should not apply to ranged attacks, got \${phbSavageAttackerRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '凶蛮打手', 'auto-feat-Savage Attacker-XPHB');
+character = equipWeapon(character, rangedWeapon, content);
+const xphbSavageAttackerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbSavageAttackerRangedAttack, 'XPHB Savage Attacker ranged fixture should add attack');
+assert(
+  xphbSavageAttackerRangedAttack.notes.includes('凶蛮打手') && xphbSavageAttackerRangedAttack.notes.includes('武器命中'),
+  \`XPHB Savage Attacker ranged attack should include weapon hit damage note, got \${xphbSavageAttackerRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '粉碎者', 'auto-feat-Crusher-TCE');
+character = equipWeapon(character, bludgeoningWeapon, content);
+const crusherAttack = getAttack(character, \`equip-weapon-\${bludgeoningWeapon.id}\`);
+assert(crusherAttack, 'Crusher fixture should add attack');
+assert(
+  crusherAttack.notes.includes('粉碎者') && crusherAttack.notes.includes('钝击'),
+  \`Crusher bludgeoning attack should include Crusher note, got \${crusherAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '穿刺者', 'auto-feat-Piercer-TCE');
+character = equipWeapon(character, piercingWeapon, content);
+const piercerAttack = getAttack(character, \`equip-weapon-\${piercingWeapon.id}\`);
+assert(piercerAttack, 'Piercer fixture should add attack');
+assert(
+  piercerAttack.notes.includes('穿刺者') && piercerAttack.notes.includes('穿刺重击'),
+  \`Piercer piercing attack should include Piercer note, got \${piercerAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '劈砍者', 'auto-feat-Slasher-TCE');
+character = equipWeapon(character, slashingWeapon, content);
+const slasherAttack = getAttack(character, \`equip-weapon-\${slashingWeapon.id}\`);
+assert(slasherAttack, 'Slasher fixture should add attack');
+assert(
+  slasherAttack.notes.includes('劈砍者') && slasherAttack.notes.includes('挥砍'),
+  \`Slasher slashing attack should include Slasher note, got \${slasherAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '神射手', 'auto-feat-Sharpshooter-PHB');
+character = equipWeapon(character, rangedWeapon, content);
+const phbSharpshooterRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbSharpshooterRangedAttack, 'PHB Sharpshooter ranged fixture should add attack');
+assert(
+  phbSharpshooterRangedAttack.notes.includes('神射手') && phbSharpshooterRangedAttack.notes.includes('-5 命中 +10 伤害'),
+  \`PHB Sharpshooter ranged attack should include power attack note, got \${phbSharpshooterRangedAttack.notes}\`,
+);
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbSharpshooterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbSharpshooterMeleeAttack, 'PHB Sharpshooter melee fixture should add attack');
+assert(
+  !phbSharpshooterMeleeAttack.notes.includes('神射手'),
+  \`PHB Sharpshooter should not apply to melee attacks, got \${phbSharpshooterMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '神射手', 'auto-feat-Sharpshooter-XPHB');
+character = equipWeapon(character, rangedWeapon, content);
+const xphbSharpshooterRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbSharpshooterRangedAttack, 'XPHB Sharpshooter ranged fixture should add attack');
+assert(
+  xphbSharpshooterRangedAttack.notes.includes('神射手') && xphbSharpshooterRangedAttack.notes.includes('近距') && !xphbSharpshooterRangedAttack.notes.includes('-5'),
+  \`XPHB Sharpshooter ranged attack should include 2024 ranged notes without PHB power attack, got \${xphbSharpshooterRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '巨武器大师', 'auto-feat-Great Weapon Master-PHB');
+character = equipWeapon(character, heavyMelee5eWeapon, content);
+const phbGreatWeaponMasterMeleeAttack = getAttack(character, \`equip-weapon-\${heavyMelee5eWeapon.id}\`);
+assert(phbGreatWeaponMasterMeleeAttack, 'PHB Great Weapon Master heavy melee fixture should add attack');
+assert(
+  phbGreatWeaponMasterMeleeAttack.notes.includes('巨武器大师') && phbGreatWeaponMasterMeleeAttack.notes.includes('-5 命中 +10 伤害'),
+  \`PHB Great Weapon Master heavy melee attack should include power attack note, got \${phbGreatWeaponMasterMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, heavyRanged5rWeapon, content);
+const phbGreatWeaponMasterRangedAttack = getAttack(character, \`equip-weapon-\${heavyRanged5rWeapon.id}\`);
+assert(phbGreatWeaponMasterRangedAttack, 'PHB Great Weapon Master ranged fixture should add attack');
+assert(
+  !phbGreatWeaponMasterRangedAttack.notes.includes('巨武器大师'),
+  \`PHB Great Weapon Master should not apply to ranged attacks, got \${phbGreatWeaponMasterRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '巨武器大师', 'auto-feat-Great Weapon Master-XPHB');
+character = equipWeapon(character, heavyRanged5rWeapon, content);
+const xphbGreatWeaponMasterRangedAttack = getAttack(character, \`equip-weapon-\${heavyRanged5rWeapon.id}\`);
+assert(xphbGreatWeaponMasterRangedAttack, 'XPHB Great Weapon Master heavy ranged fixture should add attack');
+assert(
+  xphbGreatWeaponMasterRangedAttack.notes.includes('巨武器大师') && xphbGreatWeaponMasterRangedAttack.notes.includes('+3 伤害'),
+  \`XPHB Great Weapon Master heavy ranged attack should include proficiency damage note, got \${xphbGreatWeaponMasterRangedAttack.notes}\`,
+);
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const xphbGreatWeaponMasterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(xphbGreatWeaponMasterMeleeAttack, 'XPHB Great Weapon Master melee fixture should add attack');
+assert(
+  xphbGreatWeaponMasterMeleeAttack.notes.includes('巨武器大师') && xphbGreatWeaponMasterMeleeAttack.notes.includes('附赠动作攻击') && !xphbGreatWeaponMasterMeleeAttack.notes.includes('+3 伤害'),
+  \`XPHB Great Weapon Master non-heavy melee attack should include cleaver note only, got \${xphbGreatWeaponMasterMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -584,6 +742,9 @@ export default {
   nonLightMeleeWeapon: nonLightMeleeWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
   rangedWeapon: rangedWeapon.name,
+  bludgeoningWeapon: bludgeoningWeapon.name,
+  piercingWeapon: piercingWeapon.name,
+  slashingWeapon: slashingWeapon.name,
   thrownWeapon: thrownWeapon.name,
   loadingAmmunitionWeapon: loadingAmmunitionWeapon.name,
   reachWeapon: reachWeapon.name,
@@ -652,6 +813,15 @@ console.log(JSON.stringify({
     'main weapon refreshes after ability change',
     'main weapon refreshes after adding and removing Chinese weapon-name proficiency',
     'ranged weapon refreshes after adding archery',
+    'Long-Limbed adds melee reach note',
+    'Long-Limbed does not add ranged attack note',
+    'Savage Attacks adds melee critical damage note',
+    'Savage Attacks does not add ranged attack note',
+    'PHB Savage Attacker adds melee-only damage reroll note',
+    'XPHB Savage Attacker adds ranged weapon hit damage note',
+    'Crusher, Piercer, and Slasher add damage-type weapon notes',
+    'PHB and XPHB Sharpshooter add source-specific ranged notes',
+    'PHB and XPHB Great Weapon Master add source-specific heavy weapon notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],

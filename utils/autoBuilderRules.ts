@@ -3760,6 +3760,32 @@ const createOriginResourceOperations = (
       '以附赠动作创造魔法信物. 信物可用于远程传信或遥远视野, 完成长休后恢复.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Feline Agility' || feature.name === '猫之迅捷')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'feline-agility',
+      '猫之迅捷',
+      1,
+      'manual',
+      '移动时可让速度翻倍直到回合结束. 使用后, 除非在自己的一个回合移动 0 尺, 否则不能再次使用.',
+    ));
+  }
+  if (
+    entity.key === 'Bugbear'
+    && (entity.source === 'ERLW' || entity.source === 'VGM')
+    && (entity.features || []).some(feature => feature.englishName === 'Surprise Attack' || feature.name === '突袭攻击')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'surprise-attack',
+      '突袭攻击',
+      1,
+      'manual',
+      '每场战斗一次. 在战斗第一回合用攻击命中被你突袭的生物时, 额外造成 2d6 伤害.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Resourceful' || feature.name === '适应力')) {
     operations.push({ type: 'setBooleanField', field: 'inspiration', value: true });
   }
