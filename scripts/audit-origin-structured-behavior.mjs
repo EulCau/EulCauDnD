@@ -76,6 +76,7 @@ const mpmmCentaur = content.races.find(item => item.key === 'Centaur' && item.so
 const mpmmMinotaur = content.races.find(item => item.key === 'Minotaur' && item.source === 'MPMM');
 const leonin = content.races.find(item => item.key === 'Leonin' && item.source === 'MOT');
 const lupin = content.races.find(item => item.key === 'Lupin' && item.source === 'RHW');
+const khoravar = content.races.find(item => item.key === 'Khoravar' && item.source === 'EFA');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
@@ -133,6 +134,7 @@ assert(mpmmCentaur, 'missing MPMM Centaur fixture');
 assert(mpmmMinotaur, 'missing MPMM Minotaur fixture');
 assert(leonin, 'missing MOT Leonin fixture');
 assert(lupin, 'missing RHW Lupin fixture');
+assert(khoravar, 'missing EFA Khoravar fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
@@ -828,6 +830,16 @@ lupinCharacter = levelToFive(lupinCharacter, fighter, '5r');
 const leveledLupinHowlResource = getResource(lupinCharacter, lupinResourceId);
 assert(leveledLupinHowlResource?.max === 3, 'RHW Lupin Howl should refresh to PB 3 at level 5');
 
+const khoravarCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: khoravar,
+});
+const khoravarLethargyResource = getResource(khoravarCharacter, 'auto-resource-race-Khoravar-EFA-lethargy-resilience');
+assert(khoravarLethargyResource?.max === 1 && khoravarLethargyResource.reset === 'manual', 'EFA Khoravar should add manual Lethargy Resilience resource');
+assert(khoravarLethargyResource?.note.includes('1d4 次长休'), 'EFA Khoravar Lethargy Resilience resource should keep recovery note');
+const removedKhoravar = removeCharacterAdjustments(khoravarCharacter, 'auto-character-5r');
+assert(!getResource(removedKhoravar, 'auto-resource-race-Khoravar-EFA-lethargy-resilience'), 'removing auto-character should remove Khoravar Lethargy Resilience resource');
+
 const hobgoblinWeaponChoices = getOriginWeaponChoiceOptions(content, '5e', hobgoblin);
 assert(hobgoblinWeaponChoices.length === 1, \`Hobgoblin should expose one weapon choice group, got \${hobgoblinWeaponChoices.length}\`);
 assert(hobgoblinWeaponChoices[0].count === 2, \`Hobgoblin should choose two martial weapons, got \${hobgoblinWeaponChoices[0].count}\`);
@@ -986,7 +998,7 @@ const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-ch
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, loxodon.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1015,6 +1027,7 @@ export default {
     'Shifter source-specific Shifting resources refresh proficiency-based uses',
     'Leonin Daunting Roar adds one-use short-rest resource',
     'Lupin Howl refreshes proficiency-based uses',
+    'Khoravar Lethargy Resilience adds manual recovery resource',
     'chosen race weapon proficiencies expose choices and apply selected weapons',
     'fixed condition immunities add reversible structured entries',
     'fixed damage immunities add structured entries and feature descriptions',

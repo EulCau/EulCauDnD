@@ -3716,6 +3716,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值. 以附赠动作迫使 15 尺内目标进行感知豁免, DC = 8 + 熟练加值 + 体质调整值, 失败则攻击检定和豁免检定具有劣势直到你的下一回合开始.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Lethargy Resilience' || feature.name === '怠惰恢复力')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'lethargy-resilience',
+      '怠惰恢复力',
+      1,
+      'manual',
+      '为避免或结束昏迷状态的豁免失败时可改为成功. 使用后需要完成 1d4 次长休才可再次使用.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
       entity,
