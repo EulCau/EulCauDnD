@@ -3738,6 +3738,9 @@ const createOriginResourceOperations = (
       '可在水下呼吸最多 1 小时. 达到时限后, 直到完成长休前不能再次使用.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Resourceful' || feature.name === '适应力')) {
+    operations.push({ type: 'setBooleanField', field: 'inspiration', value: true });
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
       entity,

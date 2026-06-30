@@ -79,6 +79,7 @@ const lupin = content.races.find(item => item.key === 'Lupin' && item.source ===
 const khoravar = content.races.find(item => item.key === 'Khoravar' && item.source === 'EFA');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
 const vedalken = content.races.find(item => item.key === 'Vedalken' && item.source === 'GGR');
+const xphbHuman = content.races.find(item => item.key === 'Human' && item.source === 'XPHB');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
@@ -138,6 +139,7 @@ assert(lupin, 'missing RHW Lupin fixture');
 assert(khoravar, 'missing EFA Khoravar fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
 assert(vedalken, 'missing GGR Vedalken fixture');
+assert(xphbHuman, 'missing XPHB Human fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
 assert(battleaxe, 'missing PHB Battleaxe fixture');
@@ -1012,8 +1014,22 @@ assert(warforgedCharacter.armorBonus === 1, \`Warforged integrated protection sh
 const removedWarforged = removeCharacterAdjustments(warforgedCharacter, 'auto-character-5e');
 assert(removedWarforged.armorBonus === 0, 'removing auto-character should remove Warforged armor bonus');
 
+const xphbHumanCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: xphbHuman,
+});
+assert(xphbHumanCharacter.inspiration === true, 'XPHB Human Resourceful should set heroic inspiration');
+const removedXphbHuman = removeCharacterAdjustments(xphbHumanCharacter, 'auto-character-5r');
+assert(removedXphbHuman.inspiration === false, 'removing XPHB Human should restore previous inspiration state');
+const inspiredXphbHuman = buildLevelOneCharacter({ ...INITIAL_CHARACTER, inspiration: true }, content, fighter, {
+  ...baseOptions,
+  race: xphbHuman,
+});
+const removedInspiredXphbHuman = removeCharacterAdjustments(inspiredXphbHuman, 'auto-character-5r');
+assert(removedInspiredXphbHuman.inspiration === true, 'removing XPHB Human should preserve pre-existing inspiration');
+
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1051,6 +1067,7 @@ export default {
     'constant racial armor formulas update armor class',
     'natural weapon race features add refreshable attack entries',
     'Warforged integrated protection adds reversible armor bonus',
+    'XPHB Human Resourceful applies reversible heroic inspiration',
   ],
 };
 `;

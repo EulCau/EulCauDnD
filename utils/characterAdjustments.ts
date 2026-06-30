@@ -123,6 +123,8 @@ const withPreviousValue = (character: CharacterData, operation: AdjustmentOperat
       return { ...operation, previousValue: getPathValue(character, operation.path) };
     case 'setStringField':
       return { ...operation, previousValue: character[operation.field] };
+    case 'setBooleanField':
+      return { ...operation, previousValue: character[operation.field] };
     case 'setClasses':
       return { ...operation, previousValue: cloneClasses(character.classes) };
     case 'setAutomation':
@@ -196,6 +198,8 @@ const applyOperation = (character: MutableCharacter, operation: AdjustmentOperat
     case 'set':
       return setPathValue(character, operation.path, operation.value);
     case 'setStringField':
+      return { ...character, [operation.field]: operation.value };
+    case 'setBooleanField':
       return { ...character, [operation.field]: operation.value };
     case 'setClasses':
       return { ...character, classes: cloneClasses(operation.value) };
@@ -294,6 +298,8 @@ const removeOperation = (character: MutableCharacter, operation: AdjustmentOpera
       return setPathValue(character, operation.path, operation.previousValue ?? null);
     case 'setStringField':
       return { ...character, [operation.field]: operation.previousValue || '' };
+    case 'setBooleanField':
+      return { ...character, [operation.field]: operation.previousValue ?? false };
     case 'setClasses':
       return { ...character, classes: cloneClasses(operation.previousValue || []) };
     case 'setAutomation':
