@@ -254,6 +254,8 @@ const hasPhbShieldMaster = (character: CharacterData): boolean => hasFeatSource(
 const hasXphbShieldMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Shield Master', 'XPHB');
 const hasPhbGrappler = (character: CharacterData): boolean => hasFeatSource(character, 'Grappler', 'PHB');
 const hasXphbGrappler = (character: CharacterData): boolean => hasFeatSource(character, 'Grappler', 'XPHB');
+const hasPhbMageSlayer = (character: CharacterData): boolean => hasFeatSource(character, 'Mage Slayer', 'PHB');
+const hasXphbMageSlayer = (character: CharacterData): boolean => hasFeatSource(character, 'Mage Slayer', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -300,6 +302,18 @@ const getGrapplerAttackNotes = (character: CharacterData, unarmed = false): stri
   if (hasXphbGrappler(character)) {
     notes.push('擒抱者: 攻击被你擒抱的生物具有优势');
     if (unarmed) notes.push('擒抱者: 每回合一次徒手打击命中可同时造成伤害并擒抱, 拖行同体型或更小目标不额外消耗移动');
+  }
+  return notes;
+};
+
+const getMageSlayerAttackNotes = (character: CharacterData, meleeWeapon = false): string[] => {
+  const notes: string[] = [];
+  if (hasPhbMageSlayer(character)) {
+    if (meleeWeapon) notes.push('巫师杀手: 5 尺内生物施法后可反应近战武器攻击');
+    notes.push('巫师杀手: 对专注目标造成伤害后, 其维持专注豁免具有劣势');
+  }
+  if (hasXphbMageSlayer(character)) {
+    notes.push('巫师杀手: 对专注目标造成伤害后, 其维持专注豁免具有劣势');
   }
   return notes;
 };
@@ -744,6 +758,7 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
     const dc = 8 + calculateModifier(character.abilities.STR) + calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)));
     properties.push(`盾牌大师: 每回合一次近战命中后盾击, 力量豁免 DC ${dc}, 失败推离 5 尺或倒地`);
   }
+  properties.push(...getMageSlayerAttackNotes(character, !isRangedWeapon(weapon)));
   properties.push(...getGrapplerAttackNotes(character));
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');
@@ -1339,7 +1354,11 @@ const createNaturalAttack = (
   profBonus: number,
 ): Attack => {
   const sourceId = `auto-race-attack-${definition.attackKey}`;
-  const notes = [definition.notes, ...getGrapplerAttackNotes(character, true)].filter(Boolean).join(' ');
+  const notes = [
+    definition.notes,
+    ...getMageSlayerAttackNotes(character),
+    ...getGrapplerAttackNotes(character, true),
+  ].filter(Boolean).join(' ');
   return {
     id: `${sourceId}-attack`,
     sourceId,
@@ -1387,6 +1406,7 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       type: '徒手打击',
       notes: [
         '徒手战斗: 未持握武器和盾牌时伤害骰为 1d8. 回合开始时可对受擒目标造成 1d4 钝击.',
+        ...getMageSlayerAttackNotes(next),
         ...getGrapplerAttackNotes(next, true),
       ].join(' '),
     };
@@ -1418,6 +1438,7 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       type: '徒手打击',
       notes: [
         `武艺: 可用${ability.label}进行徒手打击和武僧武器攻击. 武艺骰 ${die}.`,
+        ...getMageSlayerAttackNotes(next),
         ...getGrapplerAttackNotes(next, true),
       ].join(' '),
     };

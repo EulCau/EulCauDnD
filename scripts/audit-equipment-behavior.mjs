@@ -389,6 +389,38 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '巫师杀手', 'auto-feat-Mage Slayer-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbMageSlayerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbMageSlayerMeleeAttack, 'PHB Mage Slayer melee fixture should add attack');
+assert(
+  phbMageSlayerMeleeAttack.notes.includes('巫师杀手') && phbMageSlayerMeleeAttack.notes.includes('反应近战武器攻击') && phbMageSlayerMeleeAttack.notes.includes('专注'),
+  \`PHB Mage Slayer melee attack should include reaction and concentration notes, got \${phbMageSlayerMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbMageSlayerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbMageSlayerRangedAttack, 'PHB Mage Slayer ranged fixture should add attack');
+assert(
+  phbMageSlayerRangedAttack.notes.includes('巫师杀手')
+    && phbMageSlayerRangedAttack.notes.includes('专注')
+    && !phbMageSlayerRangedAttack.notes.includes('反应近战武器攻击'),
+  \`PHB Mage Slayer ranged attack should include concentration note only, got \${phbMageSlayerRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '巫师杀手', 'auto-feat-Mage Slayer-XPHB');
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const xphbMageSlayerUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(xphbMageSlayerUnarmedAttack, 'XPHB Mage Slayer unarmed fixture should add attack');
+assert(
+  xphbMageSlayerUnarmedAttack.notes.includes('巫师杀手')
+    && xphbMageSlayerUnarmedAttack.notes.includes('专注')
+    && !xphbMageSlayerUnarmedAttack.notes.includes('反应近战武器攻击'),
+  \`XPHB Mage Slayer unarmed attack should include concentration note only, got \${xphbMageSlayerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipWeapon(character, nonLightWeapon, content);
 const magicWeapon = {
   ...lightWeapon,
@@ -1087,6 +1119,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Defensive Duelist add source-specific finesse weapon notes',
     'PHB and XPHB Shield Master add shield-gated melee notes',
     'PHB and XPHB Grappler add weapon and unarmed strike notes',
+    'PHB and XPHB Mage Slayer add source-specific concentration notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
