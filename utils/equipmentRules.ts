@@ -203,6 +203,10 @@ const hasFeature = (character: CharacterData, names: string[]): boolean => (
   character.featureEntries.some(feature => names.includes(feature.name))
 );
 
+const hasFeatSource = (character: CharacterData, key: string, source: string): boolean => (
+  character.featureEntries.some(feature => feature.sourceId === `auto-feat-${key}-${source}`)
+);
+
 const hasOriginFeature = (
   character: CharacterData,
   raceKey: string,
@@ -226,6 +230,8 @@ const hasMartialArts = (character: CharacterData): boolean => hasFeature(charact
 const hasRage = (character: CharacterData): boolean => hasFeature(character, ['狂暴', 'Rage']);
 const hasSneakAttack = (character: CharacterData): boolean => hasFeature(character, ['偷袭', 'Sneak Attack']);
 const hasSavageAttacks = (character: CharacterData): boolean => hasFeature(character, ['凶蛮攻击', 'Savage Attacks']);
+const hasPhbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'PHB');
+const hasXphbSavageAttacker = (character: CharacterData): boolean => hasFeatSource(character, 'Savage Attacker', 'XPHB');
 const hasDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['至圣斩', 'Divine Smite', '圣武斩', "Paladin's Smite"]);
 const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['精通至圣斩', 'Improved Divine Smite', '光耀打击', 'Radiant Strikes']);
 const hasPhbDualWielder = (character: CharacterData): boolean => (
@@ -596,6 +602,11 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   }
   if (!isRangedWeapon(weapon) && hasSavageAttacks(character)) {
     properties.push('凶蛮攻击: 近战武器重击额外一颗武器伤害骰');
+  }
+  if (hasXphbSavageAttacker(character)) {
+    properties.push('凶蛮打手: 每回合一次武器命中时伤害骰掷两次择优');
+  } else if (!isRangedWeapon(weapon) && hasPhbSavageAttacker(character)) {
+    properties.push('凶蛮打手: 每回合一次重掷近战武器伤害骰并择优');
   }
   if (!isRangedWeapon(weapon) && hasDivineSmite(character)) {
     properties.push('命中后可消耗法术位使用神圣打击');

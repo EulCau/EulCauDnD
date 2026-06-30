@@ -574,6 +574,33 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '凶蛮打手', 'auto-feat-Savage Attacker-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbSavageAttackerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbSavageAttackerMeleeAttack, 'PHB Savage Attacker melee fixture should add attack');
+assert(
+  phbSavageAttackerMeleeAttack.notes.includes('凶蛮打手') && phbSavageAttackerMeleeAttack.notes.includes('重掷近战武器伤害骰'),
+  \`PHB Savage Attacker melee attack should include melee reroll note, got \${phbSavageAttackerMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbSavageAttackerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbSavageAttackerRangedAttack, 'PHB Savage Attacker ranged fixture should add attack');
+assert(
+  !phbSavageAttackerRangedAttack.notes.includes('凶蛮打手'),
+  \`PHB Savage Attacker should not apply to ranged attacks, got \${phbSavageAttackerRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '凶蛮打手', 'auto-feat-Savage Attacker-XPHB');
+character = equipWeapon(character, rangedWeapon, content);
+const xphbSavageAttackerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbSavageAttackerRangedAttack, 'XPHB Savage Attacker ranged fixture should add attack');
+assert(
+  xphbSavageAttackerRangedAttack.notes.includes('凶蛮打手') && xphbSavageAttackerRangedAttack.notes.includes('武器命中'),
+  \`XPHB Savage Attacker ranged attack should include weapon hit damage note, got \${xphbSavageAttackerRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -690,6 +717,8 @@ console.log(JSON.stringify({
     'Long-Limbed does not add ranged attack note',
     'Savage Attacks adds melee critical damage note',
     'Savage Attacks does not add ranged attack note',
+    'PHB Savage Attacker adds melee-only damage reroll note',
+    'XPHB Savage Attacker adds ranged weapon hit damage note',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
