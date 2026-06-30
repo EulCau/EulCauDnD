@@ -61,6 +61,7 @@ const mpmmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && i
 const vgmLizardfolk = content.races.find(item => item.key === 'Lizardfolk' && item.source === 'VGM');
 const rhwDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'RHW');
 const vrgrDhampir = content.races.find(item => item.key === 'Dhampir' && item.source === 'VRGR');
+const vampire = content.races.find(item => item.key === 'Vampire' && item.source === 'PSZ');
 const deepGnome = content.races.find(item => item.key === 'Deep Gnome' && item.source === 'MPMM');
 const hadozee = content.races.find(item => item.key === 'Hadozee' && item.source === 'AAG');
 const giff = content.races.find(item => item.key === 'Giff' && item.source === 'AAG');
@@ -122,6 +123,7 @@ assert(mpmmLizardfolk, 'missing MPMM Lizardfolk fixture');
 assert(vgmLizardfolk, 'missing VGM Lizardfolk fixture');
 assert(rhwDhampir, 'missing RHW Dhampir fixture');
 assert(vrgrDhampir, 'missing VRGR Dhampir fixture');
+assert(vampire, 'missing PSZ Vampire fixture');
 assert(deepGnome, 'missing MPMM Deep Gnome fixture');
 assert(hadozee, 'missing AAG Hadozee fixture');
 assert(giff, 'missing AAG Giff fixture');
@@ -731,6 +733,21 @@ for (const [dhampir, source, resourceName] of [
   assert(leveledBiteAttack?.bonus === '+3', \`\${source} Dhampir Vampiric Bite attack should refresh to PB 3 at level 5, got \${leveledBiteAttack?.bonus}\`);
 }
 
+let vampireCharacter = refreshAutomaticStyleAttacks(buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: vampire,
+}));
+const vampireBloodThirstAttackId = 'auto-race-attack-vampire-psz-blood-thirst';
+let vampireBloodThirstAttack = getAttack(vampireCharacter, vampireBloodThirstAttackId);
+assert(vampireBloodThirstAttack?.name === '嗜血', 'PSZ Vampire should add Blood Thirst attack');
+assert(vampireBloodThirstAttack?.bonus === '+2', \`PSZ Vampire Blood Thirst should use STR plus proficiency at level 1, got \${vampireBloodThirstAttack?.bonus}\`);
+assert(vampireBloodThirstAttack?.damage === '1 穿刺 + 1d6 暗蚀', \`PSZ Vampire Blood Thirst should use fixed damage, got \${vampireBloodThirstAttack?.damage}\`);
+assert(vampireBloodThirstAttack?.type === '种族攻击', 'PSZ Vampire Blood Thirst should be typed as race attack');
+assert(vampireBloodThirstAttack?.notes.includes('最大生命值降低'), 'PSZ Vampire Blood Thirst should keep healing and max HP reduction notes');
+vampireCharacter = levelToFive(vampireCharacter, fighter, '5r');
+vampireBloodThirstAttack = getAttack(vampireCharacter, vampireBloodThirstAttackId);
+assert(vampireBloodThirstAttack?.bonus === '+3', \`PSZ Vampire Blood Thirst should refresh proficiency bonus at level 5, got \${vampireBloodThirstAttack?.bonus}\`);
+
 const deepGnomeResourceId = 'auto-resource-race-Deep Gnome-MPMM-svirfneblin-camouflage';
 let deepGnomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -1044,7 +1061,7 @@ const removedInspiredXphbHuman = removeCharacterAdjustments(inspiredXphbHuman, '
 assert(removedInspiredXphbHuman.inspiration === true, 'removing XPHB Human should preserve pre-existing inspiration');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1068,6 +1085,7 @@ export default {
     'Hobgoblin Fey Gift refreshes proficiency-based uses',
     'Firbolg and Lizardfolk source-specific resources refresh proficiency-based uses',
     'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
+    'PSZ Vampire Blood Thirst adds fixed-damage race attack',
     'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
     'Hadozee Dodge refreshes proficiency-based uses',
     'Giff Astral Spark refreshes proficiency-based uses',

@@ -64,6 +64,7 @@ type NaturalAttackDefinition = {
   ability?: 'STR' | 'CON';
   die: string;
   damageType: string;
+  fixedDamage?: string;
   notes: string;
 };
 
@@ -298,6 +299,18 @@ const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
     die: '1d4',
     damageType: '穿刺',
     notes: '天然武器: 可用体质进行徒手打击. 生命值不高于一半时攻击检定具有优势. 命中非构装和非亡灵生物时可消耗强化次数, 恢复等同伤害的生命值, 或让下一次属性检定或攻击检定获得等同伤害的加值.',
+  },
+  {
+    raceKey: 'Vampire',
+    raceSource: 'PSZ',
+    featureNames: ['嗜血', 'Blood Thirst'],
+    sourceName: '嗜血',
+    attackKey: 'vampire-psz-blood-thirst',
+    name: '嗜血',
+    die: '1d6',
+    damageType: '暗蚀',
+    fixedDamage: '1 穿刺 + 1d6 暗蚀',
+    notes: '种族攻击: 对自愿, 受擒, 失能或束缚的生物进行近战攻击. 命中时目标最大生命值降低等同暗蚀伤害, 你恢复等量生命值.',
   },
   {
     raceKey: 'Lizardfolk',
@@ -1140,8 +1153,8 @@ const createNaturalAttack = (
     automatic: true,
     name: definition.name,
     bonus: formatModifier(abilityMod + profBonus),
-    damage: `${definition.die}${abilityMod === 0 ? '' : formatModifier(abilityMod)} ${definition.damageType}`,
-    type: '徒手打击',
+    damage: definition.fixedDamage || `${definition.die}${abilityMod === 0 ? '' : formatModifier(abilityMod)} ${definition.damageType}`,
+    type: definition.fixedDamage ? '种族攻击' : '徒手打击',
     notes: definition.notes,
   };
 };
