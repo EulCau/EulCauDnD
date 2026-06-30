@@ -540,6 +540,23 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '长肢');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const longLimbedMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(longLimbedMeleeAttack, 'Long-Limbed melee fixture should add attack');
+assert(
+  longLimbedMeleeAttack.notes.includes('长肢') && longLimbedMeleeAttack.notes.includes('触及 +5 尺'),
+  \`Long-Limbed melee attack should include reach note, got \${longLimbedMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const longLimbedRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(longLimbedRangedAttack, 'Long-Limbed ranged fixture should add attack');
+assert(
+  !longLimbedRangedAttack.notes.includes('长肢'),
+  \`Long-Limbed should not apply to ranged attacks, got \${longLimbedRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -652,6 +669,8 @@ console.log(JSON.stringify({
     'main weapon refreshes after ability change',
     'main weapon refreshes after adding and removing Chinese weapon-name proficiency',
     'ranged weapon refreshes after adding archery',
+    'Long-Limbed adds melee reach note',
+    'Long-Limbed does not add ranged attack note',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],

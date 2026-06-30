@@ -590,6 +590,9 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   if (hasSneakAttack(character) && (isRangedWeapon(weapon) || hasProperty(weapon, 'F'))) {
     properties.push(`每回合一次偷袭 +${getSneakAttackDice(character)}`);
   }
+  if (!isRangedWeapon(weapon) && hasFeature(character, ['长肢', 'Long-Limbed'])) {
+    properties.push('长肢: 你的回合内近战攻击触及 +5 尺');
+  }
   if (!isRangedWeapon(weapon) && hasDivineSmite(character)) {
     properties.push('命中后可消耗法术位使用神圣打击');
   }
