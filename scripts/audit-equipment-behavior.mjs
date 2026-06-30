@@ -778,6 +778,33 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '冲锋手', 'auto-feat-Charger-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbChargerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbChargerMeleeAttack, 'PHB Charger melee fixture should add attack');
+assert(
+  phbChargerMeleeAttack.notes.includes('冲锋手') && phbChargerMeleeAttack.notes.includes('+5 伤害'),
+  \`PHB Charger melee attack should include dash damage note, got \${phbChargerMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbChargerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbChargerRangedAttack, 'PHB Charger ranged fixture should add attack');
+assert(
+  !phbChargerRangedAttack.notes.includes('冲锋手'),
+  \`PHB Charger should not apply to ranged attacks, got \${phbChargerRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '冲锋手', 'auto-feat-Charger-XPHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const xphbChargerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(xphbChargerMeleeAttack, 'XPHB Charger melee fixture should add attack');
+assert(
+  xphbChargerMeleeAttack.notes.includes('冲锋手') && xphbChargerMeleeAttack.notes.includes('+1d8 伤害'),
+  \`XPHB Charger melee attack should include 2024 charge damage note, got \${xphbChargerMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -910,6 +937,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Great Weapon Master add source-specific heavy weapon notes',
     'PHB and XPHB Crossbow Expert add source-specific crossbow notes',
     'PHB and XPHB Polearm Master add source-specific weapon notes',
+    'PHB and XPHB Charger add source-specific melee notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],

@@ -244,6 +244,8 @@ const hasPhbCrossbowExpert = (character: CharacterData): boolean => hasFeatSourc
 const hasXphbCrossbowExpert = (character: CharacterData): boolean => hasFeatSource(character, 'Crossbow Expert', 'XPHB');
 const hasPhbPolearmMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Polearm Master', 'PHB');
 const hasXphbPolearmMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Polearm Master', 'XPHB');
+const hasPhbCharger = (character: CharacterData): boolean => hasFeatSource(character, 'Charger', 'PHB');
+const hasXphbCharger = (character: CharacterData): boolean => hasFeatSource(character, 'Charger', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -695,6 +697,12 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   }
   if (isXphbPolearmMasterWeapon(weapon) && hasXphbPolearmMaster(character)) {
     properties.push('长柄武器大师: 攻击动作后可附赠动作尾击 1d4 钝击; 生物进入触及范围时可反应攻击');
+  }
+  if (!isRangedWeapon(weapon) && hasPhbCharger(character)) {
+    properties.push('冲锋手: 疾走后附赠动作近战攻击, 直线移动 10 尺后命中 +5 伤害或推离 10 尺');
+  }
+  if (!isRangedWeapon(weapon) && hasXphbCharger(character)) {
+    properties.push('冲锋手: 攻击前直线移动 10+ 尺后, 每回合一次 +1d8 伤害或推离 10 尺');
   }
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');
