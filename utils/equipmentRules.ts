@@ -225,6 +225,7 @@ const hasUnarmoredDefense = (character: CharacterData): boolean => hasFeature(ch
 const hasMartialArts = (character: CharacterData): boolean => hasFeature(character, ['武艺', 'Martial Arts']);
 const hasRage = (character: CharacterData): boolean => hasFeature(character, ['狂暴', 'Rage']);
 const hasSneakAttack = (character: CharacterData): boolean => hasFeature(character, ['偷袭', 'Sneak Attack']);
+const hasSavageAttacks = (character: CharacterData): boolean => hasFeature(character, ['凶蛮攻击', 'Savage Attacks']);
 const hasDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['至圣斩', 'Divine Smite', '圣武斩', "Paladin's Smite"]);
 const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['精通至圣斩', 'Improved Divine Smite', '光耀打击', 'Radiant Strikes']);
 const hasPhbDualWielder = (character: CharacterData): boolean => (
@@ -592,6 +593,9 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   }
   if (!isRangedWeapon(weapon) && hasFeature(character, ['长肢', 'Long-Limbed'])) {
     properties.push('长肢: 你的回合内近战攻击触及 +5 尺');
+  }
+  if (!isRangedWeapon(weapon) && hasSavageAttacks(character)) {
+    properties.push('凶蛮攻击: 近战武器重击额外一颗武器伤害骰');
   }
   if (!isRangedWeapon(weapon) && hasDivineSmite(character)) {
     properties.push('命中后可消耗法术位使用神圣打击');

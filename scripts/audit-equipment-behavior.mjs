@@ -557,6 +557,23 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '凶蛮攻击');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const savageAttacksMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(savageAttacksMeleeAttack, 'Savage Attacks melee fixture should add attack');
+assert(
+  savageAttacksMeleeAttack.notes.includes('凶蛮攻击') && savageAttacksMeleeAttack.notes.includes('重击'),
+  \`Savage Attacks melee attack should include critical damage note, got \${savageAttacksMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const savageAttacksRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(savageAttacksRangedAttack, 'Savage Attacks ranged fixture should add attack');
+assert(
+  !savageAttacksRangedAttack.notes.includes('凶蛮攻击'),
+  \`Savage Attacks should not apply to ranged attacks, got \${savageAttacksRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -671,6 +688,8 @@ console.log(JSON.stringify({
     'ranged weapon refreshes after adding archery',
     'Long-Limbed adds melee reach note',
     'Long-Limbed does not add ranged attack note',
+    'Savage Attacks adds melee critical damage note',
+    'Savage Attacks does not add ranged attack note',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
