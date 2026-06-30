@@ -248,6 +248,8 @@ const hasPhbCharger = (character: CharacterData): boolean => hasFeatSource(chara
 const hasXphbCharger = (character: CharacterData): boolean => hasFeatSource(character, 'Charger', 'XPHB');
 const hasPhbSentinel = (character: CharacterData): boolean => hasFeatSource(character, 'Sentinel', 'PHB');
 const hasXphbSentinel = (character: CharacterData): boolean => hasFeatSource(character, 'Sentinel', 'XPHB');
+const hasPhbDefensiveDuelist = (character: CharacterData): boolean => hasFeatSource(character, 'Defensive Duelist', 'PHB');
+const hasXphbDefensiveDuelist = (character: CharacterData): boolean => hasFeatSource(character, 'Defensive Duelist', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -711,6 +713,12 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   }
   if (!isRangedWeapon(weapon) && hasXphbSentinel(character)) {
     properties.push('哨兵: 借机攻击命中使速度变为 0; 5 尺内敌人撤离或攻击他人后可借机攻击');
+  }
+  if (hasProperty(weapon, 'F') && hasPhbDefensiveDuelist(character) && isWeaponProficient(character, weapon)) {
+    properties.push(`防御式决斗: 反应使本次近战攻击 AC +${calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)))}`);
+  }
+  if (hasProperty(weapon, 'F') && hasXphbDefensiveDuelist(character)) {
+    properties.push(`防御式决斗: 反应使近战攻击 AC +${calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)))}, 持续到下回合开始`);
   }
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');

@@ -78,8 +78,11 @@ const weapons = content.weapons;
 const lightWeapon = weapons.find(weapon => hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const nonLightMeleeWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H') && String(weapon.type || '').split('|')[0] === 'M' && weapon.dmg1);
+const nonFinesseMeleeWeapon = weapons.find(weapon => !hasProperty(weapon, 'F') && String(weapon.type || '').split('|')[0] === 'M' && weapon.dmg1);
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
 const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
+const phbFinesseWeapon = weapons.find(weapon => weapon.source === 'PHB' && hasProperty(weapon, 'F') && weapon.dmg1);
+const xphbFinesseWeapon = weapons.find(weapon => weapon.source === 'XPHB' && hasProperty(weapon, 'F') && weapon.dmg1);
 const handCrossbow = weapons.find(weapon => weapon.key === 'Hand Crossbow' && weapon.source === 'PHB');
 const xphbHandCrossbow = weapons.find(weapon => weapon.key === 'Hand Crossbow' && weapon.source === 'XPHB');
 const bludgeoningWeapon = weapons.find(weapon => weapon.dmgType === 'B' && weapon.dmg1);
@@ -112,8 +115,11 @@ const mediumArmor = content.armors.find(armor => String(armor.type || '').split(
 assert(lightWeapon, 'missing light weapon fixture');
 assert(nonLightWeapon, 'missing non-light weapon fixture');
 assert(nonLightMeleeWeapon, 'missing non-light one-handed melee weapon fixture');
+assert(nonFinesseMeleeWeapon, 'missing non-finesse melee weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
 assert(rangedWeapon, 'missing ranged weapon fixture');
+assert(phbFinesseWeapon, 'missing PHB finesse weapon fixture');
+assert(xphbFinesseWeapon, 'missing XPHB finesse weapon fixture');
 assert(handCrossbow, 'missing PHB hand crossbow fixture');
 assert(xphbHandCrossbow, 'missing XPHB hand crossbow fixture');
 assert(bludgeoningWeapon, 'missing bludgeoning weapon fixture');
@@ -832,6 +838,44 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '防御式决斗', 'auto-feat-Defensive Duelist-PHB');
+character = equipWeapon(character, phbFinesseWeapon, content);
+const phbDefensiveDuelistFinesseAttack = getAttack(character, \`equip-weapon-\${phbFinesseWeapon.id}\`);
+assert(phbDefensiveDuelistFinesseAttack, 'PHB Defensive Duelist finesse fixture should add attack');
+assert(
+  phbDefensiveDuelistFinesseAttack.notes.includes('防御式决斗') && phbDefensiveDuelistFinesseAttack.notes.includes('AC +3'),
+  \`PHB Defensive Duelist finesse attack should include proficiency AC reaction note, got \${phbDefensiveDuelistFinesseAttack.notes}\`,
+);
+character = {
+  ...cloneCharacter(),
+  proficiencies: new Set(),
+};
+character = addFeature(character, '防御式决斗', 'auto-feat-Defensive Duelist-PHB');
+character = equipWeapon(character, phbFinesseWeapon, content);
+const phbDefensiveDuelistUnproficientAttack = getAttack(character, \`equip-weapon-\${phbFinesseWeapon.id}\`);
+assert(phbDefensiveDuelistUnproficientAttack, 'PHB Defensive Duelist unproficient fixture should add attack');
+assert(
+  !phbDefensiveDuelistUnproficientAttack.notes.includes('防御式决斗'),
+  \`PHB Defensive Duelist should require weapon proficiency, got \${phbDefensiveDuelistUnproficientAttack.notes}\`,
+);
+character = cloneCharacter();
+character = addFeature(character, '防御式决斗', 'auto-feat-Defensive Duelist-XPHB');
+character = equipWeapon(character, xphbFinesseWeapon, content);
+const xphbDefensiveDuelistFinesseAttack = getAttack(character, \`equip-weapon-\${xphbFinesseWeapon.id}\`);
+assert(xphbDefensiveDuelistFinesseAttack, 'XPHB Defensive Duelist finesse fixture should add attack');
+assert(
+  xphbDefensiveDuelistFinesseAttack.notes.includes('防御式决斗') && xphbDefensiveDuelistFinesseAttack.notes.includes('持续到下回合开始'),
+  \`XPHB Defensive Duelist finesse attack should include 2024 lasting AC reaction note, got \${xphbDefensiveDuelistFinesseAttack.notes}\`,
+);
+character = equipWeapon(character, nonFinesseMeleeWeapon, content);
+const xphbDefensiveDuelistNonFinesseAttack = getAttack(character, \`equip-weapon-\${nonFinesseMeleeWeapon.id}\`);
+assert(xphbDefensiveDuelistNonFinesseAttack, 'XPHB Defensive Duelist non-finesse fixture should add attack');
+assert(
+  !xphbDefensiveDuelistNonFinesseAttack.notes.includes('防御式决斗'),
+  \`XPHB Defensive Duelist should not apply to non-finesse attacks, got \${xphbDefensiveDuelistNonFinesseAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -874,8 +918,11 @@ export default {
   lightWeapon: lightWeapon.name,
   nonLightWeapon: nonLightWeapon.name,
   nonLightMeleeWeapon: nonLightMeleeWeapon.name,
+  nonFinesseMeleeWeapon: nonFinesseMeleeWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
   rangedWeapon: rangedWeapon.name,
+  phbFinesseWeapon: phbFinesseWeapon.name,
+  xphbFinesseWeapon: xphbFinesseWeapon.name,
   handCrossbow: handCrossbow.name,
   xphbHandCrossbow: xphbHandCrossbow.name,
   bludgeoningWeapon: bludgeoningWeapon.name,
@@ -966,6 +1013,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Polearm Master add source-specific weapon notes',
     'PHB and XPHB Charger add source-specific melee notes',
     'PHB and XPHB Sentinel add source-specific melee notes',
+    'PHB and XPHB Defensive Duelist add source-specific finesse weapon notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
