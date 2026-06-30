@@ -3738,6 +3738,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值. 看到 d20 后, 可为一次攻击检定, 属性检定或豁免检定追加 1d4.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Hadozee Dodge' || feature.name === '哈多兹闪避')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'hadozee-dodge',
+      '哈多兹闪避',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 受伤时可以反应降低 1d6 + 熟练加值的伤害.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Shifting' || feature.name === '化形')) {
     const usesProficiency = entity.source === 'MPMM' || entity.source === 'EFA';
     operations.push(makeOriginResource(
@@ -4644,6 +4655,7 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Dhampir', '半血裔', 'VRGR', [{ name: '吸血啃咬', englishName: 'Vampiric Bite', description: '' }]);
   refreshOriginResources('Deep Gnome', '地底侏儒', 'MPMM', [{ name: '斯涅布力伪装', englishName: 'Svirfneblin Camouflage', description: '' }]);
   refreshOriginResources('Autognome', '自动侏儒', 'AAG', [{ name: '铸订成功', englishName: 'Built for Success', description: '' }]);
+  refreshOriginResources('Hadozee', '哈多兹', 'AAG', [{ name: '哈多兹闪避', englishName: 'Hadozee Dodge', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'EFA', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Shifter', '化兽者', 'MPMM', [{ name: '化形', englishName: 'Shifting', description: '' }]);
   refreshOriginResources('Goblin', '地精', 'MPMM', [{ name: '小个子的怒火', englishName: 'Fury of the Small', description: '' }]);
