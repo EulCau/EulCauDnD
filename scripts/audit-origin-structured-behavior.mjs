@@ -84,6 +84,7 @@ const lupin = content.races.find(item => item.key === 'Lupin' && item.source ===
 const khoravar = content.races.find(item => item.key === 'Khoravar' && item.source === 'EFA');
 const loxodon = content.races.find(item => item.key === 'Loxodon' && item.source === 'GGR');
 const vedalken = content.races.find(item => item.key === 'Vedalken' && item.source === 'GGR');
+const verdan = content.races.find(item => item.key === 'Verdan' && item.source === 'AI');
 const xphbHuman = content.races.find(item => item.key === 'Human' && item.source === 'XPHB');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
@@ -149,6 +150,7 @@ assert(lupin, 'missing RHW Lupin fixture');
 assert(khoravar, 'missing EFA Khoravar fixture');
 assert(loxodon, 'missing GGR Loxodon fixture');
 assert(vedalken, 'missing GGR Vedalken fixture');
+assert(verdan, 'missing AI Verdan fixture');
 assert(xphbHuman, 'missing XPHB Human fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
@@ -1108,8 +1110,18 @@ const inspiredXphbHuman = buildLevelOneCharacter({ ...INITIAL_CHARACTER, inspira
 const removedInspiredXphbHuman = removeCharacterAdjustments(inspiredXphbHuman, 'auto-character-5r');
 assert(removedInspiredXphbHuman.inspiration === true, 'removing XPHB Human should preserve pre-existing inspiration');
 
+let verdanCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: verdan,
+});
+assert(verdanCharacter.bodyType === '小型', \`AI Verdan should start as Small at level 1, got \${verdanCharacter.bodyType}\`);
+verdanCharacter = levelToFive(verdanCharacter, fighter, '5r');
+assert(verdanCharacter.bodyType === '中型', \`AI Verdan should become Medium at level 5, got \${verdanCharacter.bodyType}\`);
+const removedVerdanLevelFive = removeCharacterAdjustments(verdanCharacter, 'auto-Fighter-XPHB-level-5');
+assert(removedVerdanLevelFive.bodyType === '小型', 'removing level 5 adjustment should restore AI Verdan Small size');
+
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1153,6 +1165,7 @@ export default {
     'Naga Natural Weapons add bite and constrict attack entries',
     'Warforged integrated protection adds reversible armor bonus',
     'XPHB Human Resourceful applies reversible heroic inspiration',
+    'AI Verdan changes from Small to Medium at level 5',
   ],
 };
 `;

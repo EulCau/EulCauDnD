@@ -4020,6 +4020,9 @@ const createOriginOperations = (
   if (entity.size?.length === 1) {
     operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(entity.size[0]) });
   }
+  if (kind === 'race' && entity.key === 'Verdan' && entity.source === 'AI') {
+    operations.push({ type: 'setStringField', field: 'bodyType', value: '小型' });
+  }
   if (
     kind === 'race'
     && (entity.features || []).some(feature => feature.englishName === 'Hare-Trigger' || feature.name === '野兔敏锐')
@@ -4762,6 +4765,9 @@ const createExistingOriginLevelUpOperations = (
   };
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
     operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
+  }
+  if (oldCharacterLevel < 5 && newCharacterLevel >= 5 && hasAppliedRace(character, 'Verdan', 'AI')) {
+    operations.push({ type: 'setStringField', field: 'bodyType', value: '中型' });
   }
   refreshOriginResources('Dwarf', '矮人', 'XPHB', [{ name: '石中精妙', englishName: 'Stonecunning', description: '' }]);
   refreshOriginResources('Orc', '兽人', 'XPHB', []);
