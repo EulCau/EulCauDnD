@@ -44,6 +44,7 @@ const mpmmOrc = content.races.find(item => item.key === 'Orc' && item.source ===
 const halfOrc = content.races.find(item => item.key === 'Half-Orc' && item.source === 'PHB');
 const mpmmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'MPMM');
 const vgmGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'VGM');
+const xphbGoliath = content.races.find(item => item.key === 'Goliath' && item.source === 'XPHB');
 const mpmmHarengon = content.races.find(item => item.key === 'Harengon' && item.source === 'MPMM');
 const wbtwHarengon = content.races.find(item => item.key === 'Harengon' && item.source === 'WBtW');
 const kender = content.races.find(item => item.key === 'Kender' && item.source === 'DSotDQ');
@@ -104,6 +105,7 @@ assert(mpmmOrc, 'missing MPMM Orc fixture');
 assert(halfOrc, 'missing PHB Half-Orc fixture');
 assert(mpmmGoliath, 'missing MPMM Goliath fixture');
 assert(vgmGoliath, 'missing VGM Goliath fixture');
+assert(xphbGoliath, 'missing XPHB Goliath fixture');
 assert(mpmmHarengon, 'missing MPMM Harengon fixture');
 assert(wbtwHarengon, 'missing WBtW Harengon fixture');
 assert(kender, 'missing DSotDQ Kender fixture');
@@ -453,6 +455,19 @@ const vgmGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, w
 });
 const vgmGoliathResource = getResource(vgmGoliathCharacter, 'auto-resource-race-Goliath-VGM-stones-endurance');
 assert(vgmGoliathResource?.max === 1 && vgmGoliathResource.reset === 'shortRest', 'VGM Goliath should add one-use Stone Endurance short-rest resource');
+
+const xphbGoliathLargeFormResourceId = 'auto-resource-race-Goliath-XPHB-large-form';
+let xphbGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: xphbGoliath,
+});
+assert(!getResource(xphbGoliathCharacter, xphbGoliathLargeFormResourceId), 'XPHB Goliath should not add Large Form before level 5');
+xphbGoliathCharacter = levelToFive(xphbGoliathCharacter, fighter, '5r');
+const xphbGoliathLargeFormResource = getResource(xphbGoliathCharacter, xphbGoliathLargeFormResourceId);
+assert(xphbGoliathLargeFormResource?.max === 1 && xphbGoliathLargeFormResource.reset === 'longRest', 'XPHB Goliath should add one-use Large Form long-rest resource at level 5');
+assert(xphbGoliathLargeFormResource?.note.includes('速度增加 10 尺'), 'XPHB Goliath Large Form resource should keep speed bonus note');
+const removedXphbGoliath = removeCharacterAdjustments(xphbGoliathCharacter, 'auto-Fighter-XPHB-level-5');
+assert(!getResource(removedXphbGoliath, xphbGoliathLargeFormResourceId), 'removing level-up adjustment should remove XPHB Goliath Large Form resource');
 
 const mpmmHarengonResourceId = 'auto-resource-race-Harengon-MPMM-rabbit-hop';
 let mpmmHarengonCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
@@ -1029,7 +1044,7 @@ const removedInspiredXphbHuman = removeCharacterAdjustments(inspiredXphbHuman, '
 assert(removedInspiredXphbHuman.inspiration === true, 'removing XPHB Human should preserve pre-existing inspiration');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, xphbHuman.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1045,6 +1060,7 @@ export default {
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
+    'XPHB Goliath Large Form adds level-gated long-rest resource',
     'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
     'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',
     'Kender Taunt refreshes proficiency-based uses',

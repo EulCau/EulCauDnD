@@ -3953,6 +3953,20 @@ const createOriginResourceOperations = (
       '5 级起可使用第二种吐息武器.',
     ));
   }
+  if (
+    characterLevel >= 5
+    && (entity.features || []).some(feature => feature.englishName === 'Large Form' || feature.name === '大型形态')
+  ) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'large-form',
+      '大型形态',
+      1,
+      'longRest',
+      '以附赠动作变为大型, 持续 10 分钟. 持续期间力量检定具有优势, 速度增加 10 尺.',
+    ));
+  }
   return operations;
 };
 
@@ -4757,6 +4771,7 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '精类赠礼', englishName: 'Fey Gift', description: '' }]);
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '集众之运', englishName: 'Fortune from the Many', description: '' }]);
   refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
+  refreshOriginResources('Goliath', '歌利亚', 'XPHB', [{ name: '大型形态', englishName: 'Large Form', description: '' }]);
   refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [
     { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
     { name: '龙族飞翼', englishName: 'Draconic Flight', description: '' },
