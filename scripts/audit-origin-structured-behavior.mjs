@@ -1042,6 +1042,9 @@ for (const item of naturalAttackCases) {
   assert(attack?.damage === item.damage, \`\${item.race.key} natural attack damage should be \${item.damage}, got \${attack?.damage}\`);
   assert(attack?.type === '徒手打击', \`\${item.race.key} natural attack should be typed as unarmed strike\`);
   assert(attack?.notes.includes('天然武器'), \`\${item.race.key} natural attack should keep feature notes\`);
+  if (item.race.key === 'Minotaur') {
+    assert(attack.notes.includes('角锤') && attack.notes.includes('DC = 8 + 熟练加值 + 力量调整值'), 'Minotaur horns should keep Hammering Horns push DC note');
+  }
   const refreshedCharacter = refreshAutomaticStyleAttacks(character);
   const refreshedAttacks = refreshedCharacter.attacks.filter(nextAttack => nextAttack.sourceId === item.sourceId);
   assert(refreshedAttacks.length === 1, \`\${item.race.key} natural attack refresh should not duplicate attack entries\`);

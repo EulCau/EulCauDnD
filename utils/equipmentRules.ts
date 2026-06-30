@@ -343,7 +343,7 @@ const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
     name: '角击',
     die: '1d6',
     damageType: '穿刺',
-    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击.',
+    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击. 角锤: 命中后可用附赠动作迫使目标进行力量豁免, DC = 8 + 熟练加值 + 力量调整值, 失败则推离 10 尺.',
   },
   {
     raceKey: 'Minotaur',
@@ -354,7 +354,7 @@ const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
     name: '角击',
     die: '1d6',
     damageType: '穿刺',
-    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击.',
+    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击. 角锤: 命中后可用附赠动作迫使目标进行力量豁免, DC = 8 + 熟练加值 + 力量调整值, 失败则推离 10 尺.',
   },
   {
     raceKey: 'Tabaxi',
