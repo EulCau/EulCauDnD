@@ -464,13 +464,19 @@ const vgmGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, w
 const vgmGoliathResource = getResource(vgmGoliathCharacter, 'auto-resource-race-Goliath-VGM-stones-endurance');
 assert(vgmGoliathResource?.max === 1 && vgmGoliathResource.reset === 'shortRest', 'VGM Goliath should add one-use Stone Endurance short-rest resource');
 
+const xphbGoliathGiantAncestryResourceId = 'auto-resource-race-Goliath-XPHB-giant-ancestry';
 const xphbGoliathLargeFormResourceId = 'auto-resource-race-Goliath-XPHB-large-form';
 let xphbGoliathCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
   race: xphbGoliath,
 });
+let xphbGoliathGiantAncestryResource = getResource(xphbGoliathCharacter, xphbGoliathGiantAncestryResourceId);
+assert(xphbGoliathGiantAncestryResource?.max === 2 && xphbGoliathGiantAncestryResource.reset === 'longRest', 'XPHB Goliath should add proficiency-based Giant Ancestry long-rest resource');
+assert(xphbGoliathGiantAncestryResource?.note.includes('巨人先祖恩惠'), 'XPHB Goliath Giant Ancestry resource should keep selected ancestry note');
 assert(!getResource(xphbGoliathCharacter, xphbGoliathLargeFormResourceId), 'XPHB Goliath should not add Large Form before level 5');
 xphbGoliathCharacter = levelToFive(xphbGoliathCharacter, fighter, '5r');
+xphbGoliathGiantAncestryResource = getResource(xphbGoliathCharacter, xphbGoliathGiantAncestryResourceId);
+assert(xphbGoliathGiantAncestryResource?.max === 3, \`XPHB Goliath Giant Ancestry should refresh to PB 3 at level 5, got \${xphbGoliathGiantAncestryResource?.max}\`);
 const xphbGoliathLargeFormResource = getResource(xphbGoliathCharacter, xphbGoliathLargeFormResourceId);
 assert(xphbGoliathLargeFormResource?.max === 1 && xphbGoliathLargeFormResource.reset === 'longRest', 'XPHB Goliath should add one-use Large Form long-rest resource at level 5');
 assert(xphbGoliathLargeFormResource?.note.includes('速度增加 10 尺'), 'XPHB Goliath Large Form resource should keep speed bonus note');
@@ -1119,6 +1125,7 @@ export default {
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',
+    'XPHB Goliath Giant Ancestry refreshes proficiency-based uses',
     'XPHB Goliath Large Form adds level-gated long-rest resource',
     'Harengon Rabbit Hop and Hare-Trigger refresh proficiency-based values',
     'Kender, Kenku, Kobold, Reborn, and Shadar-Kai resources add and refresh source-specific uses',

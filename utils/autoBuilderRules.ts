@@ -3595,6 +3595,17 @@ const createOriginResourceOperations = (
       '以反应降低受到的伤害.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Giant Ancestry' || feature.name === '巨人先祖')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'giant-ancestry',
+      '巨人先祖',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 使用你选择的巨人先祖恩惠, 如传送, 额外伤害, 减速, 击倒, 减伤或反击雷鸣伤害.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Starlight Step' || feature.name === '星光步')) {
     operations.push(makeOriginResource(
       entity,
@@ -4782,7 +4793,10 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '精类赠礼', englishName: 'Fey Gift', description: '' }]);
   refreshOriginResources('Hobgoblin', '大地精', 'MPMM', [{ name: '集众之运', englishName: 'Fortune from the Many', description: '' }]);
   refreshOriginResources('Goliath', '歌利亚', 'MPMM', [{ name: '石之坚韧', englishName: "Stone's Endurance", description: '' }]);
-  refreshOriginResources('Goliath', '歌利亚', 'XPHB', [{ name: '大型形态', englishName: 'Large Form', description: '' }]);
+  refreshOriginResources('Goliath', '歌利亚', 'XPHB', [
+    { name: '巨人先祖', englishName: 'Giant Ancestry', description: '' },
+    { name: '大型形态', englishName: 'Large Form', description: '' },
+  ]);
   refreshOriginResources('Dragonborn', '龙裔', 'XPHB', [
     { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
     { name: '龙族飞翼', englishName: 'Draconic Flight', description: '' },
