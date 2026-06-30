@@ -3694,6 +3694,17 @@ const createOriginResourceOperations = (
       '豁免失败时可改为成功.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Daunting Roar' || feature.name === '畏惧咆哮')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'daunting-roar',
+      '畏惧咆哮',
+      1,
+      'shortRest',
+      '完成短休或长休后恢复. 以附赠动作迫使 10 尺内目标进行感知豁免, DC = 8 + 熟练加值 + 体质调整值, 失败则陷入恐慌直到你的下回合结束.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
       entity,
