@@ -3705,6 +3705,17 @@ const createOriginResourceOperations = (
       '完成短休或长休后恢复. 以附赠动作迫使 10 尺内目标进行感知豁免, DC = 8 + 熟练加值 + 体质调整值, 失败则陷入恐慌直到你的下回合结束.',
     ));
   }
+  if ((entity.features || []).some(feature => feature.englishName === 'Howl' || feature.name === '尖啸')) {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'howl',
+      '尖啸',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 以附赠动作迫使 15 尺内目标进行感知豁免, DC = 8 + 熟练加值 + 体质调整值, 失败则攻击检定和豁免检定具有劣势直到你的下一回合开始.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Fey Step' || feature.name === '妖精步伐')) {
     operations.push(makeOriginResource(
       entity,
@@ -4701,6 +4712,7 @@ const createExistingOriginLevelUpOperations = (
   refreshOriginResources('Harengon', '兔人', 'WBtW', [{ name: '兔子跳跃', englishName: 'Rabbit Hop', description: '' }]);
   refreshOriginResources('Kender', '坎德人', 'DSotDQ', [{ name: '嘲讽', englishName: 'Taunt', description: '' }]);
   refreshOriginResources('Kenku', '天狗', 'MPMM', [{ name: '天狗回想', englishName: 'Kenku Recall', description: '' }]);
+  refreshOriginResources('Lupin', '人狼裔', 'RHW', [{ name: '尖啸', englishName: 'Howl', description: '' }]);
   refreshOriginResources('Kobold', '狗头人', 'MPMM', [{ name: '龙吼', englishName: 'Draconic Cry', description: '' }]);
   refreshOriginResources('Reborn', '重生者', 'RHW', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
   refreshOriginResources('Reborn', '重生者', 'VRGR', [{ name: '往昔学识', englishName: 'Knowledge from a Past Life', description: '' }]);
