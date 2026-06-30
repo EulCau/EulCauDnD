@@ -361,13 +361,20 @@ const xphbDwarfCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fi
   race: xphbDwarf,
 });
 assert(xphbDwarfCharacter.hpMaxBonus === 1, \`XPHB Dwarf should add +1 HP max bonus at level 1, got \${xphbDwarfCharacter.hpMaxBonus}\`);
+const xphbDwarfStonecunningResourceId = 'auto-resource-race-Dwarf-XPHB-stonecunning';
+const xphbDwarfStonecunningResource = getResource(xphbDwarfCharacter, xphbDwarfStonecunningResourceId);
+assert(xphbDwarfStonecunningResource?.max === 2 && xphbDwarfStonecunningResource.reset === 'longRest', 'XPHB Dwarf should add proficiency-based Stonecunning resource');
+assert(xphbDwarfStonecunningResource?.note.includes('震颤感知'), 'XPHB Dwarf Stonecunning resource should keep tremorsense note');
 const removedXphbDwarf = removeCharacterAdjustments(xphbDwarfCharacter, 'auto-character-5r');
 assert(removedXphbDwarf.hpMaxBonus === 0, 'removing auto-character should remove XPHB Dwarf HP max bonus');
+assert(!getResource(removedXphbDwarf, xphbDwarfStonecunningResourceId), 'removing auto-character should remove XPHB Dwarf Stonecunning resource');
 const leveledXphbDwarf = buildLevelUpCharacter(xphbDwarfCharacter, content, fighter, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
 });
 assert(leveledXphbDwarf.hpMaxBonus === 2, \`XPHB Dwarf should add +1 HP max bonus on level up, got \${leveledXphbDwarf.hpMaxBonus}\`);
+const leveledXphbDwarfStonecunning = getResource(levelToFive(xphbDwarfCharacter, fighter, '5r'), xphbDwarfStonecunningResourceId);
+assert(leveledXphbDwarfStonecunning?.max === 3, 'XPHB Dwarf Stonecunning should refresh to PB 3 at level 5');
 
 const xphbOrcResourceId = 'auto-resource-race-Orc-XPHB-adrenaline-rush';
 const xphbOrcCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
@@ -962,6 +969,7 @@ export default {
     'structured origin data keeps feature descriptions',
     'fixed race weapon proficiencies normalize source suffixes and affect attacks',
     'XPHB Dwarf adds reversible HP max bonus and scales it on level up',
+    'XPHB Dwarf Stonecunning refreshes proficiency-based uses',
     'Orc Adrenaline Rush adds reversible proficiency-based resources and refreshes on level up',
     'Relentless Endurance adds reversible long-rest race resources',
     'Goliath Stone Endurance adds source-specific race resources and refreshes proficiency-based uses',

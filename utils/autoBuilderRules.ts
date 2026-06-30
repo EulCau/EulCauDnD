@@ -3537,6 +3537,17 @@ const createOriginResourceOperations = (
       '次数等于熟练加值. 使用时获得等同熟练加值的临时生命值.',
     ));
   }
+  if (entity.key === 'Dwarf' && entity.source === 'XPHB') {
+    operations.push(makeOriginResource(
+      entity,
+      ruleSystem,
+      'stonecunning',
+      '石中精妙',
+      profBonus,
+      'longRest',
+      '次数等于熟练加值. 以附赠动作获得 60 尺震颤感知, 持续 10 分钟, 需位于或触碰岩石表面.',
+    ));
+  }
   if ((entity.features || []).some(feature => feature.englishName === 'Relentless Endurance' || feature.name === '坚韧不屈')) {
     operations.push(makeOriginResource(
       entity,
@@ -4669,6 +4680,7 @@ const createExistingOriginLevelUpOperations = (
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
     operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
   }
+  refreshOriginResources('Dwarf', '矮人', 'XPHB', [{ name: '石中精妙', englishName: 'Stonecunning', description: '' }]);
   refreshOriginResources('Orc', '兽人', 'XPHB', []);
   refreshOriginResources('Orc', '兽人', 'MPMM', []);
   refreshOriginResources('Aasimar', '阿斯莫', 'MPMM', [{ name: '天界启示', englishName: 'Celestial Revelation', description: '' }]);
