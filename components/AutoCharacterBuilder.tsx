@@ -151,6 +151,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   ), [content, selectedRace]);
   const selectedSubrace = getAutoBuilderOrigin(subraceOptions, subraceKey);
   const selectedBackground = getAutoBuilderOrigin(backgroundOptions, backgroundKey);
+  const targetCharacterLevel = Math.max(
+    1,
+    data.classes.reduce((total, item) => total + item.level, 0) + (isLevelUpMode ? 1 : 0),
+  );
   const raceResistanceOptions = getRaceResistanceOptions(selectedRace, selectedSubrace);
   const raceSizeOptions = getRaceSizeChoiceOptions(selectedRace, selectedSubrace);
   const raceAbilityChoiceState = getRaceAbilityChoiceOptions(selectedRace, selectedSubrace);
@@ -167,7 +171,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const raceFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedRaceFeat, data, raceChoices.featSkillChoices);
   const raceFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedRaceFeat);
   const raceFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedRaceFeat);
-  const raceFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedRaceFeat, ruleSystem) : null;
+  const raceFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedRaceFeat, ruleSystem, 1) : null;
   const backgroundAbilityOptions = isOriginDecoupled ? ALL_ABILITIES : getBackgroundAbilityOptions(selectedBackground);
   const backgroundFeats = content && !isOriginDecoupled ? getBackgroundFeats(content, selectedBackground) : [];
   const originFeatChoiceState = content && isOriginDecoupled ? getOriginFeatChoiceOptions(content, ruleSystem, data) : null;
@@ -182,14 +186,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const originFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedOriginFeat, data, originFeatChoice.featSkillChoices);
   const originFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedOriginFeat);
   const originFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedOriginFeat);
-  const originFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedOriginFeat, ruleSystem) : null;
+  const originFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedOriginFeat, ruleSystem, 1) : null;
   const skillChoiceState = selectedClass ? getSkillChoiceOptions(selectedClass) : null;
   const currentClassLevel = selectedClass ? getClassLevel(data, selectedClass) : 0;
   const targetClassLevel = isLevelUpMode ? currentClassLevel + 1 : 1;
-  const targetCharacterLevel = Math.max(
-    1,
-    data.classes.reduce((total, item) => total + item.level, 0) + (isLevelUpMode ? 1 : 0),
-  );
   const existingClass = selectedClass ? data.classes.find(item => isCharacterClassForDefinition(item, selectedClass)) : undefined;
   const isNewMulticlass = isLevelUpMode && currentClassLevel === 0;
   const activeSkillChoiceState = selectedClass
@@ -228,7 +228,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const fightingStyleFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedFightingStyleFeat, data, classFeatureChoices.fightingStyle?.featSkillChoices);
   const fightingStyleFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedFightingStyleFeat);
-  const fightingStyleFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedFightingStyleFeat, ruleSystem) : null;
+  const fightingStyleFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedFightingStyleFeat, ruleSystem, targetCharacterLevel) : null;
   const fightingStyleCantripChoiceState = content ? getFightingStyleCantripChoiceState(content, selectedFightingStyleFeat || selectedFightingStyleFeature) : null;
   const pendingProficiencies = [
     ...skillChoices,
@@ -265,7 +265,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const abilityScoreImprovementFeatResistanceChoiceOptions = getFeatResistanceChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedAbilityScoreImprovementFeat);
-  const abilityScoreImprovementFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedAbilityScoreImprovementFeat, ruleSystem) : null;
+  const abilityScoreImprovementFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedAbilityScoreImprovementFeat, ruleSystem, targetCharacterLevel) : null;
   const abilityScoreImprovementFeatFightingStyleChoiceState = content
     ? getFeatFightingStyleChoiceState(content, selectedAbilityScoreImprovementFeat, data)
     : null;

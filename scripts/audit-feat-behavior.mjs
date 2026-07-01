@@ -19,6 +19,7 @@ import {
   getFeatResistanceChoiceOptions,
   getFeatSavingThrowChoiceOptions,
   getFeatSkillChoiceOptions,
+  getFeatSpellChoiceState,
   getFeatWeaponChoiceOptions,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import { equipWeapon } from '${projectImport('utils/equipmentRules.ts')}';
@@ -914,6 +915,34 @@ const ritualCasterResource = ritualCasterCharacter.resources.find(resource => re
 assert(ritualCasterResource?.max === 1, \`XPHB Ritual Caster should add one Quick Ritual resource, got \${ritualCasterResource?.max}\`);
 assert(ritualCasterResource?.reset === 'longRest', \`XPHB Ritual Caster Quick Ritual should recover on long rest, got \${ritualCasterResource?.reset}\`);
 assert(ritualCasterResource?.note?.includes('不消耗法术位'), \`XPHB Ritual Caster note should mention no spell slot, got \${ritualCasterResource?.note}\`);
+
+const ritualCasterLevelFourState = getFeatSpellChoiceState(content, ritualCaster, '5r', 4);
+assert(ritualCasterLevelFourState?.blocks.length === 1, \`XPHB Ritual Caster level 4 should expose one spell block, got \${ritualCasterLevelFourState?.blocks.length}\`);
+const ritualCasterLevelFourBlock = ritualCasterLevelFourState.blocks[0];
+assert(ritualCasterLevelFourBlock.choices.length === 1, \`XPHB Ritual Caster level 4 should expose only one ritual choice group, got \${ritualCasterLevelFourBlock.choices.length}\`);
+assert(ritualCasterLevelFourBlock.choices[0].count === 2, \`XPHB Ritual Caster level 4 should choose two rituals, got \${ritualCasterLevelFourBlock.choices[0].count}\`);
+const ritualCasterLevelFiveState = getFeatSpellChoiceState(content, ritualCaster, '5r', 5);
+assert(ritualCasterLevelFiveState?.blocks[0].choices.length === 2, \`XPHB Ritual Caster level 5 should expose two ritual choice groups, got \${ritualCasterLevelFiveState?.blocks[0].choices.length}\`);
+const selectedRituals = ritualCasterLevelFourBlock.choices[0].options.slice(0, 2);
+assert(selectedRituals.length === 2, 'XPHB Ritual Caster level 4 should have at least two ritual spell options');
+const ritualCasterWithSpells = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Ritual Caster|XPHB',
+    featAbility: 'INT',
+    featSpellBlockId: ritualCasterLevelFourBlock.id,
+    featSpellChoices: {
+      [ritualCasterLevelFourBlock.choices[0].id]: selectedRituals.map(spell => spell.id),
+    },
+  },
+});
+const ritualCasterProfile = ritualCasterWithSpells.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Ritual Caster-XPHB-spells');
+assert(
+  selectedRituals.every(selected => ritualCasterProfile?.spells.some(spell => spell.id === selected.id && spell.prepared)),
+  \`XPHB Ritual Caster should add selected prepared ritual spells, got \${ritualCasterProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
 
 const assertFixedTouchedSpellResource = ({
   featId,

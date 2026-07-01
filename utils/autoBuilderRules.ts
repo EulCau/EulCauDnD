@@ -1874,6 +1874,7 @@ const collectFeatSpellChoices = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
   sourceId: string,
+  characterLevel = Number.POSITIVE_INFINITY,
 ): { fixedSpells: AutoBuilderSpell[]; choices: AutoBuilderFeatSpellChoiceGroup[] } => {
   const fixedSpells: AutoBuilderSpell[] = [];
   const choices: AutoBuilderFeatSpellChoiceGroup[] = [];
@@ -1890,6 +1891,13 @@ const collectFeatSpellChoices = (
     }
     if (!entry || typeof entry !== 'object') return;
     const record = entry as Record<string, unknown>;
+    const keys = Object.keys(record);
+    if (keys.length > 0 && keys.every(key => /^\d+$/.test(key))) {
+      keys
+        .filter(key => Number(key) <= characterLevel)
+        .forEach(key => visit(record[key], fallbackCount));
+      return;
+    }
     if (typeof record.choose === 'string') {
       const options = getSpellOptionsForFeatFilter(content, ruleSystem, record.choose);
       if (options.length) {
@@ -1913,6 +1921,7 @@ export const getFeatSpellChoiceState = (
   content: AutoBuilderContent,
   feat: AutoBuilderFeat | undefined,
   ruleSystem: RuleSystem,
+  characterLevel = Number.POSITIVE_INFINITY,
 ): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
   const blocks = (feat?.additionalSpells || [])
     .map((entry, index): AutoBuilderFeatSpellBlockChoice | null => {
@@ -1920,7 +1929,7 @@ export const getFeatSpellChoiceState = (
       const block = entry as Record<string, unknown>;
       const id = `feat-${feat?.key || 'unknown'}-${feat?.source || 'unknown'}-spell-block-${index}`;
       const label = String(block.name || block.ENG_name || `${feat?.name || 'Feat'} ${index + 1}`);
-      const parsed = collectFeatSpellChoices(block, content, ruleSystem, id);
+      const parsed = collectFeatSpellChoices(block, content, ruleSystem, id, characterLevel);
       if (!parsed.fixedSpells.length && !parsed.choices.length) return null;
       return {
         id,
@@ -3342,8 +3351,9 @@ const createFeatSpellOperations = (
   ruleSystem: RuleSystem,
   feat: AutoBuilderFeat,
   choices?: AutoBuilderFeatChoice,
+  characterLevel = Number.POSITIVE_INFINITY,
 ): AdjustmentOperation[] => {
-  const state = getFeatSpellChoiceState(content, feat, ruleSystem);
+  const state = getFeatSpellChoiceState(content, feat, ruleSystem, characterLevel);
   if (!state) return [];
   const block = state.blocks.find(item => item.id === choices?.featSpellBlockId) || (state.blocks.length === 1 ? state.blocks[0] : undefined);
   if (!block) return [];
@@ -4287,7 +4297,7 @@ const createChosenFeatOperations = (
     ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
     ...createLanguageChoiceOperations(choices.featLanguageChoices),
     ...createSavingThrowChoiceOperations(choices.featSavingThrowChoices),
-    ...createFeatSpellOperations(content, ruleSystem, feat, choices),
+    ...createFeatSpellOperations(content, ruleSystem, feat, choices, characterLevel),
     ...createFightingStyleFeatureOperations(content, { key: feat.key, name: feat.name, source: feat.source } as AutoBuilderClass, ruleSystem, choices.featFightingStyleFeatureId),
     ...createInvocationOperations(content, { invocationIds: choices.featInvocations || [] }, { ruleSystem, level: characterLevel }),
     ...createManeuverOperations(content, ruleSystem, choices.featManeuvers),
@@ -5241,7 +5251,7 @@ const createAbilityScoreImprovementOperations = (
       ...createExpertiseChoiceOperations(choice.featExpertiseChoices),
       ...createLanguageChoiceOperations(choice.featLanguageChoices),
       ...createSavingThrowChoiceOperations(choice.featSavingThrowChoices),
-      ...createFeatSpellOperations(content, ruleSystem, feat, choice),
+      ...createFeatSpellOperations(content, ruleSystem, feat, choice, characterLevel),
       ...createFightingStyleFeatureOperations(content, { key: feat.key, name: feat.name, source: feat.source } as AutoBuilderClass, ruleSystem, choice.featFightingStyleFeatureId),
       ...createInvocationOperations(content, { invocationIds: choice.featInvocations || [] }, { ruleSystem, level: characterLevel }),
       ...createManeuverOperations(content, ruleSystem, choice.featManeuvers),
