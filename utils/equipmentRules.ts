@@ -258,6 +258,8 @@ const hasPhbMageSlayer = (character: CharacterData): boolean => hasFeatSource(ch
 const hasXphbMageSlayer = (character: CharacterData): boolean => hasFeatSource(character, 'Mage Slayer', 'XPHB');
 const hasPhbTavernBrawler = (character: CharacterData): boolean => hasFeatSource(character, 'Tavern Brawler', 'PHB');
 const hasXphbTavernBrawler = (character: CharacterData): boolean => hasFeatSource(character, 'Tavern Brawler', 'XPHB');
+const hasPhbSkulker = (character: CharacterData): boolean => hasFeatSource(character, 'Skulker', 'PHB');
+const hasXphbSkulker = (character: CharacterData): boolean => hasFeatSource(character, 'Skulker', 'XPHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -327,6 +329,17 @@ const getTavernBrawlerUnarmedNotes = (character: CharacterData): string[] => {
   }
   if (hasXphbTavernBrawler(character)) {
     notes.push('酒馆斗殴者: 徒手打击可造成 1d4 + 力量调整值钝击; 徒手伤害骰掷出 1 可重掷');
+  }
+  return notes;
+};
+
+const getSkulkerAttackNotes = (character: CharacterData, rangedWeapon = false): string[] => {
+  const notes: string[] = [];
+  if (hasPhbSkulker(character) && rangedWeapon) {
+    notes.push('隐伏者: 躲藏状态下远程武器攻击未命中不会暴露位置');
+  }
+  if (hasXphbSkulker(character)) {
+    notes.push('隐伏者: 躲藏状态下攻击检定未命中不会暴露位置');
   }
   return notes;
 };
@@ -771,6 +784,7 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
     const dc = 8 + calculateModifier(character.abilities.STR) + calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)));
     properties.push(`盾牌大师: 每回合一次近战命中后盾击, 力量豁免 DC ${dc}, 失败推离 5 尺或倒地`);
   }
+  properties.push(...getSkulkerAttackNotes(character, isRangedWeapon(weapon)));
   properties.push(...getMageSlayerAttackNotes(character, !isRangedWeapon(weapon)));
   properties.push(...getGrapplerAttackNotes(character));
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
@@ -1369,6 +1383,7 @@ const createNaturalAttack = (
   const sourceId = `auto-race-attack-${definition.attackKey}`;
   const notes = [
     definition.notes,
+    ...getSkulkerAttackNotes(character),
     ...getMageSlayerAttackNotes(character),
     ...getGrapplerAttackNotes(character, true),
   ].filter(Boolean).join(' ');
@@ -1419,6 +1434,7 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       type: '徒手打击',
       notes: [
         '徒手战斗: 未持握武器和盾牌时伤害骰为 1d8. 回合开始时可对受擒目标造成 1d4 钝击.',
+        ...getSkulkerAttackNotes(next),
         ...getTavernBrawlerUnarmedNotes(next),
         ...getMageSlayerAttackNotes(next),
         ...getGrapplerAttackNotes(next, true),
@@ -1452,6 +1468,7 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       type: '徒手打击',
       notes: [
         `武艺: 可用${ability.label}进行徒手打击和武僧武器攻击. 武艺骰 ${die}.`,
+        ...getSkulkerAttackNotes(next),
         ...getTavernBrawlerUnarmedNotes(next),
         ...getMageSlayerAttackNotes(next),
         ...getGrapplerAttackNotes(next, true),
@@ -1480,6 +1497,7 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       damage: `1d4${strMod === 0 ? '' : formatModifier(strMod)} 钝击`,
       type: '徒手打击',
       notes: [
+        ...getSkulkerAttackNotes(next),
         ...getTavernBrawlerUnarmedNotes(next),
         ...getMageSlayerAttackNotes(next),
         ...getGrapplerAttackNotes(next, true),

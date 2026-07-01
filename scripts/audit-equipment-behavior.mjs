@@ -456,6 +456,34 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '隐伏者', 'auto-feat-Skulker-PHB');
+character = equipWeapon(character, rangedWeapon, content);
+const phbSkulkerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbSkulkerRangedAttack, 'PHB Skulker ranged fixture should add attack');
+assert(
+  phbSkulkerRangedAttack.notes.includes('隐伏者') && phbSkulkerRangedAttack.notes.includes('远程武器攻击未命中不会暴露位置'),
+  \`PHB Skulker ranged attack should include hidden miss note, got \${phbSkulkerRangedAttack.notes}\`,
+);
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbSkulkerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbSkulkerMeleeAttack, 'PHB Skulker melee fixture should add attack');
+assert(
+  !phbSkulkerMeleeAttack.notes.includes('隐伏者'),
+  \`PHB Skulker should not apply hidden miss note to melee weapon attacks, got \${phbSkulkerMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '隐伏者', 'auto-feat-Skulker-XPHB');
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const xphbSkulkerUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(xphbSkulkerUnarmedAttack, 'XPHB Skulker unarmed fixture should add attack');
+assert(
+  xphbSkulkerUnarmedAttack.notes.includes('隐伏者') && xphbSkulkerUnarmedAttack.notes.includes('攻击检定未命中不会暴露位置'),
+  \`XPHB Skulker unarmed attack should include any-attack hidden miss note, got \${xphbSkulkerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipWeapon(character, nonLightWeapon, content);
 const magicWeapon = {
   ...lightWeapon,
@@ -1156,6 +1184,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Grappler add weapon and unarmed strike notes',
     'PHB and XPHB Mage Slayer add source-specific concentration notes',
     'PHB and XPHB Tavern Brawler add unarmed strike notes',
+    'PHB and XPHB Skulker add source-specific hidden attack notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
