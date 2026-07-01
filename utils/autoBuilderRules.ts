@@ -409,6 +409,11 @@ export type AutoBuilderClassFeatureChoice = {
   weaponMasteries?: string[];
 };
 
+export type AutoBuilderExistingFeatChoiceState = {
+  feat: AutoBuilderFeat;
+  state: { blocks: AutoBuilderFeatSpellBlockChoice[] };
+};
+
 export type AutoBuilderRaceChoice = {
   resistance?: string;
   abilities?: AbilityName[];
@@ -1944,6 +1949,47 @@ export const getFeatSpellChoiceState = (
   return blocks.length ? { blocks } : null;
 };
 
+const getFeatSpellProfileId = (feat: AutoBuilderFeat): string => (
+  `auto-feat-${normalizeKey(feat.key)}-${feat.source}-spells`
+);
+
+const filterNewFeatSpellChoiceState = (
+  current: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
+  previous: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
+): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
+  if (!current) return null;
+  const previousBlockById = new Map((previous?.blocks || []).map(block => [block.id, block]));
+  const blocks = current.blocks.flatMap(block => {
+    const previousBlock = previousBlockById.get(block.id);
+    const previousFixedIds = new Set(previousBlock?.fixedSpells.map(spell => spell.id) || []);
+    const previousChoiceIds = new Set(previousBlock?.choices.map(choice => choice.id) || []);
+    const nextBlock = {
+      ...block,
+      fixedSpells: block.fixedSpells.filter(spell => !previousFixedIds.has(spell.id)),
+      choices: block.choices.filter(choice => !previousChoiceIds.has(choice.id)),
+    };
+    return nextBlock.fixedSpells.length || nextBlock.choices.length ? [nextBlock] : [];
+  });
+  return blocks.length ? { blocks } : null;
+};
+
+export const getExistingFeatSpellLevelUpChoiceState = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+): AutoBuilderExistingFeatChoiceState | null => {
+  if (newCharacterLevel <= oldCharacterLevel) return null;
+  const ritualCaster = content.feats.find(feat => feat.key === 'Ritual Caster' && feat.source === 'XPHB');
+  if (!ritualCaster || !hasAppliedFeat(character, ritualCaster.key, ritualCaster.source)) return null;
+  const state = filterNewFeatSpellChoiceState(
+    getFeatSpellChoiceState(content, ritualCaster, ruleSystem, newCharacterLevel),
+    getFeatSpellChoiceState(content, ritualCaster, ruleSystem, oldCharacterLevel),
+  );
+  return state ? { feat: ritualCaster, state } : null;
+};
+
 export const getClassSpellOptions = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass,
@@ -3365,10 +3411,56 @@ const createFeatSpellOperations = (
   if (!selectedSpells.length) return [];
   const ability = choices?.featSpellAbility || choices?.featAbility || block.ability;
   if (!ability && block.abilityOptions.length) return [];
-  const sourceKey = `auto-feat-${normalizeKey(feat.key)}-${feat.source}`;
   const profile: SpellcastingProfile = {
-    id: `${sourceKey}-spells`,
+    id: getFeatSpellProfileId(feat),
     className: `${feat.name} 法术`,
+    ability: ability || 'CHA',
+    preparationMode: 'knownSelection',
+    saveDCOverride: '',
+    attackBonusOverride: '',
+    slots: createEmptySpellSlots(),
+    spells: selectedSpells.map(spell => toCharacterSpell(spell, true)),
+  };
+  return [{ type: 'upsertSpellcastingProfile', profile }];
+};
+
+const createExistingFeatSpellChoiceOperations = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+  choices?: AutoBuilderFeatChoice[],
+): AdjustmentOperation[] => {
+  if (!choices?.length) return [];
+  const choiceByFeatId = new Map(choices.map(choice => [choice.featId, choice]));
+  const state = getExistingFeatSpellLevelUpChoiceState(content, character, ruleSystem, oldCharacterLevel, newCharacterLevel);
+  if (!state) return [];
+  const featId = `${state.feat.key}|${state.feat.source}`;
+  const choice = choiceByFeatId.get(featId) || choiceByFeatId.get(state.feat.key);
+  if (!choice) return [];
+  const block = state.state.blocks.find(item => item.id === choice.featSpellBlockId) || (state.state.blocks.length === 1 ? state.state.blocks[0] : undefined);
+  if (!block) return [];
+  const selectedSpellIds = new Set(Object.values(choice.featSpellChoices || {}).flat());
+  const selectedSpells = uniqueSpells([
+    ...block.fixedSpells,
+    ...block.choices.flatMap(group => group.options.filter(spell => selectedSpellIds.has(spell.id))),
+  ]);
+  if (!selectedSpells.length) return [];
+  const profileId = getFeatSpellProfileId(state.feat);
+  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+  const ability = choice.featSpellAbility || existingProfile?.ability || choice.featAbility || block.ability;
+  if (!ability && block.abilityOptions.length) return [];
+  if (existingProfile) {
+    return selectedSpells.map(spell => ({
+      type: 'addSpell',
+      profileId,
+      spell: toCharacterSpell(spell, true),
+    } satisfies AdjustmentOperation));
+  }
+  const profile: SpellcastingProfile = {
+    id: profileId,
+    className: `${state.feat.name} 法术`,
     ability: ability || 'CHA',
     preparationMode: 'knownSelection',
     saveDCOverride: '',
@@ -5594,6 +5686,7 @@ export const buildLevelUpCharacter = (
 	    skillChoices?: string[];
 	    toolChoices?: AutoBuilderToolChoiceSelection;
 	    abilityScoreImprovementChoice?: AutoBuilderAbilityScoreImprovementChoice;
+	    existingFeatChoices?: AutoBuilderFeatChoice[];
 	    classFeatureChoices?: AutoBuilderClassFeatureChoice;
 	    subclass?: AutoBuilderSubclass;
 	    invocationChoices?: AutoBuilderInvocationChoice;
@@ -5689,6 +5782,14 @@ export const buildLevelUpCharacter = (
     oldTotalLevel,
     newTotalLevel,
   );
+  const existingFeatSpellChoiceOperations = createExistingFeatSpellChoiceOperations(
+    content,
+    character,
+    options.ruleSystem,
+    oldTotalLevel,
+    newTotalLevel,
+    options.existingFeatChoices,
+  );
   const existingOriginLevelUpOperations = createExistingOriginLevelUpOperations(
     character,
     oldTotalLevel,
@@ -5758,6 +5859,7 @@ export const buildLevelUpCharacter = (
 	        ...classWeaponMasteryOperations,
 	        ...abilityScoreImprovementOperations,
 	        ...existingFeatLevelUpOperations,
+	        ...existingFeatSpellChoiceOperations,
 	        ...existingOriginLevelUpOperations,
 	        ...classResourceOperations,
 	        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),

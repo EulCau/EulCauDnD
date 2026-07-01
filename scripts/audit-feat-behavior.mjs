@@ -21,6 +21,7 @@ import {
   getFeatSkillChoiceOptions,
   getFeatSpellChoiceState,
   getFeatWeaponChoiceOptions,
+  getExistingFeatSpellLevelUpChoiceState,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import { equipWeapon } from '${projectImport('utils/equipmentRules.ts')}';
 import content from '${projectImport('public/data/auto-builder-core.json')}';
@@ -943,6 +944,29 @@ assert(
   selectedRituals.every(selected => ritualCasterProfile?.spells.some(spell => spell.id === selected.id && spell.prepared)),
   \`XPHB Ritual Caster should add selected prepared ritual spells, got \${ritualCasterProfile?.spells.map(spell => spell.id).join(', ')}\`,
 );
+const ritualCasterLevelUpState = getExistingFeatSpellLevelUpChoiceState(content, ritualCasterWithSpells, '5r', 4, 5);
+assert(ritualCasterLevelUpState?.state.blocks.length === 1, \`XPHB Ritual Caster level 5 upgrade should expose one spell block, got \${ritualCasterLevelUpState?.state.blocks.length}\`);
+const ritualCasterLevelUpBlock = ritualCasterLevelUpState.state.blocks[0];
+assert(ritualCasterLevelUpBlock.choices.length === 1, \`XPHB Ritual Caster level 5 upgrade should expose one new ritual choice group, got \${ritualCasterLevelUpBlock.choices.length}\`);
+assert(ritualCasterLevelUpBlock.choices[0].count === 1, \`XPHB Ritual Caster level 5 upgrade should choose one new ritual, got \${ritualCasterLevelUpBlock.choices[0].count}\`);
+const selectedLevelFiveRitual = ritualCasterLevelUpBlock.choices[0].options.find(spell => !selectedRituals.some(selected => selected.id === spell.id));
+assert(selectedLevelFiveRitual, 'XPHB Ritual Caster level 5 upgrade should have a ritual option not already selected');
+const ritualCasterLevelFiveWithSpells = buildLevelUpCharacter(ritualCasterWithSpells, content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  existingFeatChoices: [{
+    featId: 'Ritual Caster|XPHB',
+    featSpellBlockId: ritualCasterLevelUpBlock.id,
+    featSpellChoices: {
+      [ritualCasterLevelUpBlock.choices[0].id]: [selectedLevelFiveRitual.id],
+    },
+  }],
+});
+const ritualCasterLevelFiveProfile = ritualCasterLevelFiveWithSpells.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Ritual Caster-XPHB-spells');
+assert(
+  [...selectedRituals, selectedLevelFiveRitual].every(selected => ritualCasterLevelFiveProfile?.spells.some(spell => spell.id === selected.id && spell.prepared)),
+  \`XPHB Ritual Caster level 5 upgrade should keep old rituals and add the selected new ritual, got \${ritualCasterLevelFiveProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
 
 const assertFixedTouchedSpellResource = ({
   featId,
@@ -1270,6 +1294,7 @@ export default {
     'XPHB Boon of Energy Resistance exposes and applies selected resistances',
     'fixed boon immunity fields add structured immunities',
     'XPHB Ritual Caster adds Quick Ritual resource',
+    'XPHB Ritual Caster level-up adds new ritual choices without replacing old rituals',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
     'XGE fixed spell feats add spell resources',
     'Infernal Constitution adds fixed resistance entries',
