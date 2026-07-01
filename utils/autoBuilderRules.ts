@@ -346,6 +346,7 @@ export type AutoBuilderToolChoiceSelection = Record<string, string[]>;
 export type AutoBuilderLanguageChoiceSelection = Record<string, string[]>;
 export type AutoBuilderSkillChoiceSelection = Record<string, string[]>;
 export type AutoBuilderWeaponChoiceSelection = Record<string, string[]>;
+export type AutoBuilderTextChoiceSelection = Record<string, string[]>;
 
 export type AutoBuilderAbilityChoice = {
   mode: 'plus2plus1' | 'plus1three';
@@ -366,6 +367,7 @@ export type AutoBuilderAbilityScoreImprovementChoice = {
   featSkillChoices?: AutoBuilderSkillChoiceSelection;
   featToolChoices?: AutoBuilderToolChoiceSelection;
   featWeaponChoices?: AutoBuilderWeaponChoiceSelection;
+  featResistanceChoices?: AutoBuilderTextChoiceSelection;
   featExpertiseChoices?: AutoBuilderSkillChoiceSelection;
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
@@ -384,6 +386,7 @@ export type AutoBuilderFeatChoice = {
   featSkillChoices?: AutoBuilderSkillChoiceSelection;
   featToolChoices?: AutoBuilderToolChoiceSelection;
   featWeaponChoices?: AutoBuilderWeaponChoiceSelection;
+  featResistanceChoices?: AutoBuilderTextChoiceSelection;
   featExpertiseChoices?: AutoBuilderSkillChoiceSelection;
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
@@ -1119,6 +1122,34 @@ export const getRaceResistanceOptions = (
   ));
   return Array.from(new Set(options));
 };
+
+const getTextChoiceOptionsFromEntries = (
+  entries: unknown[] | undefined,
+  sourceId: string,
+  label: string,
+): Array<{ id: string; label: string; from: string[]; count: number }> => {
+  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
+  (entries || []).forEach((entry, entryIndex) => {
+    if (!entry || typeof entry !== 'object' || !('choose' in entry)) return;
+    const choose = entry.choose as { from?: unknown[]; count?: number } | undefined;
+    const from = choose?.from?.filter((value): value is string => typeof value === 'string') || [];
+    const count = Math.max(1, Math.min(Number(choose?.count) || 1, from.length));
+    if (!from.length) return;
+    choices.push({
+      id: `${sourceId}-${entryIndex}`,
+      label,
+      from,
+      count,
+    });
+  });
+  return choices;
+};
+
+export const getFeatResistanceChoiceOptions = (
+  feat: AutoBuilderFeat | undefined,
+): Array<{ id: string; label: string; from: string[]; count: number }> => (
+  feat ? getTextChoiceOptionsFromEntries(feat.resist, `feat-${feat.key}-${feat.source}-resistance`, '伤害抗性') : []
+);
 
 export const getRaceSizeChoiceOptions = (
   race: AutoBuilderOrigin | undefined,
@@ -3254,6 +3285,35 @@ const createSavingThrowChoiceOperations = (
   ));
 };
 
+const createFeatResistanceChoiceOperations = (
+  feat: AutoBuilderFeat,
+  ruleSystem: RuleSystem,
+  choices?: AutoBuilderTextChoiceSelection,
+): AdjustmentOperation[] => {
+  const selectedResistances = Array.from(new Set(Object.values(choices || {}).flat()));
+  if (!selectedResistances.length) return [];
+  const sourceId = `auto-feat-${feat.key}-${feat.source}-choice-resistances`;
+  return [
+    ...selectedResistances.map(resistance => ({
+      type: 'addTextEntry',
+      path: 'damageResistances',
+      value: resistance,
+    } satisfies AdjustmentOperation)),
+    {
+      type: 'addFeature',
+      feature: {
+        id: `${sourceId}-feature`,
+        sourceId,
+        sourceName: `${feat.name} ${feat.source}`,
+        name: '伤害抗性',
+        level: 1,
+        ruleSystem,
+        description: `你获得对 ${selectedResistances.join(', ')} 伤害的抗性.`,
+      } satisfies CharacterFeatureEntry,
+    } satisfies AdjustmentOperation,
+  ];
+};
+
 const getAbilityDeltaFromOperations = (
   operations: AdjustmentOperation[],
   ability: AbilityName,
@@ -4223,6 +4283,7 @@ const createChosenFeatOperations = (
     ...createFeatSkillChoiceOperations(feat, character, choices.featSkillChoices, previousOperations),
     ...createToolChoiceOperations(choices.featToolChoices),
     ...createWeaponChoiceOperations(content, choices.featWeaponChoices),
+    ...createFeatResistanceChoiceOperations(feat, ruleSystem, choices.featResistanceChoices),
     ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
     ...createLanguageChoiceOperations(choices.featLanguageChoices),
     ...createSavingThrowChoiceOperations(choices.featSavingThrowChoices),
@@ -5176,6 +5237,7 @@ const createAbilityScoreImprovementOperations = (
       ...createFeatSkillChoiceOperations(feat, character, choice.featSkillChoices),
       ...createToolChoiceOperations(choice.featToolChoices),
       ...createWeaponChoiceOperations(content, choice.featWeaponChoices),
+      ...createFeatResistanceChoiceOperations(feat, ruleSystem, choice.featResistanceChoices),
       ...createExpertiseChoiceOperations(choice.featExpertiseChoices),
       ...createLanguageChoiceOperations(choice.featLanguageChoices),
       ...createSavingThrowChoiceOperations(choice.featSavingThrowChoices),

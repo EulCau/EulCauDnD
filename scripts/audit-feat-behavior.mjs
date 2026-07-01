@@ -16,6 +16,7 @@ import {
   getFeatLanguageChoiceOptions,
   getFeatManeuverChoiceState,
   getFeatMetamagicChoiceState,
+  getFeatResistanceChoiceOptions,
   getFeatSavingThrowChoiceOptions,
   getFeatSkillChoiceOptions,
   getFeatWeaponChoiceOptions,
@@ -97,6 +98,7 @@ const outlandsEnvoy = getFeat('Outlands Envoy', 'SatO');
 const telepathic = getFeat('Telepathic', 'XPHB');
 const boonOfRecovery = getFeat('Boon of Recovery', 'XPHB');
 const boonOfFate = getFeat('Boon of Fate', 'XPHB');
+const boonOfEnergyResistance = getFeat('Boon of Energy Resistance', 'XPHB');
 const boonOfFortitude = getFeat('Boon of Fortitude', 'XPHB');
 const boonOfSpeed = getFeat('Boon of Speed', 'XPHB');
 const boonOfTruesight = getFeat('Boon of Truesight', 'XPHB');
@@ -824,6 +826,39 @@ assert(boonOfFateResource?.max === 1, \`XPHB Boon of Fate should add one Fate re
 assert(boonOfFateResource?.reset === 'shortRest', \`XPHB Boon of Fate should use short rest reset, got \${boonOfFateResource?.reset}\`);
 assert(boonOfFateResource?.note?.includes('投掷先攻'), \`XPHB Boon of Fate note should mention initiative recovery, got \${boonOfFateResource?.note}\`);
 
+const boonOfEnergyResistanceChoices = getFeatResistanceChoiceOptions(boonOfEnergyResistance);
+assert(boonOfEnergyResistanceChoices.length === 1, \`XPHB Boon of Energy Resistance should expose one resistance choice group, got \${boonOfEnergyResistanceChoices.length}\`);
+assert(boonOfEnergyResistanceChoices[0].count === 2, \`XPHB Boon of Energy Resistance should require two resistance choices, got \${boonOfEnergyResistanceChoices[0].count}\`);
+assert(
+  boonOfEnergyResistanceChoices[0].from.includes('强酸') && boonOfEnergyResistanceChoices[0].from.includes('雷鸣'),
+  \`XPHB Boon of Energy Resistance choices should include acid and thunder, got \${boonOfEnergyResistanceChoices[0].from.join(', ')}\`,
+);
+const boonOfEnergyResistanceCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Energy Resistance|XPHB',
+    featAbility: 'CON',
+    featResistanceChoices: {
+      [boonOfEnergyResistanceChoices[0].id]: ['强酸', '雷鸣'],
+    },
+  },
+});
+assert(
+  boonOfEnergyResistanceCharacter.damageResistances.includes('强酸')
+    && boonOfEnergyResistanceCharacter.damageResistances.includes('雷鸣'),
+  \`XPHB Boon of Energy Resistance should add selected resistances, got \${boonOfEnergyResistanceCharacter.damageResistances.join(', ')}\`,
+);
+assert(
+  boonOfEnergyResistanceCharacter.featureEntries.some(feature => (
+    feature.sourceId === 'auto-feat-Boon of Energy Resistance-XPHB-choice-resistances'
+      && feature.description.includes('强酸')
+      && feature.description.includes('雷鸣')
+  )),
+  'XPHB Boon of Energy Resistance should add selected resistance feature description',
+);
+
 const ritualCasterCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -1111,6 +1146,7 @@ export default {
     boonOfSkill.name,
     squatNimbleness.name,
     boonOfFate.name,
+    boonOfEnergyResistance.name,
     ritualCaster.name,
     tceFeyTouched.name,
     xphbFeyTouched.name,
@@ -1158,6 +1194,7 @@ export default {
     'XPHB Boon of Skill adds all skill proficiencies',
     'Squat Nimbleness adds speed and selected skill proficiency',
     'XPHB Boon of Fate adds Fate resource',
+    'XPHB Boon of Energy Resistance exposes and applies selected resistances',
     'XPHB Ritual Caster adds Quick Ritual resource',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
     'XGE fixed spell feats add spell resources',
