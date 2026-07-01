@@ -8,6 +8,11 @@ import {
   getSearchSourceRank,
   isSearchSourceAllowedForRuleSystem,
 } from '../utils/searchSourceRules';
+import {
+  getMonsterEnvironmentOptions,
+  getMonsterTagOptions,
+  monsterMatchesStructuredFilters,
+} from '../utils/searchFilters';
 
 export interface SearchableSpell {
   id: string;
@@ -207,6 +212,8 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
   const [itemRarityFilter, setItemRarityFilter] = useState('');
   const [monsterTypeFilter, setMonsterTypeFilter] = useState('');
   const [monsterCrFilter, setMonsterCrFilter] = useState('');
+  const [monsterEnvironmentFilter, setMonsterEnvironmentFilter] = useState('');
+  const [monsterTagFilter, setMonsterTagFilter] = useState('');
   const monsters = loadedMonsters;
 
   const sourceOptions = useMemo(() => uniqueSorted([
@@ -220,13 +227,24 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
   const monsterCrOptions = useMemo(() => Array.from(new Set(
     monsters.map(monster => (monster.cr || '').trim()).filter(Boolean),
   )).sort((a, b) => crToSortValue(a) - crToSortValue(b)), [monsters]);
-  const hasActiveFilter = Boolean(sourceFilter || spellLevelFilter || itemCategoryFilter || itemRarityFilter || monsterTypeFilter || monsterCrFilter);
+  const monsterEnvironmentOptions = useMemo(() => getMonsterEnvironmentOptions(monsters), [monsters]);
+  const monsterTagOptions = useMemo(() => getMonsterTagOptions(monsters), [monsters]);
+  const hasActiveFilter = Boolean(
+    sourceFilter
+    || spellLevelFilter
+    || itemCategoryFilter
+    || itemRarityFilter
+    || monsterTypeFilter
+    || monsterCrFilter
+    || monsterEnvironmentFilter
+    || monsterTagFilter,
+  );
   const normalizedQuery = query.trim().toLowerCase();
   const shouldShowResults = Boolean(normalizedQuery || hasActiveFilter);
   const shouldLoadMonsters = (
     activeTab === 'monsters'
     || (activeTab === 'all' && shouldShowResults)
-    || Boolean(monsterTypeFilter || monsterCrFilter)
+    || Boolean(monsterTypeFilter || monsterCrFilter || monsterEnvironmentFilter || monsterTagFilter)
   );
   const isMonsterSearchPending = isLoadingMonsters && (activeTab === 'all' || activeTab === 'monsters');
 
@@ -326,8 +344,12 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
     const matches = dedupeSearchResultsByNameAndSource(
       monsters.filter(monster =>
       isSearchSourceAllowedForRuleSystem(monster.source, ruleSystem, sourceFilter)
-      && (!monsterTypeFilter || monster.type === monsterTypeFilter)
-      && (!monsterCrFilter || monster.cr === monsterCrFilter)
+      && monsterMatchesStructuredFilters(monster, {
+        type: monsterTypeFilter,
+        cr: monsterCrFilter,
+        environment: monsterEnvironmentFilter,
+        tag: monsterTagFilter,
+      })
       && (!normalizedQuery || getMonsterSearchText(monster).includes(normalizedQuery))
       ),
       ruleSystem,
@@ -336,7 +358,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
       monster => monster.englishName,
     ).sort((a, b) => compareByNameAndSource(a, b, ruleSystem));
     return normalizedQuery ? matches.slice(0, 50) : matches;
-  }, [monsters, normalizedQuery, shouldShowResults, sourceFilter, monsterTypeFilter, monsterCrFilter, ruleSystem]);
+  }, [monsters, normalizedQuery, shouldShowResults, sourceFilter, monsterTypeFilter, monsterCrFilter, monsterEnvironmentFilter, monsterTagFilter, ruleSystem]);
 
   const results = useMemo(() => {
     const items: Array<{ type: 'spell' | 'feature' | 'item' | 'monster'; data: any }> = [];
@@ -373,6 +395,8 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
     setItemRarityFilter('');
     setMonsterTypeFilter('');
     setMonsterCrFilter('');
+    setMonsterEnvironmentFilter('');
+    setMonsterTagFilter('');
   }, []);
 
   const openDetail = useCallback((type: 'spell' | 'feature' | 'item' | 'monster', data: any) => {
@@ -683,6 +707,24 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
               >
                 <option value="">{t('search.filterMonsterCr')}</option>
                 {monsterCrOptions.map(cr => <option key={cr} value={cr}>{cr}</option>)}
+              </select>
+              <select
+                value={monsterEnvironmentFilter}
+                onChange={(e) => setMonsterEnvironmentFilter(e.target.value)}
+                className="min-w-[92px] max-w-[150px] text-[10px] border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700"
+                aria-label={t('search.filterMonsterEnvironment')}
+              >
+                <option value="">{t('search.filterMonsterEnvironment')}</option>
+                {monsterEnvironmentOptions.map(environment => <option key={environment} value={environment}>{environment}</option>)}
+              </select>
+              <select
+                value={monsterTagFilter}
+                onChange={(e) => setMonsterTagFilter(e.target.value)}
+                className="min-w-[92px] max-w-[150px] text-[10px] border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700"
+                aria-label={t('search.filterMonsterTag')}
+              >
+                <option value="">{t('search.filterMonsterTag')}</option>
+                {monsterTagOptions.map(tag => <option key={tag} value={tag}>{tag}</option>)}
               </select>
             </>
           )}
