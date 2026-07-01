@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { RuleSystem } from '../types';
-import { loadBestiaryIndex } from '../utils/bestiary';
+import { loadBestiaryIndex, loadBestiaryMonsterDetail } from '../utils/bestiary';
 import {
   dedupeSearchResultsByNameAndSource,
   getSearchFeatureSource,
@@ -60,6 +60,8 @@ export interface SearchableMonster {
   speed: string;
   environment: string[];
   tags: string[];
+  searchText?: string;
+  detailId?: string;
   statblock?: {
     abilities?: Record<string, string>;
     saves?: string;
@@ -147,6 +149,7 @@ const getMonsterSearchText = (monster: SearchableMonster): string => {
     statblock?.senses,
     statblock?.languages,
     ...sections.flatMap(section => (section || []).flatMap(entry => [entry.name, entry.englishName, entry.entries])),
+    monster.searchText,
   ].filter(Boolean).join(' ').toLowerCase();
 };
 
@@ -196,6 +199,8 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
   const [loadedMonsters, setLoadedMonsters] = useState<SearchableMonster[]>(initialMonsters);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
   const [hasRequestedMonsters, setHasRequestedMonsters] = useState(initialMonsters.length > 0);
+  const [monsterDetails, setMonsterDetails] = useState<Record<string, SearchableMonster['statblock']>>({});
+  const [loadingMonsterDetails, setLoadingMonsterDetails] = useState<Set<string>>(new Set());
   const [sourceFilter, setSourceFilter] = useState('');
   const [spellLevelFilter, setSpellLevelFilter] = useState('');
   const [itemCategoryFilter, setItemCategoryFilter] = useState('');
@@ -380,8 +385,27 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
         return;
       }
     }
+    if (type === 'monster' && data.id && !data.statblock && !monsterDetails[data.id] && !loadingMonsterDetails.has(data.id)) {
+      setLoadingMonsterDetails(prev => new Set([...prev, data.id]));
+      loadBestiaryMonsterDetail(data.detailId || data.id)
+        .then(monsterDetail => {
+          if (!monsterDetail?.statblock) return;
+          setMonsterDetails(prev => ({
+            ...prev,
+            [data.id]: monsterDetail.statblock,
+          }));
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          setLoadingMonsterDetails(prev => {
+            const next = new Set(prev);
+            next.delete(data.id);
+            return next;
+          });
+        });
+    }
     setDetail(prev => prev?.data?.id === data.id ? null : { type, data });
-  }, [featureGroups, selectedSources]);
+  }, [featureGroups, loadingMonsterDetails, monsterDetails, selectedSources]);
 
   const handleSourceChange = (featureName: string, sourceId: string) => {
     setSelectedSources(prev => ({ ...prev, [featureName]: sourceId }));
@@ -485,8 +509,9 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
           <div className="space-y-1 text-xs">
             {(() => {
               const monster = data as SearchableMonster;
-              const statblock = monster.statblock;
+              const statblock = monsterDetails[monster.id] || monster.statblock;
               const abilities = statblock?.abilities || {};
+              const isLoadingDetail = loadingMonsterDetails.has(monster.id);
               return (
                 <>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
@@ -529,6 +554,12 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ spells, features, magicItems,
             {renderMonsterSection('附赠动作', statblock?.bonusActions)}
             {renderMonsterSection('反应', statblock?.reactions)}
             {renderMonsterSection('传奇动作', statblock?.legendaryActions)}
+
+            {isLoadingDetail ? (
+              <div className="pt-2 border-t border-gray-200 text-[10px] text-gray-500">
+                {t('search.loadingMonsters')}
+              </div>
+            ) : null}
 
             {monster.tags.length ? (
               <div className="pt-2 border-t border-gray-200 text-[10px] text-gray-500">

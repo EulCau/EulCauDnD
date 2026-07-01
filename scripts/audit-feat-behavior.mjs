@@ -19,7 +19,9 @@ import {
   getFeatResistanceChoiceOptions,
   getFeatSavingThrowChoiceOptions,
   getFeatSkillChoiceOptions,
+  getFeatSpellChoiceState,
   getFeatWeaponChoiceOptions,
+  getExistingFeatSpellLevelUpChoiceState,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import { equipWeapon } from '${projectImport('utils/equipmentRules.ts')}';
 import content from '${projectImport('public/data/auto-builder-core.json')}';
@@ -48,6 +50,11 @@ const makeLevelThreeWizard = () => ({
   expertises: new Set(),
   featureEntries: [],
   appliedAdjustments: [],
+});
+
+const makeLevelThreePhbWizard = () => ({
+  ...makeLevelThreeWizard(),
+  classes: [{ id: 'auto-class-main', name: 'Wizard', level: 3, subclass: '', source: 'PHB' }],
 });
 
 const wizard = getClass('Wizard', 'XPHB');
@@ -424,7 +431,7 @@ assert(planarWandererResource?.max === 1, \`Planar Wanderer should add one Porta
 assert(planarWandererResource?.reset === 'longRest', \`Planar Wanderer Portal Sense should recover on long rest, got \${planarWandererResource?.reset}\`);
 assert(planarWandererResource?.note?.includes('30 尺'), \`Planar Wanderer resource note should mention 30-foot range, got \${planarWandererResource?.note}\`);
 
-const runeShaperCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const runeShaperCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -441,6 +448,71 @@ const runeShaperProfile = runeShaperCharacter.spellcastingProfiles.find(profile 
 assert(
   runeShaperProfile?.spells.some(spell => spell.name === '通晓语言' && spell.prepared),
   'Rune Shaper should add prepared Comprehend Languages feat spell',
+);
+assert(
+  !runeShaperProfile?.spells.some(spell => spell.name === '云雾术'),
+  'Rune Shaper should not add rune spells before the user chooses known runes',
+);
+const runeShaperLevelFourState = getFeatSpellChoiceState(content, runeShaper, '5e', 4);
+assert(runeShaperLevelFourState?.blocks.length === 1, \`Rune Shaper level 4 should expose one spell block, got \${runeShaperLevelFourState?.blocks.length}\`);
+const runeShaperLevelFourBlock = runeShaperLevelFourState.blocks[0];
+assert(runeShaperLevelFourBlock.fixedSpells.some(spell => spell.name === '通晓语言'), 'Rune Shaper should keep Comprehend Languages as a fixed spell');
+assert(runeShaperLevelFourBlock.choices.length === 1, \`Rune Shaper level 4 should expose one rune spell choice group, got \${runeShaperLevelFourBlock.choices.length}\`);
+assert(runeShaperLevelFourBlock.choices[0].count === 1, \`Rune Shaper level 4 should choose one rune spell, got \${runeShaperLevelFourBlock.choices[0].count}\`);
+assert(
+  !runeShaperLevelFourBlock.choices[0].options.some(spell => spell.name === '通晓语言'),
+  'Rune Shaper rune spell choices should not include fixed Comprehend Languages',
+);
+const selectedRuneSpell = runeShaperLevelFourBlock.choices[0].options[0];
+assert(selectedRuneSpell, 'Rune Shaper level 4 should have at least one rune spell option');
+const runeShaperWithRune = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Rune Shaper|BGG',
+    featSpellAbility: 'WIS',
+    featSpellBlockId: runeShaperLevelFourBlock.id,
+    featSpellChoices: {
+      [runeShaperLevelFourBlock.choices[0].id]: [selectedRuneSpell.id],
+    },
+  },
+});
+const runeShaperWithRuneProfile = runeShaperWithRune.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Rune Shaper-BGG-spells');
+assert(
+  runeShaperWithRuneProfile?.spells.some(spell => spell.id === selectedRuneSpell.id && spell.prepared),
+  \`Rune Shaper should add the selected rune spell, got \${runeShaperWithRuneProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+const runeShaperLevelEight = {
+  ...runeShaperWithRune,
+  classes: runeShaperWithRune.classes.map(cls => cls.id === 'auto-class-main' ? { ...cls, level: 8 } : cls),
+};
+const runeShaperLevelUpState = getExistingFeatSpellLevelUpChoiceState(content, runeShaperLevelEight, '5e', 8, 9);
+assert(runeShaperLevelUpState?.feat.key === 'Rune Shaper', \`Rune Shaper level 9 upgrade should expose Rune Shaper, got \${runeShaperLevelUpState?.feat.key}\`);
+const runeShaperLevelUpBlock = runeShaperLevelUpState.state.blocks[0];
+assert(runeShaperLevelUpBlock.choices.length === 1, \`Rune Shaper level 9 upgrade should expose one new rune choice group, got \${runeShaperLevelUpBlock.choices.length}\`);
+assert(runeShaperLevelUpBlock.choices[0].count === 1, \`Rune Shaper level 9 upgrade should choose one new rune spell, got \${runeShaperLevelUpBlock.choices[0].count}\`);
+const selectedSecondRuneSpell = runeShaperLevelUpBlock.choices[0].options.find(spell => (
+  spell.id !== selectedRuneSpell.id
+    && spell.name !== selectedRuneSpell.name
+    && spell.englishName !== selectedRuneSpell.englishName
+));
+assert(selectedSecondRuneSpell, 'Rune Shaper level 9 upgrade should have a rune spell option not already selected');
+const runeShaperLevelNineWithRune = buildLevelUpCharacter(runeShaperLevelEight, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  existingFeatChoices: [{
+    featId: 'Rune Shaper|BGG',
+    featSpellBlockId: runeShaperLevelUpBlock.id,
+    featSpellChoices: {
+      [runeShaperLevelUpBlock.choices[0].id]: [selectedSecondRuneSpell.id],
+    },
+  }],
+});
+const runeShaperLevelNineProfile = runeShaperLevelNineWithRune.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Rune Shaper-BGG-spells');
+assert(
+  [selectedRuneSpell, selectedSecondRuneSpell].every(selected => runeShaperLevelNineProfile?.spells.some(spell => spell.id === selected.id && spell.prepared)),
+  \`Rune Shaper level 9 upgrade should keep old rune spell and add the selected new rune spell, got \${runeShaperLevelNineProfile?.spells.map(spell => spell.id).join(', ')}\`,
 );
 
 const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
@@ -915,6 +987,57 @@ assert(ritualCasterResource?.max === 1, \`XPHB Ritual Caster should add one Quic
 assert(ritualCasterResource?.reset === 'longRest', \`XPHB Ritual Caster Quick Ritual should recover on long rest, got \${ritualCasterResource?.reset}\`);
 assert(ritualCasterResource?.note?.includes('不消耗法术位'), \`XPHB Ritual Caster note should mention no spell slot, got \${ritualCasterResource?.note}\`);
 
+const ritualCasterLevelFourState = getFeatSpellChoiceState(content, ritualCaster, '5r', 4);
+assert(ritualCasterLevelFourState?.blocks.length === 1, \`XPHB Ritual Caster level 4 should expose one spell block, got \${ritualCasterLevelFourState?.blocks.length}\`);
+const ritualCasterLevelFourBlock = ritualCasterLevelFourState.blocks[0];
+assert(ritualCasterLevelFourBlock.choices.length === 1, \`XPHB Ritual Caster level 4 should expose only one ritual choice group, got \${ritualCasterLevelFourBlock.choices.length}\`);
+assert(ritualCasterLevelFourBlock.choices[0].count === 2, \`XPHB Ritual Caster level 4 should choose two rituals, got \${ritualCasterLevelFourBlock.choices[0].count}\`);
+const ritualCasterLevelFiveState = getFeatSpellChoiceState(content, ritualCaster, '5r', 5);
+assert(ritualCasterLevelFiveState?.blocks[0].choices.length === 2, \`XPHB Ritual Caster level 5 should expose two ritual choice groups, got \${ritualCasterLevelFiveState?.blocks[0].choices.length}\`);
+const selectedRituals = ritualCasterLevelFourBlock.choices[0].options.slice(0, 2);
+assert(selectedRituals.length === 2, 'XPHB Ritual Caster level 4 should have at least two ritual spell options');
+const ritualCasterWithSpells = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Ritual Caster|XPHB',
+    featAbility: 'INT',
+    featSpellBlockId: ritualCasterLevelFourBlock.id,
+    featSpellChoices: {
+      [ritualCasterLevelFourBlock.choices[0].id]: selectedRituals.map(spell => spell.id),
+    },
+  },
+});
+const ritualCasterProfile = ritualCasterWithSpells.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Ritual Caster-XPHB-spells');
+assert(
+  selectedRituals.every(selected => ritualCasterProfile?.spells.some(spell => spell.id === selected.id && spell.prepared)),
+  \`XPHB Ritual Caster should add selected prepared ritual spells, got \${ritualCasterProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+const ritualCasterLevelUpState = getExistingFeatSpellLevelUpChoiceState(content, ritualCasterWithSpells, '5r', 4, 5);
+assert(ritualCasterLevelUpState?.state.blocks.length === 1, \`XPHB Ritual Caster level 5 upgrade should expose one spell block, got \${ritualCasterLevelUpState?.state.blocks.length}\`);
+const ritualCasterLevelUpBlock = ritualCasterLevelUpState.state.blocks[0];
+assert(ritualCasterLevelUpBlock.choices.length === 1, \`XPHB Ritual Caster level 5 upgrade should expose one new ritual choice group, got \${ritualCasterLevelUpBlock.choices.length}\`);
+assert(ritualCasterLevelUpBlock.choices[0].count === 1, \`XPHB Ritual Caster level 5 upgrade should choose one new ritual, got \${ritualCasterLevelUpBlock.choices[0].count}\`);
+const selectedLevelFiveRitual = ritualCasterLevelUpBlock.choices[0].options.find(spell => !selectedRituals.some(selected => selected.id === spell.id));
+assert(selectedLevelFiveRitual, 'XPHB Ritual Caster level 5 upgrade should have a ritual option not already selected');
+const ritualCasterLevelFiveWithSpells = buildLevelUpCharacter(ritualCasterWithSpells, content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  existingFeatChoices: [{
+    featId: 'Ritual Caster|XPHB',
+    featSpellBlockId: ritualCasterLevelUpBlock.id,
+    featSpellChoices: {
+      [ritualCasterLevelUpBlock.choices[0].id]: [selectedLevelFiveRitual.id],
+    },
+  }],
+});
+const ritualCasterLevelFiveProfile = ritualCasterLevelFiveWithSpells.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Ritual Caster-XPHB-spells');
+assert(
+  [...selectedRituals, selectedLevelFiveRitual].every(selected => ritualCasterLevelFiveProfile?.spells.some(spell => spell.id === selected.id && spell.prepared)),
+  \`XPHB Ritual Caster level 5 upgrade should keep old rituals and add the selected new ritual, got \${ritualCasterLevelFiveProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+
 const assertFixedTouchedSpellResource = ({
   featId,
   featKey,
@@ -1218,7 +1341,7 @@ export default {
     'Solamnia knight feats refresh proficiency-based resources',
     'Cartomancer adds Hidden Ace resource and Prestidigitation profile',
     'Planar Wanderer adds Portal Sense long-rest resource',
-    'Rune Shaper adds Rune Magic resource and Comprehend Languages profile',
+    'Rune Shaper adds Rune Magic resource, fixed Comprehend Languages, selected rune spells, and proficiency-threshold rune upgrades',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',
@@ -1241,6 +1364,7 @@ export default {
     'XPHB Boon of Energy Resistance exposes and applies selected resistances',
     'fixed boon immunity fields add structured immunities',
     'XPHB Ritual Caster adds Quick Ritual resource',
+    'XPHB Ritual Caster level-up adds new ritual choices without replacing old rituals',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
     'XGE fixed spell feats add spell resources',
     'Infernal Constitution adds fixed resistance entries',

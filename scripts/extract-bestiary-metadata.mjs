@@ -4,6 +4,7 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const BESTIARY_DIR = path.join(ROOT, 'third_party/5etools-cn/data/bestiary');
 const OUT_FILE = path.join(ROOT, 'public/data/bestiary-index.json');
+const DETAIL_OUT_FILE = path.join(ROOT, 'public/data/bestiary-details.json');
 
 const SIZE_LABELS = {
   T: '超小',
@@ -101,6 +102,10 @@ const truncateText = (text, maxLength = 1200) => (
   text.length > maxLength ? `${text.slice(0, maxLength).trim()}...` : text
 );
 
+const truncateSearchText = (text, maxLength = 800) => (
+  text.length > maxLength ? text.slice(0, maxLength).trim() : text
+);
+
 const formatSection = entries => (
   Array.isArray(entries)
     ? entries.map((entry, index) => ({
@@ -191,41 +196,90 @@ const createStatblock = monster => ({
   legendaryActions: formatSection(monster.legendary),
 });
 
+const createSearchText = (monster, statblock) => {
+  const sections = [
+    statblock.traits,
+    statblock.spellcasting,
+    statblock.actions,
+    statblock.bonusActions,
+    statblock.reactions,
+    statblock.legendaryActions,
+  ];
+  return truncateSearchText([
+    monster.name,
+    monster.ENG_name,
+    monster.source,
+    formatType(monster.type),
+    formatCr(monster.cr),
+    (monster.size || []).map(size => SIZE_LABELS[size] || size).join('/'),
+    formatAlignment(monster.alignment),
+    formatAc(monster.ac),
+    monster.hp?.formula,
+    formatSpeed(monster.speed),
+    ...(monster.environment || []),
+    ...(monster.traitTags || []),
+    ...(monster.senseTags || []),
+    ...(monster.languageTags || []),
+    ...(monster.miscTags || []),
+    statblock.saves,
+    statblock.skills,
+    statblock.senses,
+    statblock.languages,
+    ...sections.flatMap(section => (section || []).flatMap(entry => [entry.name, entry.englishName])),
+  ].filter(Boolean).join(' ').toLowerCase());
+};
+
 const files = fs.readdirSync(BESTIARY_DIR)
   .filter(file => /^bestiary-.*\.json$/.test(file))
   .sort();
 
-const monsters = files.flatMap(file => {
+const monsterEntries = files.flatMap(file => {
   const data = readJson(file);
   return (data.monster || []).map(monster => {
     const cr = formatCr(monster.cr);
     const acValue = getAcValue(monster.ac);
+    const id = `${monster.name}|${monster.source}`;
+    const statblock = createStatblock(monster);
     return {
-      id: `${monster.name}|${monster.source}`,
-      name: monster.name,
-      englishName: monster.ENG_name,
-      source: monster.source,
-      size: (monster.size || []).map(size => SIZE_LABELS[size] || size).join('/'),
-      type: formatType(monster.type),
-      alignment: formatAlignment(monster.alignment),
-      cr,
-      crNumber: cr === '0' ? 0 : Number(cr) || (cr === '1/8' ? 0.125 : cr === '1/4' ? 0.25 : cr === '1/2' ? 0.5 : null),
-      ac: formatAc(monster.ac),
-      acValue,
-      hp: monster.hp?.average ?? null,
-      hpFormula: monster.hp?.formula || '',
-      speed: formatSpeed(monster.speed),
-      environment: monster.environment || [],
-      tags: [
-        ...(monster.traitTags || []),
-        ...(monster.senseTags || []),
-        ...(monster.languageTags || []),
-        ...(monster.miscTags || []),
-      ],
-      statblock: createStatblock(monster),
+      statblock,
+      monster: {
+        id,
+        name: monster.name,
+        englishName: monster.ENG_name,
+        source: monster.source,
+        size: (monster.size || []).map(size => SIZE_LABELS[size] || size).join('/'),
+        type: formatType(monster.type),
+        alignment: formatAlignment(monster.alignment),
+        cr,
+        crNumber: cr === '0' ? 0 : Number(cr) || (cr === '1/8' ? 0.125 : cr === '1/4' ? 0.25 : cr === '1/2' ? 0.5 : null),
+        ac: formatAc(monster.ac),
+        acValue,
+        hp: monster.hp?.average ?? null,
+        hpFormula: monster.hp?.formula || '',
+        speed: formatSpeed(monster.speed),
+        environment: monster.environment || [],
+        tags: [
+          ...(monster.traitTags || []),
+          ...(monster.senseTags || []),
+          ...(monster.languageTags || []),
+          ...(monster.miscTags || []),
+        ],
+        searchText: createSearchText(monster, statblock),
+        detailId: id,
+      },
     };
   });
 });
+
+const monsters = monsterEntries
+  .map(entry => entry.monster)
+  .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN') || a.source.localeCompare(b.source));
+const monsterDetails = Object.fromEntries(monsterEntries
+  .map(entry => [entry.monster.id, {
+    id: entry.monster.id,
+    statblock: entry.statblock,
+  }])
+  .sort(([a], [b]) => a.localeCompare(b)));
 
 const out = {
   generatedAt: new Date().toISOString(),
@@ -234,12 +288,20 @@ const out = {
     counts[monster.source] = (counts[monster.source] || 0) + 1;
     return counts;
   }, {})).sort(([a], [b]) => a.localeCompare(b))),
-  monsters: monsters.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN') || a.source.localeCompare(b.source)),
+  monsters,
+};
+
+const detailsOut = {
+  generatedAt: out.generatedAt,
+  total: monsters.length,
+  monsters: monsterDetails,
 };
 
 fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });
 fs.writeFileSync(OUT_FILE, `${JSON.stringify(out, null, 2)}\n`);
+fs.writeFileSync(DETAIL_OUT_FILE, `${JSON.stringify(detailsOut, null, 2)}\n`);
 console.log(`Wrote ${path.relative(ROOT, OUT_FILE)}`);
+console.log(`Wrote ${path.relative(ROOT, DETAIL_OUT_FILE)}`);
 console.log(JSON.stringify({
   total: out.total,
   sources: Object.keys(out.sources).length,

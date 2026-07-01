@@ -347,6 +347,7 @@ export type AutoBuilderLanguageChoiceSelection = Record<string, string[]>;
 export type AutoBuilderSkillChoiceSelection = Record<string, string[]>;
 export type AutoBuilderWeaponChoiceSelection = Record<string, string[]>;
 export type AutoBuilderTextChoiceSelection = Record<string, string[]>;
+export type AutoBuilderOriginFeatureChoiceSelection = Record<string, string>;
 
 export type AutoBuilderAbilityChoice = {
   mode: 'plus2plus1' | 'plus1three';
@@ -409,11 +410,17 @@ export type AutoBuilderClassFeatureChoice = {
   weaponMasteries?: string[];
 };
 
+export type AutoBuilderExistingFeatChoiceState = {
+  feat: AutoBuilderFeat;
+  state: { blocks: AutoBuilderFeatSpellBlockChoice[] };
+};
+
 export type AutoBuilderRaceChoice = {
   resistance?: string;
   abilities?: AbilityName[];
   skills?: string[];
   size?: string;
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection;
   toolChoices?: AutoBuilderToolChoiceSelection;
   languageChoices?: AutoBuilderLanguageChoiceSelection;
   weaponChoices?: AutoBuilderWeaponChoiceSelection;
@@ -422,6 +429,50 @@ export type AutoBuilderRaceChoice = {
 const RULE_SOURCE: Record<RuleSystem, 'PHB' | 'XPHB'> = {
   '5e': 'PHB',
   '5r': 'XPHB',
+};
+
+const XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS = [
+  {
+    value: 'cloud',
+    label: '云之远迹（云巨人）',
+    note: '云之远迹: 以附赠动作魔法传送到 30 尺内可见的未占据空间.',
+  },
+  {
+    value: 'fire',
+    label: '火之燃烧（火巨人）',
+    note: '火之燃烧: 攻击检定命中并造成伤害时, 额外造成 1d10 火焰伤害.',
+  },
+  {
+    value: 'frost',
+    label: '霜之刺骨（霜巨人）',
+    note: '霜之刺骨: 攻击检定命中并造成伤害时, 额外造成 1d6 寒冷伤害, 且目标速度降低 10 尺直到你的下一回合开始.',
+  },
+  {
+    value: 'hill',
+    label: '山之翻撞（山丘巨人）',
+    note: '山之翻撞: 攻击检定命中不超过大型的生物并造成伤害时, 可令其倒地.',
+  },
+  {
+    value: 'stone',
+    label: '石之坚韧（石巨人）',
+    note: '石之坚韧: 受到伤害时用反应掷 1d12, 此次伤害减少骰值 + 体质调整值.',
+  },
+  {
+    value: 'storm',
+    label: '岚之暴鸣（风暴巨人）',
+    note: '岚之暴鸣: 60 尺内生物对你造成伤害时, 可用反应对该生物造成 1d8 雷鸣伤害.',
+  },
+];
+
+const getXphbGoliathGiantAncestryNote = (
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
+): string => {
+  const selected = XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS.find(option => (
+    option.value === featureChoices?.['giant-ancestry']
+  ));
+  return selected
+    ? `次数等于熟练加值. ${selected.note}`
+    : '次数等于熟练加值. 使用你选择的巨人先祖恩惠, 如传送, 额外伤害, 减速, 击倒, 减伤或反击雷鸣伤害.';
 };
 
 const OFFICIAL_FEAT_SOURCES = new Set([
@@ -1203,6 +1254,30 @@ export const getRaceSkillChoiceOptions = (
   return null;
 };
 
+export const getRaceFeatureChoiceOptions = (
+  race: AutoBuilderOrigin | undefined,
+  subrace?: AutoBuilderOrigin,
+): Array<{ id: string; label: string; options: Array<{ value: string; label: string }> }> => {
+  const entities = [race, subrace].filter((origin): origin is AutoBuilderOrigin => Boolean(origin));
+  return entities.flatMap(origin => {
+    if (
+      origin.key === 'Goliath'
+      && origin.source === 'XPHB'
+      && (origin.features || []).some(feature => feature.englishName === 'Giant Ancestry' || feature.name === '巨人先祖')
+    ) {
+      return [{
+        id: 'giant-ancestry',
+        label: '巨人先祖',
+        options: XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS.map(option => ({
+          value: option.value,
+          label: option.label,
+        })),
+      }];
+    }
+    return [];
+  });
+};
+
 const getOfficialFeatOptions = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
@@ -1874,6 +1949,7 @@ const collectFeatSpellChoices = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
   sourceId: string,
+  characterLevel = Number.POSITIVE_INFINITY,
 ): { fixedSpells: AutoBuilderSpell[]; choices: AutoBuilderFeatSpellChoiceGroup[] } => {
   const fixedSpells: AutoBuilderSpell[] = [];
   const choices: AutoBuilderFeatSpellChoiceGroup[] = [];
@@ -1890,6 +1966,13 @@ const collectFeatSpellChoices = (
     }
     if (!entry || typeof entry !== 'object') return;
     const record = entry as Record<string, unknown>;
+    const keys = Object.keys(record);
+    if (keys.length > 0 && keys.every(key => /^\d+$/.test(key))) {
+      keys
+        .filter(key => Number(key) <= characterLevel)
+        .forEach(key => visit(record[key], fallbackCount));
+      return;
+    }
     if (typeof record.choose === 'string') {
       const options = getSpellOptionsForFeatFilter(content, ruleSystem, record.choose);
       if (options.length) {
@@ -1909,18 +1992,58 @@ const collectFeatSpellChoices = (
   return { fixedSpells: uniqueSpells(fixedSpells), choices };
 };
 
+const createRuneShaperFeatSpellBlock = (
+  content: AutoBuilderContent,
+  feat: AutoBuilderFeat,
+  ruleSystem: RuleSystem,
+  characterLevel: number,
+): AutoBuilderFeatSpellBlockChoice | null => {
+  const block = feat.additionalSpells?.find(entry => entry && typeof entry === 'object') as Record<string, unknown> | undefined;
+  if (!block) return null;
+  const id = `feat-${feat.key}-${feat.source}-spell-block-0`;
+  const parsed = collectFeatSpellChoices(block, content, ruleSystem, id, characterLevel);
+  const fixedSpells = parsed.fixedSpells.filter(spell => (
+    spell.englishName === 'Comprehend Languages' || spell.name === '通晓语言'
+  ));
+  const fixedSpellIds = new Set(fixedSpells.map(spell => spell.id));
+  const runeSpellOptions = parsed.fixedSpells.filter(spell => !fixedSpellIds.has(spell.id));
+  const effectiveCharacterLevel = Number.isFinite(characterLevel) ? characterLevel : 1;
+  const runeCount = Math.max(1, Math.floor(calculateProficiencyBonus(Math.max(1, effectiveCharacterLevel)) / 2));
+  if (!fixedSpells.length && !runeSpellOptions.length) return null;
+  return {
+    id,
+    label: feat.name,
+    ability: normalizeFeatSpellAbility(block.ability),
+    abilityOptions: getFeatSpellAbilityOptionsFromBlock(block),
+    fixedSpells,
+    choices: runeSpellOptions.length
+      ? [{
+          id: `${id}-rune-spells`,
+          label: '符文法术',
+          count: runeCount,
+          options: uniqueSpells(runeSpellOptions),
+        }]
+      : [],
+  };
+};
+
 export const getFeatSpellChoiceState = (
   content: AutoBuilderContent,
   feat: AutoBuilderFeat | undefined,
   ruleSystem: RuleSystem,
+  characterLevel = Number.POSITIVE_INFINITY,
 ): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
+  if (feat?.key === 'Rune Shaper' && feat.source === 'BGG') {
+    const block = createRuneShaperFeatSpellBlock(content, feat, ruleSystem, characterLevel);
+    return block ? { blocks: [block] } : null;
+  }
   const blocks = (feat?.additionalSpells || [])
     .map((entry, index): AutoBuilderFeatSpellBlockChoice | null => {
       if (!entry || typeof entry !== 'object') return null;
       const block = entry as Record<string, unknown>;
       const id = `feat-${feat?.key || 'unknown'}-${feat?.source || 'unknown'}-spell-block-${index}`;
       const label = String(block.name || block.ENG_name || `${feat?.name || 'Feat'} ${index + 1}`);
-      const parsed = collectFeatSpellChoices(block, content, ruleSystem, id);
+      const parsed = collectFeatSpellChoices(block, content, ruleSystem, id, characterLevel);
       if (!parsed.fixedSpells.length && !parsed.choices.length) return null;
       return {
         id,
@@ -1933,6 +2056,58 @@ export const getFeatSpellChoiceState = (
     })
     .filter((block): block is AutoBuilderFeatSpellBlockChoice => Boolean(block));
   return blocks.length ? { blocks } : null;
+};
+
+const getFeatSpellProfileId = (feat: AutoBuilderFeat): string => (
+  `auto-feat-${normalizeKey(feat.key)}-${feat.source}-spells`
+);
+
+const filterNewFeatSpellChoiceState = (
+  current: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
+  previous: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
+): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
+  if (!current) return null;
+  const previousBlockById = new Map((previous?.blocks || []).map(block => [block.id, block]));
+  const blocks = current.blocks.flatMap(block => {
+    const previousBlock = previousBlockById.get(block.id);
+    const previousFixedIds = new Set(previousBlock?.fixedSpells.map(spell => spell.id) || []);
+    const previousChoiceById = new Map((previousBlock?.choices || []).map(choice => [choice.id, choice]));
+    const nextBlock = {
+      ...block,
+      fixedSpells: block.fixedSpells.filter(spell => !previousFixedIds.has(spell.id)),
+      choices: block.choices.flatMap(choice => {
+        const previousChoice = previousChoiceById.get(choice.id);
+        if (!previousChoice) return [choice];
+        const additionalCount = choice.count - previousChoice.count;
+        return additionalCount > 0 ? [{ ...choice, count: additionalCount }] : [];
+      }),
+    };
+    return nextBlock.fixedSpells.length || nextBlock.choices.length ? [nextBlock] : [];
+  });
+  return blocks.length ? { blocks } : null;
+};
+
+export const getExistingFeatSpellLevelUpChoiceState = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+): AutoBuilderExistingFeatChoiceState | null => {
+  if (newCharacterLevel <= oldCharacterLevel) return null;
+  const upgradeFeats = [
+    content.feats.find(feat => feat.key === 'Ritual Caster' && feat.source === 'XPHB'),
+    content.feats.find(feat => feat.key === 'Rune Shaper' && feat.source === 'BGG'),
+  ].filter((feat): feat is AutoBuilderFeat => Boolean(feat));
+  for (const feat of upgradeFeats) {
+    if (!hasAppliedFeat(character, feat.key, feat.source)) continue;
+    const state = filterNewFeatSpellChoiceState(
+      getFeatSpellChoiceState(content, feat, ruleSystem, newCharacterLevel),
+      getFeatSpellChoiceState(content, feat, ruleSystem, oldCharacterLevel),
+    );
+    if (state) return { feat, state };
+  }
+  return null;
 };
 
 export const getClassSpellOptions = (
@@ -3342,8 +3517,9 @@ const createFeatSpellOperations = (
   ruleSystem: RuleSystem,
   feat: AutoBuilderFeat,
   choices?: AutoBuilderFeatChoice,
+  characterLevel = Number.POSITIVE_INFINITY,
 ): AdjustmentOperation[] => {
-  const state = getFeatSpellChoiceState(content, feat, ruleSystem);
+  const state = getFeatSpellChoiceState(content, feat, ruleSystem, characterLevel);
   if (!state) return [];
   const block = state.blocks.find(item => item.id === choices?.featSpellBlockId) || (state.blocks.length === 1 ? state.blocks[0] : undefined);
   if (!block) return [];
@@ -3355,10 +3531,56 @@ const createFeatSpellOperations = (
   if (!selectedSpells.length) return [];
   const ability = choices?.featSpellAbility || choices?.featAbility || block.ability;
   if (!ability && block.abilityOptions.length) return [];
-  const sourceKey = `auto-feat-${normalizeKey(feat.key)}-${feat.source}`;
   const profile: SpellcastingProfile = {
-    id: `${sourceKey}-spells`,
+    id: getFeatSpellProfileId(feat),
     className: `${feat.name} 法术`,
+    ability: ability || 'CHA',
+    preparationMode: 'knownSelection',
+    saveDCOverride: '',
+    attackBonusOverride: '',
+    slots: createEmptySpellSlots(),
+    spells: selectedSpells.map(spell => toCharacterSpell(spell, true)),
+  };
+  return [{ type: 'upsertSpellcastingProfile', profile }];
+};
+
+const createExistingFeatSpellChoiceOperations = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+  choices?: AutoBuilderFeatChoice[],
+): AdjustmentOperation[] => {
+  if (!choices?.length) return [];
+  const choiceByFeatId = new Map(choices.map(choice => [choice.featId, choice]));
+  const state = getExistingFeatSpellLevelUpChoiceState(content, character, ruleSystem, oldCharacterLevel, newCharacterLevel);
+  if (!state) return [];
+  const featId = `${state.feat.key}|${state.feat.source}`;
+  const choice = choiceByFeatId.get(featId) || choiceByFeatId.get(state.feat.key);
+  if (!choice) return [];
+  const block = state.state.blocks.find(item => item.id === choice.featSpellBlockId) || (state.state.blocks.length === 1 ? state.state.blocks[0] : undefined);
+  if (!block) return [];
+  const selectedSpellIds = new Set(Object.values(choice.featSpellChoices || {}).flat());
+  const selectedSpells = uniqueSpells([
+    ...block.fixedSpells,
+    ...block.choices.flatMap(group => group.options.filter(spell => selectedSpellIds.has(spell.id))),
+  ]);
+  if (!selectedSpells.length) return [];
+  const profileId = getFeatSpellProfileId(state.feat);
+  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+  const ability = choice.featSpellAbility || existingProfile?.ability || choice.featAbility || block.ability;
+  if (!ability && block.abilityOptions.length) return [];
+  if (existingProfile) {
+    return selectedSpells.map(spell => ({
+      type: 'addSpell',
+      profileId,
+      spell: toCharacterSpell(spell, true),
+    } satisfies AdjustmentOperation));
+  }
+  const profile: SpellcastingProfile = {
+    id: profileId,
+    className: `${state.feat.name} 法术`,
     ability: ability || 'CHA',
     preparationMode: 'knownSelection',
     saveDCOverride: '',
@@ -3658,6 +3880,8 @@ const createOriginResourceOperations = (
   kind: 'race' | 'background',
   ruleSystem: RuleSystem,
   characterLevel = 1,
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
+  resourceNotes?: Record<string, string | undefined>,
 ): AdjustmentOperation[] => {
   if (kind !== 'race') return [];
   const operations: AdjustmentOperation[] = [];
@@ -3750,7 +3974,7 @@ const createOriginResourceOperations = (
       '巨人先祖',
       profBonus,
       'longRest',
-      '次数等于熟练加值. 使用你选择的巨人先祖恩惠, 如传送, 额外伤害, 减速, 击倒, 减伤或反击雷鸣伤害.',
+      resourceNotes?.['giant-ancestry'] || getXphbGoliathGiantAncestryNote(featureChoices),
     ));
   }
   if ((entity.features || []).some(feature => feature.englishName === 'Starlight Step' || feature.name === '星光步')) {
@@ -4172,11 +4396,12 @@ const createOriginOperations = (
   abilityChoice?: AutoBuilderAbilityChoice,
   toolChoices?: AutoBuilderToolChoiceSelection,
   characterLevel = 1,
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
     ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel),
-    ...createOriginResourceOperations(entity, kind, ruleSystem, characterLevel),
+    ...createOriginResourceOperations(entity, kind, ruleSystem, characterLevel, featureChoices),
     ...createAbilityOperations(entity, abilityChoice),
     ...createFixedProficiencyOperations(entity.skillProficiencies, ''),
     ...createFixedProficiencyOperations(entity.toolProficiencies, 'tool'),
@@ -4287,7 +4512,7 @@ const createChosenFeatOperations = (
     ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
     ...createLanguageChoiceOperations(choices.featLanguageChoices),
     ...createSavingThrowChoiceOperations(choices.featSavingThrowChoices),
-    ...createFeatSpellOperations(content, ruleSystem, feat, choices),
+    ...createFeatSpellOperations(content, ruleSystem, feat, choices, characterLevel),
     ...createFightingStyleFeatureOperations(content, { key: feat.key, name: feat.name, source: feat.source } as AutoBuilderClass, ruleSystem, choices.featFightingStyleFeatureId),
     ...createInvocationOperations(content, { invocationIds: choices.featInvocations || [] }, { ruleSystem, level: characterLevel }),
     ...createManeuverOperations(content, ruleSystem, choices.featManeuvers),
@@ -4922,11 +5147,17 @@ const createExistingOriginLevelUpOperations = (
     features: NonNullable<AutoBuilderOrigin['features']>,
   ) => {
     if (!hasAppliedRace(character, key, source)) return;
+    const resourcePrefix = `auto-resource-race-${key}-${source}-`;
+    const resourceNotes = Object.fromEntries(character.resources
+      .filter(resource => resource.sourceId.startsWith(resourcePrefix))
+      .map(resource => [resource.sourceId.slice(resourcePrefix.length), resource.note]));
     operations.push(...createOriginResourceOperations(
       { key, name, source, features },
       'race',
       ruleSystem,
       newCharacterLevel,
+      undefined,
+      resourceNotes,
     ));
   };
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
@@ -5241,7 +5472,7 @@ const createAbilityScoreImprovementOperations = (
       ...createExpertiseChoiceOperations(choice.featExpertiseChoices),
       ...createLanguageChoiceOperations(choice.featLanguageChoices),
       ...createSavingThrowChoiceOperations(choice.featSavingThrowChoices),
-      ...createFeatSpellOperations(content, ruleSystem, feat, choice),
+      ...createFeatSpellOperations(content, ruleSystem, feat, choice, characterLevel),
       ...createFightingStyleFeatureOperations(content, { key: feat.key, name: feat.name, source: feat.source } as AutoBuilderClass, ruleSystem, choice.featFightingStyleFeatureId),
       ...createInvocationOperations(content, { invocationIds: choice.featInvocations || [] }, { ruleSystem, level: characterLevel }),
       ...createManeuverOperations(content, ruleSystem, choice.featManeuvers),
@@ -5408,8 +5639,8 @@ export const buildLevelOneCharacter = (
       type: 'setSpellcasting',
       value: nextSpellcasting,
     },
-    ...createOriginOperations(options.race, 'race', options.ruleSystem),
-    ...(options.subrace ? createOriginOperations(options.subrace, 'race', options.ruleSystem) : []),
+    ...createOriginOperations(options.race, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices),
+    ...(options.subrace ? createOriginOperations(options.subrace, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices) : []),
     ...createRaceChoiceOperations(content, character, options.race, options.ruleSystem, options.raceChoices),
     ...createToolChoiceOperations(options.raceChoices?.toolChoices),
     ...createLanguageChoiceOperations(options.raceChoices?.languageChoices),
@@ -5584,6 +5815,7 @@ export const buildLevelUpCharacter = (
 	    skillChoices?: string[];
 	    toolChoices?: AutoBuilderToolChoiceSelection;
 	    abilityScoreImprovementChoice?: AutoBuilderAbilityScoreImprovementChoice;
+	    existingFeatChoices?: AutoBuilderFeatChoice[];
 	    classFeatureChoices?: AutoBuilderClassFeatureChoice;
 	    subclass?: AutoBuilderSubclass;
 	    invocationChoices?: AutoBuilderInvocationChoice;
@@ -5679,6 +5911,14 @@ export const buildLevelUpCharacter = (
     oldTotalLevel,
     newTotalLevel,
   );
+  const existingFeatSpellChoiceOperations = createExistingFeatSpellChoiceOperations(
+    content,
+    character,
+    options.ruleSystem,
+    oldTotalLevel,
+    newTotalLevel,
+    options.existingFeatChoices,
+  );
   const existingOriginLevelUpOperations = createExistingOriginLevelUpOperations(
     character,
     oldTotalLevel,
@@ -5748,6 +5988,7 @@ export const buildLevelUpCharacter = (
 	        ...classWeaponMasteryOperations,
 	        ...abilityScoreImprovementOperations,
 	        ...existingFeatLevelUpOperations,
+	        ...existingFeatSpellChoiceOperations,
 	        ...existingOriginLevelUpOperations,
 	        ...classResourceOperations,
 	        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),

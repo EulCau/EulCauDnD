@@ -45,6 +45,7 @@ import {
   getFightingStyleCantripChoiceState,
   getFightingStyleFeatureChoiceOptions,
   getFightingStyleFeatChoiceOptions,
+  getExistingFeatSpellLevelUpChoiceState,
   getInvocationChoiceState,
   getInvocationPrerequisiteSummary,
   getManeuverChoiceState,
@@ -60,6 +61,7 @@ import {
   getOriginToolChoiceOptions,
   getOriginWeaponChoiceOptions,
   getRaceAbilityChoiceOptions,
+  getRaceFeatureChoiceOptions,
   getRaceFeatChoiceOptions,
   getRaceResistanceOptions,
   getRaceSizeChoiceOptions,
@@ -124,6 +126,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const [magicalSecretChoices, setMagicalSecretChoices] = useState<string[]>([]);
   const [magicalSecretReplaceId, setMagicalSecretReplaceId] = useState<string | null>(null);
   const [magicalSecretReplaceAddId, setMagicalSecretReplaceAddId] = useState<string | null>(null);
+  const [existingFeatChoices, setExistingFeatChoices] = useState<Record<string, AutoBuilderFeatChoice>>({});
   const isLevelUpMode = data.automation.active;
 
   useEffect(() => {
@@ -151,8 +154,14 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   ), [content, selectedRace]);
   const selectedSubrace = getAutoBuilderOrigin(subraceOptions, subraceKey);
   const selectedBackground = getAutoBuilderOrigin(backgroundOptions, backgroundKey);
+  const currentCharacterLevel = Math.max(0, data.classes.reduce((total, item) => total + item.level, 0));
+  const targetCharacterLevel = Math.max(
+    1,
+    currentCharacterLevel + (isLevelUpMode ? 1 : 0),
+  );
   const raceResistanceOptions = getRaceResistanceOptions(selectedRace, selectedSubrace);
   const raceSizeOptions = getRaceSizeChoiceOptions(selectedRace, selectedSubrace);
+  const raceFeatureChoiceOptions = getRaceFeatureChoiceOptions(selectedRace, selectedSubrace);
   const raceAbilityChoiceState = getRaceAbilityChoiceOptions(selectedRace, selectedSubrace);
   const raceSkillChoiceState = getRaceSkillChoiceOptions(selectedRace, selectedSubrace);
   const raceFeatChoiceState = content ? getRaceFeatChoiceOptions(content, ruleSystem, data, selectedRace, selectedSubrace) : null;
@@ -167,7 +176,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const raceFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedRaceFeat, data, raceChoices.featSkillChoices);
   const raceFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedRaceFeat);
   const raceFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedRaceFeat);
-  const raceFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedRaceFeat, ruleSystem) : null;
+  const raceFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedRaceFeat, ruleSystem, 1) : null;
   const backgroundAbilityOptions = isOriginDecoupled ? ALL_ABILITIES : getBackgroundAbilityOptions(selectedBackground);
   const backgroundFeats = content && !isOriginDecoupled ? getBackgroundFeats(content, selectedBackground) : [];
   const originFeatChoiceState = content && isOriginDecoupled ? getOriginFeatChoiceOptions(content, ruleSystem, data) : null;
@@ -182,14 +191,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const originFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedOriginFeat, data, originFeatChoice.featSkillChoices);
   const originFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedOriginFeat);
   const originFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedOriginFeat);
-  const originFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedOriginFeat, ruleSystem) : null;
+  const originFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedOriginFeat, ruleSystem, 1) : null;
   const skillChoiceState = selectedClass ? getSkillChoiceOptions(selectedClass) : null;
   const currentClassLevel = selectedClass ? getClassLevel(data, selectedClass) : 0;
   const targetClassLevel = isLevelUpMode ? currentClassLevel + 1 : 1;
-  const targetCharacterLevel = Math.max(
-    1,
-    data.classes.reduce((total, item) => total + item.level, 0) + (isLevelUpMode ? 1 : 0),
-  );
   const existingClass = selectedClass ? data.classes.find(item => isCharacterClassForDefinition(item, selectedClass)) : undefined;
   const isNewMulticlass = isLevelUpMode && currentClassLevel === 0;
   const activeSkillChoiceState = selectedClass
@@ -228,7 +233,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const fightingStyleFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedFightingStyleFeat, data, classFeatureChoices.fightingStyle?.featSkillChoices);
   const fightingStyleFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedFightingStyleFeat);
-  const fightingStyleFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedFightingStyleFeat, ruleSystem) : null;
+  const fightingStyleFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedFightingStyleFeat, ruleSystem, targetCharacterLevel) : null;
   const fightingStyleCantripChoiceState = content ? getFightingStyleCantripChoiceState(content, selectedFightingStyleFeat || selectedFightingStyleFeature) : null;
   const pendingProficiencies = [
     ...skillChoices,
@@ -265,7 +270,16 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const abilityScoreImprovementFeatResistanceChoiceOptions = getFeatResistanceChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedAbilityScoreImprovementFeat);
-  const abilityScoreImprovementFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedAbilityScoreImprovementFeat, ruleSystem) : null;
+  const abilityScoreImprovementFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedAbilityScoreImprovementFeat, ruleSystem, targetCharacterLevel) : null;
+  const existingFeatSpellChoiceState = content && isLevelUpMode
+    ? getExistingFeatSpellLevelUpChoiceState(content, data, ruleSystem, currentCharacterLevel, targetCharacterLevel)
+    : null;
+  const existingFeatChoiceKey = existingFeatSpellChoiceState
+    ? `${existingFeatSpellChoiceState.feat.key}|${existingFeatSpellChoiceState.feat.source}`
+    : '';
+  const existingFeatChoice = existingFeatChoiceKey
+    ? existingFeatChoices[existingFeatChoiceKey] || { featId: existingFeatChoiceKey }
+    : {};
   const abilityScoreImprovementFeatFightingStyleChoiceState = content
     ? getFeatFightingStyleChoiceState(content, selectedAbilityScoreImprovementFeat, data)
     : null;
@@ -925,6 +939,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	    || (
 	      (raceResistanceOptions.length === 0 || Boolean(raceChoices.resistance ?? raceResistanceOptions[0]))
 	      && (raceSizeOptions.length === 0 || Boolean(raceChoices.size ?? raceSizeOptions[0]?.value))
+	      && raceFeatureChoiceOptions.every(choice => Boolean(raceChoices.featureChoices?.[choice.id]))
 	      && (!raceAbilityChoiceState || (raceChoices.abilities || []).length === raceAbilityChoiceState.count)
 	      && (!raceSkillChoiceState || (raceChoices.skills || []).length === raceSkillChoiceState.count)
 	      && (!raceFeatChoiceState || (
@@ -968,6 +983,8 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const isClassFeatureChoiceComplete = isFightingStyleFeatChoiceComplete
     && isFightingStyleFeatureChoiceComplete
     && isFightingStyleCantripChoiceComplete;
+  const isExistingFeatChoiceComplete = !existingFeatSpellChoiceState
+    || isFeatSpellChoiceComplete(existingFeatSpellChoiceState.state, existingFeatChoice);
   const isClassExpertiseChoiceComplete = classExpertiseChoiceOptions.length === 0
     || areChoiceGroupsComplete(classExpertiseChoiceOptions, classFeatureChoices.expertise);
   const currentWeaponMasteryIds = new Set(weaponMasteryChoiceState?.options.map(weapon => weapon.id) || []);
@@ -1050,6 +1067,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 		        skillChoices,
 		        toolChoices: classToolChoices,
 		        abilityScoreImprovementChoice: needsAbilityScoreImprovementChoice ? validAbilityScoreImprovementChoice : undefined,
+		        existingFeatChoices: existingFeatSpellChoiceState ? [existingFeatChoice] : undefined,
 		        classFeatureChoices: validClassFeatureChoices,
 		        subclass: needsSubclassChoice ? selectedSubclass : undefined,
 		        replaceSpell: spellReplace,
@@ -1065,7 +1083,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         ruleSystem,
         race: selectedRace,
         subrace: selectedSubrace,
-        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length) ? raceChoices : undefined,
+        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceFeatureChoiceOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length) ? raceChoices : undefined,
         background: selectedBackground,
         subclass: needsSubclassChoice ? selectedSubclass : undefined,
         decoupleOriginFromBackground: isOriginDecoupled,
@@ -1214,7 +1232,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState) && (
+          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceFeatureChoiceOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState) && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
               <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.raceChoices')}</h3>
               <div className="grid grid-cols-1 gap-3">
@@ -1246,6 +1264,27 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                     </select>
                   </label>
                 )}
+                {raceFeatureChoiceOptions.map(choice => (
+                  <label key={choice.id} className="flex flex-col gap-1 text-xs max-w-xs">
+                    <span className="text-[10px] text-gray-500 uppercase font-bold">{choice.label}</span>
+                    <select
+                      value={raceChoices.featureChoices?.[choice.id] || ''}
+                      onChange={event => setRaceChoices(prev => ({
+                        ...prev,
+                        featureChoices: {
+                          ...(prev.featureChoices || {}),
+                          [choice.id]: event.target.value,
+                        },
+                      }))}
+                      className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+                    >
+                      <option value="">{t('auto.choose')}</option>
+                      {choice.options.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
                 {raceAbilityChoiceState && (
                   <div>
                     <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">
@@ -2336,6 +2375,19 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
+          {existingFeatSpellChoiceState && renderFeatSpellChoiceGroup(
+            existingFeatSpellChoiceState.state,
+            existingFeatChoice,
+            updater => setExistingFeatChoices(prev => ({
+              ...prev,
+              [existingFeatChoiceKey]: {
+                ...existingFeatChoice,
+                ...updater(existingFeatChoice),
+                featId: existingFeatChoiceKey,
+              },
+            })),
+          )}
+
           {spellChoiceState?.isSpellcaster && spellChoiceState.isPreparedAll && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
               <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-1">{t('auto.spells')}</h3>
@@ -2500,7 +2552,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </button>
             <button
               onClick={applyBuild}
-              disabled={!content || !selectedClass || (!isLevelUpMode && (!selectedRace || !selectedBackground)) || !isSkillSelectionComplete || !isSpellSelectionComplete || !isInvocationSelectionComplete || !isMetamagicChoiceComplete || !isManeuverChoiceComplete || !isBackgroundAbilityComplete || !isOriginFeatChoiceComplete || !isRaceChoiceComplete || !isBackgroundToolChoiceComplete || !isBackgroundLanguageChoiceComplete || !isClassToolChoiceComplete || !isClassFeatureChoiceComplete || !isClassExpertiseChoiceComplete || !isWeaponMasteryChoiceComplete || !isAbilityScoreImprovementComplete || !isSubclassSelectionComplete || !isMagicalSecretComplete}
+              disabled={!content || !selectedClass || (!isLevelUpMode && (!selectedRace || !selectedBackground)) || !isSkillSelectionComplete || !isSpellSelectionComplete || !isInvocationSelectionComplete || !isMetamagicChoiceComplete || !isManeuverChoiceComplete || !isBackgroundAbilityComplete || !isOriginFeatChoiceComplete || !isRaceChoiceComplete || !isBackgroundToolChoiceComplete || !isBackgroundLanguageChoiceComplete || !isClassToolChoiceComplete || !isClassFeatureChoiceComplete || !isExistingFeatChoiceComplete || !isClassExpertiseChoiceComplete || !isWeaponMasteryChoiceComplete || !isAbilityScoreImprovementComplete || !isSubclassSelectionComplete || !isMagicalSecretComplete}
               className="px-3 py-2 text-xs font-bold uppercase bg-dnd-red text-white rounded hover:bg-red-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {isLevelUpMode ? t('auto.applyLevelUp') : t('auto.applyLevelOne')}

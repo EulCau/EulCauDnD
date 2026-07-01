@@ -15,26 +15,30 @@ export interface BestiaryMonsterData {
   speed: string;
   environment: string[];
   tags: string[];
-  statblock?: {
-    abilities?: Record<string, string>;
-    saves?: string;
-    skills?: string;
-    senses?: string;
-    passive?: number | null;
-    languages?: string;
-    traits?: BestiaryStatblockEntry[];
-    spellcasting?: BestiaryStatblockEntry[];
-    actions?: BestiaryStatblockEntry[];
-    bonusActions?: BestiaryStatblockEntry[];
-    reactions?: BestiaryStatblockEntry[];
-    legendaryActions?: BestiaryStatblockEntry[];
-  };
+  searchText?: string;
+  detailId?: string;
+  statblock?: BestiaryMonsterStatblock;
 }
 
 export interface BestiaryStatblockEntry {
   name: string;
   englishName?: string;
   entries: string;
+}
+
+export interface BestiaryMonsterStatblock {
+  abilities?: Record<string, string>;
+  saves?: string;
+  skills?: string;
+  senses?: string;
+  passive?: number | null;
+  languages?: string;
+  traits?: BestiaryStatblockEntry[];
+  spellcasting?: BestiaryStatblockEntry[];
+  actions?: BestiaryStatblockEntry[];
+  bonusActions?: BestiaryStatblockEntry[];
+  reactions?: BestiaryStatblockEntry[];
+  legendaryActions?: BestiaryStatblockEntry[];
 }
 
 export interface BestiaryIndexContent {
@@ -44,7 +48,19 @@ export interface BestiaryIndexContent {
   monsters: BestiaryMonsterData[];
 }
 
+export interface BestiaryMonsterDetail {
+  id: string;
+  statblock: BestiaryMonsterStatblock;
+}
+
+interface BestiaryDetailsContent {
+  generatedAt: string;
+  total: number;
+  monsters: Record<string, BestiaryMonsterDetail>;
+}
+
 let cachePromise: Promise<BestiaryIndexContent> | null = null;
+let detailsCachePromise: Promise<BestiaryDetailsContent> | null = null;
 
 export const loadBestiaryIndex = async (): Promise<BestiaryIndexContent> => {
   if (cachePromise) return cachePromise;
@@ -54,4 +70,19 @@ export const loadBestiaryIndex = async (): Promise<BestiaryIndexContent> => {
     return response.json();
   })();
   return cachePromise;
+};
+
+const loadBestiaryDetails = async (): Promise<BestiaryDetailsContent> => {
+  if (detailsCachePromise) return detailsCachePromise;
+  detailsCachePromise = (async () => {
+    const response = await fetch('./data/bestiary-details.json');
+    if (!response.ok) throw new Error(`Failed to load bestiary details: ${response.status}`);
+    return response.json();
+  })();
+  return detailsCachePromise;
+};
+
+export const loadBestiaryMonsterDetail = async (id: string): Promise<BestiaryMonsterDetail | null> => {
+  const details = await loadBestiaryDetails();
+  return details.monsters[id] || null;
 };
