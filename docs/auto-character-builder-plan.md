@@ -2980,7 +2980,41 @@
 说明:
 
 - 本阶段降低首屏网络负担, 但 `bestiary-index.json` 本身仍是单个大文件.
-- 后续若要继续压缩搜索成本, 应拆分轻量怪物索引和按需详情文件.
+- 怪物轻量索引和按需详情文件已在阶段 6e 拆分.
+
+## 阶段 6e 记录
+
+状态: 已完成.
+
+范围: 怪物图鉴轻量索引和按需详情拆分.
+
+改动:
+
+- `scripts/extract-bestiary-metadata.mjs` 现在同时生成 `public/data/bestiary-index.json` 和 `public/data/bestiary-details.json`.
+- `bestiary-index.json` 只保留列表, 筛选, 来源排序和轻量搜索需要的字段, 不再携带结构化 `statblock`.
+- `bestiary-details.json` 以怪物 id 为键保存能力值, 豁免, 技能, 感官, 语言, 特性, 施法, 动作等详情摘要.
+- `utils/bestiary.ts` 新增 `loadBestiaryMonsterDetail`, 并缓存详情文件加载结果.
+- `SearchPanel` 点击怪物详情时按需加载对应 statblock 摘要, 加载完成前仍显示索引中的基础信息.
+- `audit-character-data` 验证 index 不含结构化 statblock, details 含 statblock 能力值和动作/特性元数据.
+- `audit-search-lazy-loading` 验证 SearchPanel 同时按需加载怪物索引和怪物详情.
+
+当前怪物数据:
+
+- 总数: 4528.
+- `bestiary-index.json`: 约 3.70 MiB.
+- `bestiary-details.json`: 约 7.54 MiB.
+
+已通过验证:
+
+- `npm run extract:bestiary`
+- `npm run audit:character-data`
+- `npm run audit:search-source-behavior`
+- `npm run audit:search-lazy-loading`
+- `npm run build`
+
+说明:
+
+- 索引中的 `searchText` 保留基础字段, 标签, 特性名和动作名, 不再保留完整条目正文. 完整条目正文在打开怪物详情时从 `bestiary-details.json` 读取.
 
 ## 后续阶段计划
 
@@ -3103,7 +3137,7 @@
 
 目标: 搜索从当前应用内搜索扩展为轻量资料检索。
 
-状态: 进行中。阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重。
+状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
 
 任务:
 
@@ -3113,7 +3147,7 @@
 4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR。
 5. 已让怪物详情显示 statblock 摘要, 包含属性, 豁免/技能, 感官/语言, 特性, 施法, 动作等分节。
 6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。
-7. 已将怪物索引改为搜索面板按需加载。未完成: 拆分轻量索引/详情文件和 5etools 原站级完整怪物渲染。
+7. 已将怪物索引改为搜索面板按需加载, 并拆分轻量索引和按需详情文件. 未完成: 5etools 原站级完整怪物渲染.
 
 ### 阶段 7: 来源优先级和同名去重
 

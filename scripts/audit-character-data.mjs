@@ -6,6 +6,7 @@ const FILES = [
   'public/data/core.json',
   'public/data/auto-builder-core.json',
   'public/data/bestiary-index.json',
+  'public/data/bestiary-details.json',
 ];
 const MAX_PUBLIC_AUTO_BUILDER_BYTES = 6 * 1024 * 1024;
 
@@ -40,11 +41,12 @@ const assert = (condition, message) => {
 };
 
 const loaded = FILES.map(readJson);
-const [core, autoBuilder, bestiary] = loaded;
+const [core, autoBuilder, bestiary, bestiaryDetails] = loaded;
 
 assert(Array.isArray(core.data.spells), 'core.json is missing spells array');
 assert(Array.isArray(autoBuilder.data.spells), 'auto-builder-core.json is missing spells array');
 assert(Array.isArray(bestiary.data.monsters), 'bestiary-index.json is missing monsters array');
+assert(bestiaryDetails.data.monsters && typeof bestiaryDetails.data.monsters === 'object', 'bestiary-details.json is missing monsters object');
 assert(autoBuilder.size <= MAX_PUBLIC_AUTO_BUILDER_BYTES, `auto-builder data is too large: ${formatBytes(autoBuilder.size)}`);
 assert(bestiary.data.monsters.length > 1000, 'bestiary index has too few monsters');
 assert(
@@ -57,19 +59,28 @@ assert(
   'bestiary index has monsters missing id, name, or source',
 );
 assert(
-  bestiary.data.monsters.some(monster => (
-    monster.statblock?.abilities?.STR
-      && monster.statblock?.abilities?.DEX
-      && monster.statblock?.actions?.length
-  )),
-  'bestiary index is missing monster statblock ability and action metadata',
+  bestiary.data.monsters.every(monster => !monster.statblock),
+  'bestiary index should not include structured statblock details',
 );
 assert(
-  bestiary.data.monsters.some(monster => (
-    monster.statblock?.traits?.some(entry => entry.name && entry.entries)
-      || monster.statblock?.spellcasting?.some(entry => entry.name && entry.entries)
+  bestiary.data.monsters.some(monster => monster.searchText && monster.detailId),
+  'bestiary index should keep lightweight search text and detail ids',
+);
+const detailValues = Object.values(bestiaryDetails.data.monsters);
+assert(
+  detailValues.some(detail => (
+    detail.statblock?.abilities?.STR
+      && detail.statblock?.abilities?.DEX
+      && detail.statblock?.actions?.length
   )),
-  'bestiary index is missing monster trait or spellcasting metadata',
+  'bestiary details are missing monster statblock ability and action metadata',
+);
+assert(
+  detailValues.some(detail => (
+    detail.statblock?.traits?.some(entry => entry.name && entry.entries)
+      || detail.statblock?.spellcasting?.some(entry => entry.name && entry.entries)
+  )),
+  'bestiary details are missing monster trait or spellcasting metadata',
 );
 
 const coreSpellSources = countBy(core.data.spells, spell => spell.source);

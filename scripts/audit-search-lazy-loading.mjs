@@ -21,7 +21,7 @@ assert(
   'App.tsx should not keep bestiary monster state',
 );
 assert(
-  searchPanel.includes("import { loadBestiaryIndex } from '../utils/bestiary';"),
+  searchPanel.includes("import { loadBestiaryIndex, loadBestiaryMonsterDetail } from '../utils/bestiary';"),
   'SearchPanel should own bestiary loading',
 );
 assert(
@@ -36,6 +36,10 @@ assert(
   searchPanel.includes('hasRequestedMonsters'),
   'SearchPanel should request the bestiary at most once per panel lifecycle',
 );
+assert(
+  searchPanel.includes('loadBestiaryMonsterDetail') && searchPanel.includes('loadingMonsterDetails'),
+  'SearchPanel should load monster statblock details on demand',
+);
 
 console.log(JSON.stringify({
   checks: [
@@ -43,5 +47,6 @@ console.log(JSON.stringify({
     'SearchPanel owns bestiary loading',
     'SearchPanel loads monsters on monster tab or all-tab search',
     'SearchPanel requests bestiary at most once per panel lifecycle',
+    'SearchPanel loads monster statblock details on demand',
   ],
 }, null, 2));
