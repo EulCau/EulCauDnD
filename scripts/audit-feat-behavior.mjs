@@ -52,6 +52,11 @@ const makeLevelThreeWizard = () => ({
   appliedAdjustments: [],
 });
 
+const makeLevelThreePhbWizard = () => ({
+  ...makeLevelThreeWizard(),
+  classes: [{ id: 'auto-class-main', name: 'Wizard', level: 3, subclass: '', source: 'PHB' }],
+});
+
 const wizard = getClass('Wizard', 'XPHB');
 const phbWizard = getClass('Wizard', 'PHB');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
@@ -426,7 +431,7 @@ assert(planarWandererResource?.max === 1, \`Planar Wanderer should add one Porta
 assert(planarWandererResource?.reset === 'longRest', \`Planar Wanderer Portal Sense should recover on long rest, got \${planarWandererResource?.reset}\`);
 assert(planarWandererResource?.note?.includes('30 尺'), \`Planar Wanderer resource note should mention 30-foot range, got \${planarWandererResource?.note}\`);
 
-const runeShaperCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const runeShaperCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -443,6 +448,71 @@ const runeShaperProfile = runeShaperCharacter.spellcastingProfiles.find(profile 
 assert(
   runeShaperProfile?.spells.some(spell => spell.name === '通晓语言' && spell.prepared),
   'Rune Shaper should add prepared Comprehend Languages feat spell',
+);
+assert(
+  !runeShaperProfile?.spells.some(spell => spell.name === '云雾术'),
+  'Rune Shaper should not add rune spells before the user chooses known runes',
+);
+const runeShaperLevelFourState = getFeatSpellChoiceState(content, runeShaper, '5e', 4);
+assert(runeShaperLevelFourState?.blocks.length === 1, \`Rune Shaper level 4 should expose one spell block, got \${runeShaperLevelFourState?.blocks.length}\`);
+const runeShaperLevelFourBlock = runeShaperLevelFourState.blocks[0];
+assert(runeShaperLevelFourBlock.fixedSpells.some(spell => spell.name === '通晓语言'), 'Rune Shaper should keep Comprehend Languages as a fixed spell');
+assert(runeShaperLevelFourBlock.choices.length === 1, \`Rune Shaper level 4 should expose one rune spell choice group, got \${runeShaperLevelFourBlock.choices.length}\`);
+assert(runeShaperLevelFourBlock.choices[0].count === 1, \`Rune Shaper level 4 should choose one rune spell, got \${runeShaperLevelFourBlock.choices[0].count}\`);
+assert(
+  !runeShaperLevelFourBlock.choices[0].options.some(spell => spell.name === '通晓语言'),
+  'Rune Shaper rune spell choices should not include fixed Comprehend Languages',
+);
+const selectedRuneSpell = runeShaperLevelFourBlock.choices[0].options[0];
+assert(selectedRuneSpell, 'Rune Shaper level 4 should have at least one rune spell option');
+const runeShaperWithRune = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Rune Shaper|BGG',
+    featSpellAbility: 'WIS',
+    featSpellBlockId: runeShaperLevelFourBlock.id,
+    featSpellChoices: {
+      [runeShaperLevelFourBlock.choices[0].id]: [selectedRuneSpell.id],
+    },
+  },
+});
+const runeShaperWithRuneProfile = runeShaperWithRune.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Rune Shaper-BGG-spells');
+assert(
+  runeShaperWithRuneProfile?.spells.some(spell => spell.id === selectedRuneSpell.id && spell.prepared),
+  \`Rune Shaper should add the selected rune spell, got \${runeShaperWithRuneProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+const runeShaperLevelEight = {
+  ...runeShaperWithRune,
+  classes: runeShaperWithRune.classes.map(cls => cls.id === 'auto-class-main' ? { ...cls, level: 8 } : cls),
+};
+const runeShaperLevelUpState = getExistingFeatSpellLevelUpChoiceState(content, runeShaperLevelEight, '5e', 8, 9);
+assert(runeShaperLevelUpState?.feat.key === 'Rune Shaper', \`Rune Shaper level 9 upgrade should expose Rune Shaper, got \${runeShaperLevelUpState?.feat.key}\`);
+const runeShaperLevelUpBlock = runeShaperLevelUpState.state.blocks[0];
+assert(runeShaperLevelUpBlock.choices.length === 1, \`Rune Shaper level 9 upgrade should expose one new rune choice group, got \${runeShaperLevelUpBlock.choices.length}\`);
+assert(runeShaperLevelUpBlock.choices[0].count === 1, \`Rune Shaper level 9 upgrade should choose one new rune spell, got \${runeShaperLevelUpBlock.choices[0].count}\`);
+const selectedSecondRuneSpell = runeShaperLevelUpBlock.choices[0].options.find(spell => (
+  spell.id !== selectedRuneSpell.id
+    && spell.name !== selectedRuneSpell.name
+    && spell.englishName !== selectedRuneSpell.englishName
+));
+assert(selectedSecondRuneSpell, 'Rune Shaper level 9 upgrade should have a rune spell option not already selected');
+const runeShaperLevelNineWithRune = buildLevelUpCharacter(runeShaperLevelEight, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  existingFeatChoices: [{
+    featId: 'Rune Shaper|BGG',
+    featSpellBlockId: runeShaperLevelUpBlock.id,
+    featSpellChoices: {
+      [runeShaperLevelUpBlock.choices[0].id]: [selectedSecondRuneSpell.id],
+    },
+  }],
+});
+const runeShaperLevelNineProfile = runeShaperLevelNineWithRune.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Rune Shaper-BGG-spells');
+assert(
+  [selectedRuneSpell, selectedSecondRuneSpell].every(selected => runeShaperLevelNineProfile?.spells.some(spell => spell.id === selected.id && spell.prepared)),
+  \`Rune Shaper level 9 upgrade should keep old rune spell and add the selected new rune spell, got \${runeShaperLevelNineProfile?.spells.map(spell => spell.id).join(', ')}\`,
 );
 
 const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
@@ -1271,7 +1341,7 @@ export default {
     'Solamnia knight feats refresh proficiency-based resources',
     'Cartomancer adds Hidden Ace resource and Prestidigitation profile',
     'Planar Wanderer adds Portal Sense long-rest resource',
-    'Rune Shaper adds Rune Magic resource and Comprehend Languages profile',
+    'Rune Shaper adds Rune Magic resource, fixed Comprehend Languages, selected rune spells, and proficiency-threshold rune upgrades',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',

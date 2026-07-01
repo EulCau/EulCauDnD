@@ -1992,12 +1992,51 @@ const collectFeatSpellChoices = (
   return { fixedSpells: uniqueSpells(fixedSpells), choices };
 };
 
+const createRuneShaperFeatSpellBlock = (
+  content: AutoBuilderContent,
+  feat: AutoBuilderFeat,
+  ruleSystem: RuleSystem,
+  characterLevel: number,
+): AutoBuilderFeatSpellBlockChoice | null => {
+  const block = feat.additionalSpells?.find(entry => entry && typeof entry === 'object') as Record<string, unknown> | undefined;
+  if (!block) return null;
+  const id = `feat-${feat.key}-${feat.source}-spell-block-0`;
+  const parsed = collectFeatSpellChoices(block, content, ruleSystem, id, characterLevel);
+  const fixedSpells = parsed.fixedSpells.filter(spell => (
+    spell.englishName === 'Comprehend Languages' || spell.name === '通晓语言'
+  ));
+  const fixedSpellIds = new Set(fixedSpells.map(spell => spell.id));
+  const runeSpellOptions = parsed.fixedSpells.filter(spell => !fixedSpellIds.has(spell.id));
+  const effectiveCharacterLevel = Number.isFinite(characterLevel) ? characterLevel : 1;
+  const runeCount = Math.max(1, Math.floor(calculateProficiencyBonus(Math.max(1, effectiveCharacterLevel)) / 2));
+  if (!fixedSpells.length && !runeSpellOptions.length) return null;
+  return {
+    id,
+    label: feat.name,
+    ability: normalizeFeatSpellAbility(block.ability),
+    abilityOptions: getFeatSpellAbilityOptionsFromBlock(block),
+    fixedSpells,
+    choices: runeSpellOptions.length
+      ? [{
+          id: `${id}-rune-spells`,
+          label: '符文法术',
+          count: runeCount,
+          options: uniqueSpells(runeSpellOptions),
+        }]
+      : [],
+  };
+};
+
 export const getFeatSpellChoiceState = (
   content: AutoBuilderContent,
   feat: AutoBuilderFeat | undefined,
   ruleSystem: RuleSystem,
   characterLevel = Number.POSITIVE_INFINITY,
 ): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
+  if (feat?.key === 'Rune Shaper' && feat.source === 'BGG') {
+    const block = createRuneShaperFeatSpellBlock(content, feat, ruleSystem, characterLevel);
+    return block ? { blocks: [block] } : null;
+  }
   const blocks = (feat?.additionalSpells || [])
     .map((entry, index): AutoBuilderFeatSpellBlockChoice | null => {
       if (!entry || typeof entry !== 'object') return null;
@@ -2032,11 +2071,16 @@ const filterNewFeatSpellChoiceState = (
   const blocks = current.blocks.flatMap(block => {
     const previousBlock = previousBlockById.get(block.id);
     const previousFixedIds = new Set(previousBlock?.fixedSpells.map(spell => spell.id) || []);
-    const previousChoiceIds = new Set(previousBlock?.choices.map(choice => choice.id) || []);
+    const previousChoiceById = new Map((previousBlock?.choices || []).map(choice => [choice.id, choice]));
     const nextBlock = {
       ...block,
       fixedSpells: block.fixedSpells.filter(spell => !previousFixedIds.has(spell.id)),
-      choices: block.choices.filter(choice => !previousChoiceIds.has(choice.id)),
+      choices: block.choices.flatMap(choice => {
+        const previousChoice = previousChoiceById.get(choice.id);
+        if (!previousChoice) return [choice];
+        const additionalCount = choice.count - previousChoice.count;
+        return additionalCount > 0 ? [{ ...choice, count: additionalCount }] : [];
+      }),
     };
     return nextBlock.fixedSpells.length || nextBlock.choices.length ? [nextBlock] : [];
   });
@@ -2051,13 +2095,19 @@ export const getExistingFeatSpellLevelUpChoiceState = (
   newCharacterLevel: number,
 ): AutoBuilderExistingFeatChoiceState | null => {
   if (newCharacterLevel <= oldCharacterLevel) return null;
-  const ritualCaster = content.feats.find(feat => feat.key === 'Ritual Caster' && feat.source === 'XPHB');
-  if (!ritualCaster || !hasAppliedFeat(character, ritualCaster.key, ritualCaster.source)) return null;
-  const state = filterNewFeatSpellChoiceState(
-    getFeatSpellChoiceState(content, ritualCaster, ruleSystem, newCharacterLevel),
-    getFeatSpellChoiceState(content, ritualCaster, ruleSystem, oldCharacterLevel),
-  );
-  return state ? { feat: ritualCaster, state } : null;
+  const upgradeFeats = [
+    content.feats.find(feat => feat.key === 'Ritual Caster' && feat.source === 'XPHB'),
+    content.feats.find(feat => feat.key === 'Rune Shaper' && feat.source === 'BGG'),
+  ].filter((feat): feat is AutoBuilderFeat => Boolean(feat));
+  for (const feat of upgradeFeats) {
+    if (!hasAppliedFeat(character, feat.key, feat.source)) continue;
+    const state = filterNewFeatSpellChoiceState(
+      getFeatSpellChoiceState(content, feat, ruleSystem, newCharacterLevel),
+      getFeatSpellChoiceState(content, feat, ruleSystem, oldCharacterLevel),
+    );
+    if (state) return { feat, state };
+  }
+  return null;
 };
 
 export const getClassSpellOptions = (
