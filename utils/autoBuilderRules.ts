@@ -234,10 +234,18 @@ export type AutoBuilderFeat = {
   key: string;
   name: string;
   englishName?: string;
-  source: 'PHB' | 'XPHB';
+  source: string;
   category?: string;
   prerequisite?: unknown[];
   ability?: Array<Record<string, number> | { choose?: unknown }>;
+  darkvision?: number;
+  blindsight?: number;
+  tremorsense?: number;
+  truesight?: number;
+  resist?: unknown[];
+  immune?: unknown[];
+  vulnerable?: unknown[];
+  conditionImmune?: unknown[];
   skillProficiencies?: ProficiencyRecord[];
   toolProficiencies?: ProficiencyRecord[];
   languageProficiencies?: ProficiencyRecord[];
@@ -3506,6 +3514,85 @@ const createOriginStructuredFeatureOperations = (
   return operations;
 };
 
+const createFeatStructuredFeatureOperations = (
+  feat: AutoBuilderFeat,
+  ruleSystem: RuleSystem,
+): AdjustmentOperation[] => {
+  const operations: AdjustmentOperation[] = [];
+  const sourceId = `auto-feat-${feat.key}-${feat.source}`;
+  const sourceName = `${feat.name} ${feat.source}`;
+  if (feat.darkvision) {
+    addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${feat.darkvision} 尺`], {
+      sourceId: `${sourceId}-darkvision`,
+      sourceName,
+      name: '黑暗视觉',
+      ruleSystem,
+      description: `你拥有 ${feat.darkvision} 尺黑暗视觉.`,
+    });
+  }
+  if (feat.blindsight) {
+    addStructuredTextEntries(operations, 'senses', [`盲视 ${feat.blindsight} 尺`], {
+      sourceId: `${sourceId}-blindsight`,
+      sourceName,
+      name: '盲视',
+      ruleSystem,
+      description: `你拥有 ${feat.blindsight} 尺盲视.`,
+    });
+  }
+  if (feat.tremorsense) {
+    addStructuredTextEntries(operations, 'senses', [`震颤感知 ${feat.tremorsense} 尺`], {
+      sourceId: `${sourceId}-tremorsense`,
+      sourceName,
+      name: '震颤感知',
+      ruleSystem,
+      description: `你拥有 ${feat.tremorsense} 尺震颤感知.`,
+    });
+  }
+  if (feat.truesight) {
+    addStructuredTextEntries(operations, 'senses', [`真实视觉 ${feat.truesight} 尺`], {
+      sourceId: `${sourceId}-truesight`,
+      sourceName,
+      name: '真实视觉',
+      ruleSystem,
+      description: `你拥有 ${feat.truesight} 尺真实视觉.`,
+    });
+  }
+
+  const fixedResistances = getFixedTextEntries(feat.resist);
+  addStructuredTextEntries(operations, 'damageResistances', fixedResistances, {
+    sourceId: `${sourceId}-fixed-resistances`,
+    sourceName,
+    name: '伤害抗性',
+    ruleSystem,
+    description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
+  });
+  const fixedImmunities = getFixedTextEntries(feat.immune);
+  addStructuredTextEntries(operations, 'damageImmunities', fixedImmunities, {
+    sourceId: `${sourceId}-fixed-immunities`,
+    sourceName,
+    name: '伤害免疫',
+    ruleSystem,
+    description: `你获得对 ${fixedImmunities.join(', ')} 伤害的免疫.`,
+  });
+  const fixedVulnerabilities = getFixedTextEntries(feat.vulnerable);
+  addStructuredTextEntries(operations, 'damageVulnerabilities', fixedVulnerabilities, {
+    sourceId: `${sourceId}-fixed-vulnerabilities`,
+    sourceName,
+    name: '伤害易伤',
+    ruleSystem,
+    description: `你对 ${fixedVulnerabilities.join(', ')} 伤害具有易伤.`,
+  });
+  const fixedConditionImmunities = getFixedTextEntries(feat.conditionImmune);
+  addStructuredTextEntries(operations, 'conditionImmunities', fixedConditionImmunities, {
+    sourceId: `${sourceId}-fixed-condition-immunities`,
+    sourceName,
+    name: '状态免疫',
+    ruleSystem,
+    description: `你免疫 ${fixedConditionImmunities.join(', ')} 状态.`,
+  });
+  return operations;
+};
+
 const createOriginResourceOperations = (
   entity: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'> & Partial<Pick<AutoBuilderOrigin, 'features'>>,
   kind: 'race' | 'background',
@@ -4705,18 +4792,7 @@ const createFeatOperations = (
     if (feat.key === 'Boon of Speed') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 30 });
     }
-    if (feat.key === 'Boon of Truesight') {
-      featOperations.push({ type: 'addTextEntry', path: 'senses', value: '真实视觉 60 尺' });
-    }
-    if (feat.key === 'Skulker' && feat.source === 'XPHB') {
-      featOperations.push({ type: 'addTextEntry', path: 'senses', value: '盲视 10 尺' });
-    }
-    if (feat.key === 'Ember of the Fire Giant') {
-      featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '火焰' });
-    }
-    if (feat.key === 'Fury of the Frost Giant') {
-      featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '寒冷' });
-    }
+    featOperations.push(...createFeatStructuredFeatureOperations(feat, ruleSystem));
     featOperations.push(...getFeatResourceOperations(feat, ruleSystem, characterLevel));
     const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
       Object.entries(entry).flatMap(([key, value]) => {

@@ -109,6 +109,7 @@ const tceShadowTouched = getFeat('Shadow Touched', 'TCE');
 const xphbShadowTouched = getFeat('Shadow-Touched', 'XPHB');
 const drowHighMagic = getFeat('Drow High Magic', 'XGE');
 const feyTeleportation = getFeat('Fey Teleportation', 'XGE');
+const infernalConstitution = getFeat('Infernal Constitution', 'XGE');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -943,6 +944,29 @@ assert(
   'Fey Teleportation should add prepared Misty Step feat spell',
 );
 
+const infernalConstitutionCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Infernal Constitution|XGE',
+    featAbility: 'CON',
+  },
+});
+assert(
+  infernalConstitutionCharacter.damageResistances.includes('寒冷')
+    && infernalConstitutionCharacter.damageResistances.includes('毒素'),
+  \`Infernal Constitution should add cold and poison resistance, got \${infernalConstitutionCharacter.damageResistances.join(', ')}\`,
+);
+assert(
+  infernalConstitutionCharacter.featureEntries.some(feature => (
+    feature.sourceId === 'auto-feat-Infernal Constitution-XGE-fixed-resistances'
+      && feature.description.includes('寒冷')
+      && feature.description.includes('毒素')
+  )),
+  'Infernal Constitution should add a structured resistance feature entry',
+);
+
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -1094,6 +1118,7 @@ export default {
     xphbShadowTouched.name,
     drowHighMagic.name,
     feyTeleportation.name,
+    infernalConstitution.name,
     xphbMageSlayer.name,
     resilient.name,
     skillExpert.name,
@@ -1136,6 +1161,7 @@ export default {
     'XPHB Ritual Caster adds Quick Ritual resource',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
     'XGE fixed spell feats add spell resources',
+    'Infernal Constitution adds fixed resistance entries',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',

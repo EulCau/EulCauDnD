@@ -255,6 +255,14 @@ const normalizeFeatureEntries = entries => {
     .filter(entry => entry.description);
 };
 
+const getSenseDistance = (entity, key) => {
+  if (typeof entity[key] === 'number') return entity[key];
+  const senseEntry = Array.isArray(entity.senses)
+    ? entity.senses.find(entry => entry && typeof entry === 'object' && typeof entry[key] === 'number')
+    : null;
+  return senseEntry?.[key];
+};
+
 const normalizeFeatForAutoBuilder = feat => ({
   key: feat.ENG_name || feat.name,
   name: feat.name,
@@ -270,6 +278,14 @@ const normalizeFeatForAutoBuilder = feat => ({
   weaponProficiencies: feat.weaponProficiencies,
   armorProficiencies: feat.armorProficiencies,
   expertise: feat.expertise,
+  darkvision: getSenseDistance(feat, 'darkvision'),
+  blindsight: getSenseDistance(feat, 'blindsight'),
+  tremorsense: getSenseDistance(feat, 'tremorsense'),
+  truesight: getSenseDistance(feat, 'truesight'),
+  resist: feat.resist,
+  immune: feat.immune,
+  vulnerable: feat.vulnerable,
+  conditionImmune: feat.conditionImmune,
   additionalSpells: feat.additionalSpells,
   fightingStyleCount: getOptionalFeatureWildcardCount(feat, 'FS:F'),
   invocationCount: getOptionalFeatureWildcardCount(feat, 'EI'),
