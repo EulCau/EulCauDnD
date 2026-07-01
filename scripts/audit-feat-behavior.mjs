@@ -99,6 +99,8 @@ const telepathic = getFeat('Telepathic', 'XPHB');
 const boonOfRecovery = getFeat('Boon of Recovery', 'XPHB');
 const boonOfFate = getFeat('Boon of Fate', 'XPHB');
 const boonOfEnergyResistance = getFeat('Boon of Energy Resistance', 'XPHB');
+const boonOfBlazingDawn = getFeat('Boon of Blazing Dawn', 'ABH');
+const boonOfPoisonMastery = getFeat('Boon of Poison Mastery', 'FRHoF');
 const boonOfFortitude = getFeat('Boon of Fortitude', 'XPHB');
 const boonOfSpeed = getFeat('Boon of Speed', 'XPHB');
 const boonOfTruesight = getFeat('Boon of Truesight', 'XPHB');
@@ -859,6 +861,46 @@ assert(
   'XPHB Boon of Energy Resistance should add selected resistance feature description',
 );
 
+const boonOfBlazingDawnCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Blazing Dawn|ABH',
+    featAbility: 'CHA',
+  },
+});
+assert(
+  boonOfBlazingDawnCharacter.damageImmunities.includes('光耀'),
+  \`Boon of Blazing Dawn should add radiant immunity, got \${boonOfBlazingDawnCharacter.damageImmunities.join(', ')}\`,
+);
+assert(
+  boonOfBlazingDawnCharacter.featureEntries.some(feature => feature.sourceId === 'auto-feat-Boon of Blazing Dawn-ABH-fixed-immunities'),
+  'Boon of Blazing Dawn should add a structured immunity feature entry',
+);
+
+const boonOfPoisonMasteryCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Poison Mastery|FRHoF',
+    featAbility: 'CON',
+  },
+});
+assert(
+  boonOfPoisonMasteryCharacter.damageImmunities.includes('毒素'),
+  \`Boon of Poison Mastery should add poison immunity, got \${boonOfPoisonMasteryCharacter.damageImmunities.join(', ')}\`,
+);
+assert(
+  boonOfPoisonMasteryCharacter.conditionImmunities.includes('中毒'),
+  \`Boon of Poison Mastery should add poisoned condition immunity, got \${boonOfPoisonMasteryCharacter.conditionImmunities.join(', ')}\`,
+);
+assert(
+  boonOfPoisonMasteryCharacter.featureEntries.some(feature => feature.sourceId === 'auto-feat-Boon of Poison Mastery-FRHoF-fixed-condition-immunities'),
+  'Boon of Poison Mastery should add a structured condition immunity feature entry',
+);
+
 const ritualCasterCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
@@ -1147,6 +1189,8 @@ export default {
     squatNimbleness.name,
     boonOfFate.name,
     boonOfEnergyResistance.name,
+    boonOfBlazingDawn.name,
+    boonOfPoisonMastery.name,
     ritualCaster.name,
     tceFeyTouched.name,
     xphbFeyTouched.name,
@@ -1195,6 +1239,7 @@ export default {
     'Squat Nimbleness adds speed and selected skill proficiency',
     'XPHB Boon of Fate adds Fate resource',
     'XPHB Boon of Energy Resistance exposes and applies selected resistances',
+    'fixed boon immunity fields add structured immunities',
     'XPHB Ritual Caster adds Quick Ritual resource',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
     'XGE fixed spell feats add spell resources',
