@@ -12,6 +12,7 @@ import {
   AutoBuilderInvocationChoice,
   AutoBuilderSkillChoiceSelection,
   AutoBuilderSpellChoice,
+  AutoBuilderTextChoiceSelection,
   AutoBuilderToolChoiceSelection,
   AutoBuilderWeaponChoiceSelection,
   buildLevelOneCharacter,
@@ -32,6 +33,7 @@ import {
   getFeatLanguageChoiceOptions,
   getFeatManeuverChoiceState,
   getFeatMetamagicChoiceState,
+  getFeatResistanceChoiceOptions,
   getFeatSavingThrowChoiceOptions,
   getFeatSkillChoiceOptions,
   getFeatSpellChoiceState,
@@ -161,6 +163,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const raceFeatSkillChoiceOptions = getFeatSkillChoiceOptions(selectedRaceFeat);
   const raceFeatToolChoiceOptions = getFeatToolChoiceOptions(selectedRaceFeat);
   const raceFeatWeaponChoiceOptions = content ? getFeatWeaponChoiceOptions(content, selectedRaceFeat, ruleSystem) : [];
+  const raceFeatResistanceChoiceOptions = getFeatResistanceChoiceOptions(selectedRaceFeat);
   const raceFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedRaceFeat, data, raceChoices.featSkillChoices);
   const raceFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedRaceFeat);
   const raceFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedRaceFeat);
@@ -175,6 +178,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const originFeatSkillChoiceOptions = getFeatSkillChoiceOptions(selectedOriginFeat);
   const originFeatToolChoiceOptions = getFeatToolChoiceOptions(selectedOriginFeat);
   const originFeatWeaponChoiceOptions = content ? getFeatWeaponChoiceOptions(content, selectedOriginFeat, ruleSystem) : [];
+  const originFeatResistanceChoiceOptions = getFeatResistanceChoiceOptions(selectedOriginFeat);
   const originFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedOriginFeat, data, originFeatChoice.featSkillChoices);
   const originFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedOriginFeat);
   const originFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedOriginFeat);
@@ -220,6 +224,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const fightingStyleFeatSkillChoiceOptions = getFeatSkillChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatToolChoiceOptions = getFeatToolChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatWeaponChoiceOptions = content ? getFeatWeaponChoiceOptions(content, selectedFightingStyleFeat, ruleSystem) : [];
+  const fightingStyleFeatResistanceChoiceOptions = getFeatResistanceChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatExpertiseChoiceOptions = getFeatExpertiseChoiceOptions(selectedFightingStyleFeat, data, classFeatureChoices.fightingStyle?.featSkillChoices);
   const fightingStyleFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedFightingStyleFeat);
@@ -257,6 +262,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const abilityScoreImprovementFeatSkillChoiceOptions = getFeatSkillChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatToolChoiceOptions = getFeatToolChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatWeaponChoiceOptions = content ? getFeatWeaponChoiceOptions(content, selectedAbilityScoreImprovementFeat, ruleSystem) : [];
+  const abilityScoreImprovementFeatResistanceChoiceOptions = getFeatResistanceChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedAbilityScoreImprovementFeat, ruleSystem) : null;
@@ -553,6 +559,18 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     }));
   };
 
+  const toggleTextChoice = (
+    choiceId: string,
+    value: string,
+    limit: number,
+    setChoices: React.Dispatch<React.SetStateAction<AutoBuilderTextChoiceSelection>>,
+  ) => {
+    setChoices(prev => ({
+      ...prev,
+      [choiceId]: toggleLimitedChoice(value, prev[choiceId] || [], limit),
+    }));
+  };
+
   const renderSkillChoiceGroup = (
     title: string,
     choices: Array<{ id: string; from: string[]; count: number }>,
@@ -651,6 +669,40 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                   </label>
                 ) : null;
               })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderTextChoiceGroup = (
+    title: string,
+    choices: Array<{ id: string; from: string[]; count: number }>,
+    values: AutoBuilderTextChoiceSelection,
+    setValues: React.Dispatch<React.SetStateAction<AutoBuilderTextChoiceSelection>>,
+  ) => choices.length > 0 && (
+    <div className="md:col-span-2 border border-gray-200 rounded p-3">
+      <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{title}</h3>
+      <div className="grid grid-cols-1 gap-3">
+        {choices.map(choice => (
+          <div key={choice.id}>
+            <div className="text-xs font-bold text-gray-700 mb-1">
+              {title} {(values[choice.id] || []).length}/{choice.count}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {choice.from.map(value => (
+                <label key={`${choice.id}-${value}`} className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={(values[choice.id] || []).includes(value)}
+                    onChange={() => toggleTextChoice(choice.id, value, choice.count, setValues)}
+                    disabled={!(values[choice.id] || []).includes(value) && (values[choice.id] || []).length >= choice.count}
+                    className="accent-dnd-red"
+                  />
+                  {value}
+                </label>
+              ))}
             </div>
           </div>
         ))}
@@ -863,6 +915,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	      && areChoiceGroupsComplete(originFeatSkillChoiceOptions, originFeatChoice.featSkillChoices)
 	      && areChoiceGroupsComplete(originFeatToolChoiceOptions, originFeatChoice.featToolChoices)
 	      && areChoiceGroupsComplete(originFeatWeaponChoiceOptions, originFeatChoice.featWeaponChoices)
+	      && areChoiceGroupsComplete(originFeatResistanceChoiceOptions, originFeatChoice.featResistanceChoices)
 	      && areChoiceGroupsComplete(originFeatExpertiseChoiceOptions, originFeatChoice.featExpertiseChoices)
 	      && areChoiceGroupsComplete(originFeatLanguageChoiceOptions, originFeatChoice.featLanguageChoices)
 	      && areChoiceGroupsComplete(originFeatSavingThrowChoiceOptions, originFeatChoice.featSavingThrowChoices)
@@ -880,6 +933,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	        && areChoiceGroupsComplete(raceFeatSkillChoiceOptions, raceChoices.featSkillChoices)
 	        && areChoiceGroupsComplete(raceFeatToolChoiceOptions, raceChoices.featToolChoices)
 	        && areChoiceGroupsComplete(raceFeatWeaponChoiceOptions, raceChoices.featWeaponChoices)
+	        && areChoiceGroupsComplete(raceFeatResistanceChoiceOptions, raceChoices.featResistanceChoices)
 	        && areChoiceGroupsComplete(raceFeatExpertiseChoiceOptions, raceChoices.featExpertiseChoices)
 	        && areChoiceGroupsComplete(raceFeatLanguageChoiceOptions, raceChoices.featLanguageChoices)
 	        && areChoiceGroupsComplete(raceFeatSavingThrowChoiceOptions, raceChoices.featSavingThrowChoices)
@@ -901,6 +955,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       && areChoiceGroupsComplete(fightingStyleFeatSkillChoiceOptions, classFeatureChoices.fightingStyle?.featSkillChoices)
       && areChoiceGroupsComplete(fightingStyleFeatToolChoiceOptions, classFeatureChoices.fightingStyle?.featToolChoices)
       && areChoiceGroupsComplete(fightingStyleFeatWeaponChoiceOptions, classFeatureChoices.fightingStyle?.featWeaponChoices)
+      && areChoiceGroupsComplete(fightingStyleFeatResistanceChoiceOptions, classFeatureChoices.fightingStyle?.featResistanceChoices)
       && areChoiceGroupsComplete(fightingStyleFeatExpertiseChoiceOptions, classFeatureChoices.fightingStyle?.featExpertiseChoices)
       && areChoiceGroupsComplete(fightingStyleFeatLanguageChoiceOptions, classFeatureChoices.fightingStyle?.featLanguageChoices)
       && areChoiceGroupsComplete(fightingStyleFeatSavingThrowChoiceOptions, classFeatureChoices.fightingStyle?.featSavingThrowChoices)
@@ -955,6 +1010,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         && areChoiceGroupsComplete(abilityScoreImprovementFeatSkillChoiceOptions, abilityScoreImprovementChoice.featSkillChoices)
         && areChoiceGroupsComplete(abilityScoreImprovementFeatToolChoiceOptions, abilityScoreImprovementChoice.featToolChoices)
         && areChoiceGroupsComplete(abilityScoreImprovementFeatWeaponChoiceOptions, abilityScoreImprovementChoice.featWeaponChoices)
+        && areChoiceGroupsComplete(abilityScoreImprovementFeatResistanceChoiceOptions, abilityScoreImprovementChoice.featResistanceChoices)
         && areChoiceGroupsComplete(abilityScoreImprovementFeatExpertiseChoiceOptions, abilityScoreImprovementChoice.featExpertiseChoices)
         && areChoiceGroupsComplete(abilityScoreImprovementFeatLanguageChoiceOptions, abilityScoreImprovementChoice.featLanguageChoices)
         && areChoiceGroupsComplete(abilityScoreImprovementFeatSavingThrowChoiceOptions, abilityScoreImprovementChoice.featSavingThrowChoices)
@@ -1246,6 +1302,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                         featSkillChoices: {},
                         featToolChoices: {},
                         featWeaponChoices: {},
+                        featResistanceChoices: {},
                         featExpertiseChoices: {},
                         featLanguageChoices: {},
                         featSavingThrowChoices: {},
@@ -1299,6 +1356,15 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                   updater => setRaceChoices(prev => ({
                     ...prev,
                     featWeaponChoices: typeof updater === 'function' ? updater(prev.featWeaponChoices || {}) : updater,
+                  })),
+                )}
+                {raceFeatChoiceState && renderTextChoiceGroup(
+                  t('auto.damageResistance'),
+                  raceFeatResistanceChoiceOptions,
+                  raceChoices.featResistanceChoices || {},
+                  updater => setRaceChoices(prev => ({
+                    ...prev,
+                    featResistanceChoices: typeof updater === 'function' ? updater(prev.featResistanceChoices || {}) : updater,
                   })),
                 )}
                 {raceFeatChoiceState && renderLanguageChoiceGroup(
@@ -1469,6 +1535,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                       featSkillChoices: {},
                       featToolChoices: {},
                       featWeaponChoices: {},
+                      featResistanceChoices: {},
                       featExpertiseChoices: {},
                       featLanguageChoices: {},
                       featSavingThrowChoices: {},
@@ -1522,6 +1589,15 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                   updater => setOriginFeatChoice(prev => ({
                     ...prev,
                     featWeaponChoices: typeof updater === 'function' ? updater(prev.featWeaponChoices || {}) : updater,
+                  })),
+                )}
+                {renderTextChoiceGroup(
+                  t('auto.damageResistance'),
+                  originFeatResistanceChoiceOptions,
+                  originFeatChoice.featResistanceChoices || {},
+                  updater => setOriginFeatChoice(prev => ({
+                    ...prev,
+                    featResistanceChoices: typeof updater === 'function' ? updater(prev.featResistanceChoices || {}) : updater,
                   })),
                 )}
                 {renderLanguageChoiceGroup(
@@ -1662,6 +1738,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                         featSkillChoices: {},
                         featToolChoices: {},
                         featWeaponChoices: {},
+                        featResistanceChoices: {},
                         featExpertiseChoices: {},
                         featLanguageChoices: {},
                         featSavingThrowChoices: {},
@@ -1728,6 +1805,18 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                     fightingStyle: {
                       ...prev.fightingStyle,
                       featWeaponChoices: typeof updater === 'function' ? updater(prev.fightingStyle?.featWeaponChoices || {}) : updater,
+                    },
+                  })),
+                )}
+                {renderTextChoiceGroup(
+                  t('auto.damageResistance'),
+                  fightingStyleFeatResistanceChoiceOptions,
+                  classFeatureChoices.fightingStyle?.featResistanceChoices || {},
+                  updater => setClassFeatureChoices(prev => ({
+                    ...prev,
+                    fightingStyle: {
+                      ...prev.fightingStyle,
+                      featResistanceChoices: typeof updater === 'function' ? updater(prev.fightingStyle?.featResistanceChoices || {}) : updater,
                     },
                   })),
                 )}
@@ -1962,6 +2051,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                         featSkillChoices: {},
                         featToolChoices: {},
                         featWeaponChoices: {},
+                        featResistanceChoices: {},
                         featExpertiseChoices: {},
                         featLanguageChoices: {},
                         featSavingThrowChoices: {},
@@ -2017,6 +2107,14 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                   abilityScoreImprovementChoice.featWeaponChoices || {},
                   updater => updateAbilityScoreImprovementChoice({
                     featWeaponChoices: typeof updater === 'function' ? updater(abilityScoreImprovementChoice.featWeaponChoices || {}) : updater,
+                  }),
+                )}
+                {abilityScoreImprovementChoice.mode === 'feat' && renderTextChoiceGroup(
+                  t('auto.damageResistance'),
+                  abilityScoreImprovementFeatResistanceChoiceOptions,
+                  abilityScoreImprovementChoice.featResistanceChoices || {},
+                  updater => updateAbilityScoreImprovementChoice({
+                    featResistanceChoices: typeof updater === 'function' ? updater(abilityScoreImprovementChoice.featResistanceChoices || {}) : updater,
                   }),
                 )}
                 {abilityScoreImprovementChoice.mode === 'feat' && renderLanguageChoiceGroup(

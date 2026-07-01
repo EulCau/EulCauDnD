@@ -16,6 +16,7 @@ import {
   getFeatLanguageChoiceOptions,
   getFeatManeuverChoiceState,
   getFeatMetamagicChoiceState,
+  getFeatResistanceChoiceOptions,
   getFeatSavingThrowChoiceOptions,
   getFeatSkillChoiceOptions,
   getFeatWeaponChoiceOptions,
@@ -97,6 +98,9 @@ const outlandsEnvoy = getFeat('Outlands Envoy', 'SatO');
 const telepathic = getFeat('Telepathic', 'XPHB');
 const boonOfRecovery = getFeat('Boon of Recovery', 'XPHB');
 const boonOfFate = getFeat('Boon of Fate', 'XPHB');
+const boonOfEnergyResistance = getFeat('Boon of Energy Resistance', 'XPHB');
+const boonOfBlazingDawn = getFeat('Boon of Blazing Dawn', 'ABH');
+const boonOfPoisonMastery = getFeat('Boon of Poison Mastery', 'FRHoF');
 const boonOfFortitude = getFeat('Boon of Fortitude', 'XPHB');
 const boonOfSpeed = getFeat('Boon of Speed', 'XPHB');
 const boonOfTruesight = getFeat('Boon of Truesight', 'XPHB');
@@ -109,6 +113,7 @@ const tceShadowTouched = getFeat('Shadow Touched', 'TCE');
 const xphbShadowTouched = getFeat('Shadow-Touched', 'XPHB');
 const drowHighMagic = getFeat('Drow High Magic', 'XGE');
 const feyTeleportation = getFeat('Fey Teleportation', 'XGE');
+const infernalConstitution = getFeat('Infernal Constitution', 'XGE');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -743,6 +748,20 @@ assert(
   \`XPHB Boon of Truesight should add 60-foot truesight, got \${boonOfTruesightCharacter.senses.join(', ')}\`,
 );
 
+const xphbSkulkerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Skulker|XPHB',
+    featAbility: 'DEX',
+  },
+});
+assert(
+  xphbSkulkerCharacter.senses.includes('盲视 10 尺'),
+  \`XPHB Skulker should add 10-foot blindsight, got \${xphbSkulkerCharacter.senses.join(', ')}\`,
+);
+
 const allSkillKeys = [
   'Acrobatics',
   'Animal Handling',
@@ -808,6 +827,79 @@ const boonOfFateResource = boonOfFateCharacter.resources.find(resource => resour
 assert(boonOfFateResource?.max === 1, \`XPHB Boon of Fate should add one Fate resource, got \${boonOfFateResource?.max}\`);
 assert(boonOfFateResource?.reset === 'shortRest', \`XPHB Boon of Fate should use short rest reset, got \${boonOfFateResource?.reset}\`);
 assert(boonOfFateResource?.note?.includes('投掷先攻'), \`XPHB Boon of Fate note should mention initiative recovery, got \${boonOfFateResource?.note}\`);
+
+const boonOfEnergyResistanceChoices = getFeatResistanceChoiceOptions(boonOfEnergyResistance);
+assert(boonOfEnergyResistanceChoices.length === 1, \`XPHB Boon of Energy Resistance should expose one resistance choice group, got \${boonOfEnergyResistanceChoices.length}\`);
+assert(boonOfEnergyResistanceChoices[0].count === 2, \`XPHB Boon of Energy Resistance should require two resistance choices, got \${boonOfEnergyResistanceChoices[0].count}\`);
+assert(
+  boonOfEnergyResistanceChoices[0].from.includes('强酸') && boonOfEnergyResistanceChoices[0].from.includes('雷鸣'),
+  \`XPHB Boon of Energy Resistance choices should include acid and thunder, got \${boonOfEnergyResistanceChoices[0].from.join(', ')}\`,
+);
+const boonOfEnergyResistanceCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Energy Resistance|XPHB',
+    featAbility: 'CON',
+    featResistanceChoices: {
+      [boonOfEnergyResistanceChoices[0].id]: ['强酸', '雷鸣'],
+    },
+  },
+});
+assert(
+  boonOfEnergyResistanceCharacter.damageResistances.includes('强酸')
+    && boonOfEnergyResistanceCharacter.damageResistances.includes('雷鸣'),
+  \`XPHB Boon of Energy Resistance should add selected resistances, got \${boonOfEnergyResistanceCharacter.damageResistances.join(', ')}\`,
+);
+assert(
+  boonOfEnergyResistanceCharacter.featureEntries.some(feature => (
+    feature.sourceId === 'auto-feat-Boon of Energy Resistance-XPHB-choice-resistances'
+      && feature.description.includes('强酸')
+      && feature.description.includes('雷鸣')
+  )),
+  'XPHB Boon of Energy Resistance should add selected resistance feature description',
+);
+
+const boonOfBlazingDawnCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Blazing Dawn|ABH',
+    featAbility: 'CHA',
+  },
+});
+assert(
+  boonOfBlazingDawnCharacter.damageImmunities.includes('光耀'),
+  \`Boon of Blazing Dawn should add radiant immunity, got \${boonOfBlazingDawnCharacter.damageImmunities.join(', ')}\`,
+);
+assert(
+  boonOfBlazingDawnCharacter.featureEntries.some(feature => feature.sourceId === 'auto-feat-Boon of Blazing Dawn-ABH-fixed-immunities'),
+  'Boon of Blazing Dawn should add a structured immunity feature entry',
+);
+
+const boonOfPoisonMasteryCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Boon of Poison Mastery|FRHoF',
+    featAbility: 'CON',
+  },
+});
+assert(
+  boonOfPoisonMasteryCharacter.damageImmunities.includes('毒素'),
+  \`Boon of Poison Mastery should add poison immunity, got \${boonOfPoisonMasteryCharacter.damageImmunities.join(', ')}\`,
+);
+assert(
+  boonOfPoisonMasteryCharacter.conditionImmunities.includes('中毒'),
+  \`Boon of Poison Mastery should add poisoned condition immunity, got \${boonOfPoisonMasteryCharacter.conditionImmunities.join(', ')}\`,
+);
+assert(
+  boonOfPoisonMasteryCharacter.featureEntries.some(feature => feature.sourceId === 'auto-feat-Boon of Poison Mastery-FRHoF-fixed-condition-immunities'),
+  'Boon of Poison Mastery should add a structured condition immunity feature entry',
+);
 
 const ritualCasterCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
@@ -927,6 +1019,29 @@ const feyTeleportationProfile = feyTeleportationCharacter.spellcastingProfiles.f
 assert(
   feyTeleportationProfile?.spells.some(spell => spell.name === '迷踪步' && spell.prepared),
   'Fey Teleportation should add prepared Misty Step feat spell',
+);
+
+const infernalConstitutionCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Infernal Constitution|XGE',
+    featAbility: 'CON',
+  },
+});
+assert(
+  infernalConstitutionCharacter.damageResistances.includes('寒冷')
+    && infernalConstitutionCharacter.damageResistances.includes('毒素'),
+  \`Infernal Constitution should add cold and poison resistance, got \${infernalConstitutionCharacter.damageResistances.join(', ')}\`,
+);
+assert(
+  infernalConstitutionCharacter.featureEntries.some(feature => (
+    feature.sourceId === 'auto-feat-Infernal Constitution-XGE-fixed-resistances'
+      && feature.description.includes('寒冷')
+      && feature.description.includes('毒素')
+  )),
+  'Infernal Constitution should add a structured resistance feature entry',
 );
 
 const mageSlayerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
@@ -1073,6 +1188,9 @@ export default {
     boonOfSkill.name,
     squatNimbleness.name,
     boonOfFate.name,
+    boonOfEnergyResistance.name,
+    boonOfBlazingDawn.name,
+    boonOfPoisonMastery.name,
     ritualCaster.name,
     tceFeyTouched.name,
     xphbFeyTouched.name,
@@ -1080,6 +1198,7 @@ export default {
     xphbShadowTouched.name,
     drowHighMagic.name,
     feyTeleportation.name,
+    infernalConstitution.name,
     xphbMageSlayer.name,
     resilient.name,
     skillExpert.name,
@@ -1115,12 +1234,16 @@ export default {
     'XPHB Telepathic adds Detect Thoughts resource and spell profile',
     'XPHB Boon of Recovery adds Last Stand and recovery dice resources',
     'XPHB fixed boon effects add HP, speed, and truesight adjustments',
+    'XPHB Skulker adds 10-foot blindsight',
     'XPHB Boon of Skill adds all skill proficiencies',
     'Squat Nimbleness adds speed and selected skill proficiency',
     'XPHB Boon of Fate adds Fate resource',
+    'XPHB Boon of Energy Resistance exposes and applies selected resistances',
+    'fixed boon immunity fields add structured immunities',
     'XPHB Ritual Caster adds Quick Ritual resource',
     'TCE and XPHB Fey/Shadow Touched add fixed spell resources',
     'XGE fixed spell feats add spell resources',
+    'Infernal Constitution adds fixed resistance entries',
     'XPHB Mage Slayer adds short-rest Guarded Mind resource',
     'Resilient exposes and applies selected saving throw proficiency',
     'Skill Expert applies ability, skill proficiency, and expertise',

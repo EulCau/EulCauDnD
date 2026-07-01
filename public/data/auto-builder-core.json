@@ -46562,6 +46562,7 @@
           "perception": true
         }
       ],
+      "blindsight": 15,
       "fightingStyleCount": 0,
       "invocationCount": 0,
       "maneuverCount": 0,
@@ -47235,6 +47236,7 @@
           ]
         }
       ],
+      "blindsight": 10,
       "fightingStyleCount": 0,
       "invocationCount": 0,
       "maneuverCount": 0,
@@ -47334,6 +47336,9 @@
           },
           "max": 30
         }
+      ],
+      "immune": [
+        "光耀"
       ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
@@ -47592,6 +47597,24 @@
             ]
           },
           "max": 30
+        }
+      ],
+      "resist": [
+        {
+          "choose": {
+            "from": [
+              "强酸",
+              "寒冷",
+              "火焰",
+              "闪电",
+              "暗蚀",
+              "毒素",
+              "心灵",
+              "光耀",
+              "雷鸣"
+            ],
+            "count": 2
+          }
         }
       ],
       "fightingStyleCount": 0,
@@ -47938,6 +47961,12 @@
           },
           "max": 30
         }
+      ],
+      "immune": [
+        "毒素"
+      ],
+      "conditionImmune": [
+        "中毒"
       ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
@@ -48504,6 +48533,9 @@
           "intimidation": true
         }
       ],
+      "conditionImmune": [
+        "恐慌"
+      ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
       "maneuverCount": 0,
@@ -48574,6 +48606,10 @@
           },
           "max": 30
         }
+      ],
+      "resist": [
+        "闪电",
+        "雷鸣"
       ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
@@ -48651,6 +48687,10 @@
           "max": 30
         }
       ],
+      "resist": [
+        "寒冷",
+        "暗蚀"
+      ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
       "maneuverCount": 0,
@@ -48689,6 +48729,7 @@
           "max": 30
         }
       ],
+      "truesight": 60,
       "fightingStyleCount": 0,
       "invocationCount": 0,
       "maneuverCount": 0,
@@ -49596,6 +49637,19 @@
           }
         }
       ],
+      "resist": [
+        {
+          "choose": {
+            "from": [
+              "强酸",
+              "寒冷",
+              "火焰",
+              "闪电",
+              "毒素"
+            ]
+          }
+        }
+      ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
       "maneuverCount": 0,
@@ -50063,6 +50117,9 @@
           }
         }
       ],
+      "resist": [
+        "火焰"
+      ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
       "maneuverCount": 0,
@@ -50480,6 +50537,9 @@
             "amount": 1
           }
         }
+      ],
+      "resist": [
+        "寒冷"
       ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
@@ -51648,6 +51708,10 @@
         {
           "con": 1
         }
+      ],
+      "resist": [
+        "寒冷",
+        "毒素"
       ],
       "fightingStyleCount": 0,
       "invocationCount": 0,
@@ -53548,6 +53612,9 @@
           ]
         }
       ],
+      "resist": [
+        "闪电"
+      ],
       "additionalSpells": [
         {
           "ability": {
@@ -55326,6 +55393,19 @@
           ]
         }
       ],
+      "resist": [
+        {
+          "choose": {
+            "from": [
+              "毒素",
+              "暗蚀",
+              "光耀",
+              "力场",
+              "心灵"
+            ]
+          }
+        }
+      ],
       "additionalSpells": [
         {
           "ENG_name": "Chaotic Outer Plane",
@@ -56049,6 +56129,7 @@
           "dex": 1
         }
       ],
+      "blindsight": 10,
       "fightingStyleCount": 0,
       "invocationCount": 0,
       "maneuverCount": 0,

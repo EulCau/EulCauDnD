@@ -234,10 +234,18 @@ export type AutoBuilderFeat = {
   key: string;
   name: string;
   englishName?: string;
-  source: 'PHB' | 'XPHB';
+  source: string;
   category?: string;
   prerequisite?: unknown[];
   ability?: Array<Record<string, number> | { choose?: unknown }>;
+  darkvision?: number;
+  blindsight?: number;
+  tremorsense?: number;
+  truesight?: number;
+  resist?: unknown[];
+  immune?: unknown[];
+  vulnerable?: unknown[];
+  conditionImmune?: unknown[];
   skillProficiencies?: ProficiencyRecord[];
   toolProficiencies?: ProficiencyRecord[];
   languageProficiencies?: ProficiencyRecord[];
@@ -338,6 +346,7 @@ export type AutoBuilderToolChoiceSelection = Record<string, string[]>;
 export type AutoBuilderLanguageChoiceSelection = Record<string, string[]>;
 export type AutoBuilderSkillChoiceSelection = Record<string, string[]>;
 export type AutoBuilderWeaponChoiceSelection = Record<string, string[]>;
+export type AutoBuilderTextChoiceSelection = Record<string, string[]>;
 
 export type AutoBuilderAbilityChoice = {
   mode: 'plus2plus1' | 'plus1three';
@@ -358,6 +367,7 @@ export type AutoBuilderAbilityScoreImprovementChoice = {
   featSkillChoices?: AutoBuilderSkillChoiceSelection;
   featToolChoices?: AutoBuilderToolChoiceSelection;
   featWeaponChoices?: AutoBuilderWeaponChoiceSelection;
+  featResistanceChoices?: AutoBuilderTextChoiceSelection;
   featExpertiseChoices?: AutoBuilderSkillChoiceSelection;
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
@@ -376,6 +386,7 @@ export type AutoBuilderFeatChoice = {
   featSkillChoices?: AutoBuilderSkillChoiceSelection;
   featToolChoices?: AutoBuilderToolChoiceSelection;
   featWeaponChoices?: AutoBuilderWeaponChoiceSelection;
+  featResistanceChoices?: AutoBuilderTextChoiceSelection;
   featExpertiseChoices?: AutoBuilderSkillChoiceSelection;
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
@@ -1111,6 +1122,34 @@ export const getRaceResistanceOptions = (
   ));
   return Array.from(new Set(options));
 };
+
+const getTextChoiceOptionsFromEntries = (
+  entries: unknown[] | undefined,
+  sourceId: string,
+  label: string,
+): Array<{ id: string; label: string; from: string[]; count: number }> => {
+  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
+  (entries || []).forEach((entry, entryIndex) => {
+    if (!entry || typeof entry !== 'object' || !('choose' in entry)) return;
+    const choose = entry.choose as { from?: unknown[]; count?: number } | undefined;
+    const from = choose?.from?.filter((value): value is string => typeof value === 'string') || [];
+    const count = Math.max(1, Math.min(Number(choose?.count) || 1, from.length));
+    if (!from.length) return;
+    choices.push({
+      id: `${sourceId}-${entryIndex}`,
+      label,
+      from,
+      count,
+    });
+  });
+  return choices;
+};
+
+export const getFeatResistanceChoiceOptions = (
+  feat: AutoBuilderFeat | undefined,
+): Array<{ id: string; label: string; from: string[]; count: number }> => (
+  feat ? getTextChoiceOptionsFromEntries(feat.resist, `feat-${feat.key}-${feat.source}-resistance`, '伤害抗性') : []
+);
 
 export const getRaceSizeChoiceOptions = (
   race: AutoBuilderOrigin | undefined,
@@ -3246,6 +3285,35 @@ const createSavingThrowChoiceOperations = (
   ));
 };
 
+const createFeatResistanceChoiceOperations = (
+  feat: AutoBuilderFeat,
+  ruleSystem: RuleSystem,
+  choices?: AutoBuilderTextChoiceSelection,
+): AdjustmentOperation[] => {
+  const selectedResistances = Array.from(new Set(Object.values(choices || {}).flat()));
+  if (!selectedResistances.length) return [];
+  const sourceId = `auto-feat-${feat.key}-${feat.source}-choice-resistances`;
+  return [
+    ...selectedResistances.map(resistance => ({
+      type: 'addTextEntry',
+      path: 'damageResistances',
+      value: resistance,
+    } satisfies AdjustmentOperation)),
+    {
+      type: 'addFeature',
+      feature: {
+        id: `${sourceId}-feature`,
+        sourceId,
+        sourceName: `${feat.name} ${feat.source}`,
+        name: '伤害抗性',
+        level: 1,
+        ruleSystem,
+        description: `你获得对 ${selectedResistances.join(', ')} 伤害的抗性.`,
+      } satisfies CharacterFeatureEntry,
+    } satisfies AdjustmentOperation,
+  ];
+};
+
 const getAbilityDeltaFromOperations = (
   operations: AdjustmentOperation[],
   ability: AbilityName,
@@ -3503,6 +3571,85 @@ const createOriginStructuredFeatureOperations = (
     });
   }
 
+  return operations;
+};
+
+const createFeatStructuredFeatureOperations = (
+  feat: AutoBuilderFeat,
+  ruleSystem: RuleSystem,
+): AdjustmentOperation[] => {
+  const operations: AdjustmentOperation[] = [];
+  const sourceId = `auto-feat-${feat.key}-${feat.source}`;
+  const sourceName = `${feat.name} ${feat.source}`;
+  if (feat.darkvision) {
+    addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${feat.darkvision} 尺`], {
+      sourceId: `${sourceId}-darkvision`,
+      sourceName,
+      name: '黑暗视觉',
+      ruleSystem,
+      description: `你拥有 ${feat.darkvision} 尺黑暗视觉.`,
+    });
+  }
+  if (feat.blindsight) {
+    addStructuredTextEntries(operations, 'senses', [`盲视 ${feat.blindsight} 尺`], {
+      sourceId: `${sourceId}-blindsight`,
+      sourceName,
+      name: '盲视',
+      ruleSystem,
+      description: `你拥有 ${feat.blindsight} 尺盲视.`,
+    });
+  }
+  if (feat.tremorsense) {
+    addStructuredTextEntries(operations, 'senses', [`震颤感知 ${feat.tremorsense} 尺`], {
+      sourceId: `${sourceId}-tremorsense`,
+      sourceName,
+      name: '震颤感知',
+      ruleSystem,
+      description: `你拥有 ${feat.tremorsense} 尺震颤感知.`,
+    });
+  }
+  if (feat.truesight) {
+    addStructuredTextEntries(operations, 'senses', [`真实视觉 ${feat.truesight} 尺`], {
+      sourceId: `${sourceId}-truesight`,
+      sourceName,
+      name: '真实视觉',
+      ruleSystem,
+      description: `你拥有 ${feat.truesight} 尺真实视觉.`,
+    });
+  }
+
+  const fixedResistances = getFixedTextEntries(feat.resist);
+  addStructuredTextEntries(operations, 'damageResistances', fixedResistances, {
+    sourceId: `${sourceId}-fixed-resistances`,
+    sourceName,
+    name: '伤害抗性',
+    ruleSystem,
+    description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
+  });
+  const fixedImmunities = getFixedTextEntries(feat.immune);
+  addStructuredTextEntries(operations, 'damageImmunities', fixedImmunities, {
+    sourceId: `${sourceId}-fixed-immunities`,
+    sourceName,
+    name: '伤害免疫',
+    ruleSystem,
+    description: `你获得对 ${fixedImmunities.join(', ')} 伤害的免疫.`,
+  });
+  const fixedVulnerabilities = getFixedTextEntries(feat.vulnerable);
+  addStructuredTextEntries(operations, 'damageVulnerabilities', fixedVulnerabilities, {
+    sourceId: `${sourceId}-fixed-vulnerabilities`,
+    sourceName,
+    name: '伤害易伤',
+    ruleSystem,
+    description: `你对 ${fixedVulnerabilities.join(', ')} 伤害具有易伤.`,
+  });
+  const fixedConditionImmunities = getFixedTextEntries(feat.conditionImmune);
+  addStructuredTextEntries(operations, 'conditionImmunities', fixedConditionImmunities, {
+    sourceId: `${sourceId}-fixed-condition-immunities`,
+    sourceName,
+    name: '状态免疫',
+    ruleSystem,
+    description: `你免疫 ${fixedConditionImmunities.join(', ')} 状态.`,
+  });
   return operations;
 };
 
@@ -4136,6 +4283,7 @@ const createChosenFeatOperations = (
     ...createFeatSkillChoiceOperations(feat, character, choices.featSkillChoices, previousOperations),
     ...createToolChoiceOperations(choices.featToolChoices),
     ...createWeaponChoiceOperations(content, choices.featWeaponChoices),
+    ...createFeatResistanceChoiceOperations(feat, ruleSystem, choices.featResistanceChoices),
     ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
     ...createLanguageChoiceOperations(choices.featLanguageChoices),
     ...createSavingThrowChoiceOperations(choices.featSavingThrowChoices),
@@ -4705,15 +4853,7 @@ const createFeatOperations = (
     if (feat.key === 'Boon of Speed') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 30 });
     }
-    if (feat.key === 'Boon of Truesight') {
-      featOperations.push({ type: 'addTextEntry', path: 'senses', value: '真实视觉 60 尺' });
-    }
-    if (feat.key === 'Ember of the Fire Giant') {
-      featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '火焰' });
-    }
-    if (feat.key === 'Fury of the Frost Giant') {
-      featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '寒冷' });
-    }
+    featOperations.push(...createFeatStructuredFeatureOperations(feat, ruleSystem));
     featOperations.push(...getFeatResourceOperations(feat, ruleSystem, characterLevel));
     const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
       Object.entries(entry).flatMap(([key, value]) => {
@@ -5097,6 +5237,7 @@ const createAbilityScoreImprovementOperations = (
       ...createFeatSkillChoiceOperations(feat, character, choice.featSkillChoices),
       ...createToolChoiceOperations(choice.featToolChoices),
       ...createWeaponChoiceOperations(content, choice.featWeaponChoices),
+      ...createFeatResistanceChoiceOperations(feat, ruleSystem, choice.featResistanceChoices),
       ...createExpertiseChoiceOperations(choice.featExpertiseChoices),
       ...createLanguageChoiceOperations(choice.featLanguageChoices),
       ...createSavingThrowChoiceOperations(choice.featSavingThrowChoices),

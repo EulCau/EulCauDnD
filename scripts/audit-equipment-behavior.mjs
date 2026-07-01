@@ -78,14 +78,23 @@ const weapons = content.weapons;
 const lightWeapon = weapons.find(weapon => hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const nonLightWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H'));
 const nonLightMeleeWeapon = weapons.find(weapon => !hasProperty(weapon, 'L') && !hasProperty(weapon, '2H') && String(weapon.type || '').split('|')[0] === 'M' && weapon.dmg1);
+const nonFinesseMeleeWeapon = weapons.find(weapon => !hasProperty(weapon, 'F') && String(weapon.type || '').split('|')[0] === 'M' && weapon.dmg1);
 const twoHandWeapon = weapons.find(weapon => hasProperty(weapon, '2H'));
 const rangedWeapon = weapons.find(weapon => String(weapon.type || '').split('|')[0] === 'R' && weapon.dmg1);
+const phbFinesseWeapon = weapons.find(weapon => weapon.source === 'PHB' && hasProperty(weapon, 'F') && weapon.dmg1);
+const xphbFinesseWeapon = weapons.find(weapon => weapon.source === 'XPHB' && hasProperty(weapon, 'F') && weapon.dmg1);
+const handCrossbow = weapons.find(weapon => weapon.key === 'Hand Crossbow' && weapon.source === 'PHB');
+const xphbHandCrossbow = weapons.find(weapon => weapon.key === 'Hand Crossbow' && weapon.source === 'XPHB');
 const bludgeoningWeapon = weapons.find(weapon => weapon.dmgType === 'B' && weapon.dmg1);
 const piercingWeapon = weapons.find(weapon => weapon.dmgType === 'P' && weapon.dmg1);
 const slashingWeapon = weapons.find(weapon => weapon.dmgType === 'S' && weapon.dmg1);
 const thrownWeapon = weapons.find(weapon => hasProperty(weapon, 'T') && weapon.range && weapon.dmg1);
 const loadingAmmunitionWeapon = weapons.find(weapon => hasProperty(weapon, 'A') && hasProperty(weapon, 'LD') && weapon.range && weapon.dmg1);
 const reachWeapon = weapons.find(weapon => hasProperty(weapon, 'R') && !hasProperty(weapon, 'S') && weapon.dmg1);
+const phbGlaive = weapons.find(weapon => weapon.key === 'Glaive' && weapon.source === 'PHB');
+const phbQuarterstaff = weapons.find(weapon => weapon.key === 'Quarterstaff' && weapon.source === 'PHB');
+const xphbGlaive = weapons.find(weapon => weapon.key === 'Glaive' && weapon.source === 'XPHB');
+const xphbWhip = weapons.find(weapon => weapon.key === 'Whip' && weapon.source === 'XPHB');
 const versatileWeapon = weapons.find(weapon => hasProperty(weapon, 'V') && weapon.dmg1 && weapon.dmg2);
 const specialWeapon = weapons.find(weapon => hasProperty(weapon, 'S') && weapon.entries?.length);
 const heavyMelee5eWeapon = weapons.find(weapon => (
@@ -106,14 +115,23 @@ const mediumArmor = content.armors.find(armor => String(armor.type || '').split(
 assert(lightWeapon, 'missing light weapon fixture');
 assert(nonLightWeapon, 'missing non-light weapon fixture');
 assert(nonLightMeleeWeapon, 'missing non-light one-handed melee weapon fixture');
+assert(nonFinesseMeleeWeapon, 'missing non-finesse melee weapon fixture');
 assert(twoHandWeapon, 'missing two-handed weapon fixture');
 assert(rangedWeapon, 'missing ranged weapon fixture');
+assert(phbFinesseWeapon, 'missing PHB finesse weapon fixture');
+assert(xphbFinesseWeapon, 'missing XPHB finesse weapon fixture');
+assert(handCrossbow, 'missing PHB hand crossbow fixture');
+assert(xphbHandCrossbow, 'missing XPHB hand crossbow fixture');
 assert(bludgeoningWeapon, 'missing bludgeoning weapon fixture');
 assert(piercingWeapon, 'missing piercing weapon fixture');
 assert(slashingWeapon, 'missing slashing weapon fixture');
 assert(thrownWeapon, 'missing thrown weapon fixture');
 assert(loadingAmmunitionWeapon, 'missing ammunition/loading weapon fixture');
 assert(reachWeapon, 'missing reach weapon fixture');
+assert(phbGlaive, 'missing PHB glaive fixture');
+assert(phbQuarterstaff, 'missing PHB quarterstaff fixture');
+assert(xphbGlaive, 'missing XPHB glaive fixture');
+assert(xphbWhip, 'missing XPHB whip fixture');
 assert(versatileWeapon, 'missing versatile weapon fixture');
 assert(specialWeapon, 'missing special weapon fixture');
 assert(heavyMelee5eWeapon, 'missing PHB heavy melee weapon fixture');
@@ -297,6 +315,197 @@ assert(
 assert(
   character.appliedAdjustments.some(adjustment => adjustment.sourceId === \`equip-shield-\${shield.id}\`),
   'equipping a shield should add shield adjustment',
+);
+
+character = cloneCharacter();
+character = addFeature(character, '盾牌大师', 'auto-feat-Shield Master-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+let phbShieldMasterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbShieldMasterMeleeAttack, 'PHB Shield Master melee fixture should add attack');
+assert(
+  !phbShieldMasterMeleeAttack.notes.includes('盾牌大师'),
+  \`PHB Shield Master should not apply before shield is equipped, got \${phbShieldMasterMeleeAttack.notes}\`,
+);
+character = equipShield(character, shield, content);
+phbShieldMasterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbShieldMasterMeleeAttack, 'PHB Shield Master melee fixture should keep attack after shield equip');
+assert(
+  phbShieldMasterMeleeAttack.notes.includes('盾牌大师') && phbShieldMasterMeleeAttack.notes.includes('附赠动作'),
+  \`PHB Shield Master melee attack should refresh with shield bash note after shield equip, got \${phbShieldMasterMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '盾牌大师', 'auto-feat-Shield Master-XPHB');
+character = equipShield(character, shield, content);
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const xphbShieldMasterMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(xphbShieldMasterMeleeAttack, 'XPHB Shield Master melee fixture should add attack');
+assert(
+  xphbShieldMasterMeleeAttack.notes.includes('盾牌大师') && xphbShieldMasterMeleeAttack.notes.includes('DC 14') && xphbShieldMasterMeleeAttack.notes.includes('倒地'),
+  \`XPHB Shield Master melee attack should include shield bash DC note, got \${xphbShieldMasterMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const xphbShieldMasterRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbShieldMasterRangedAttack, 'XPHB Shield Master ranged fixture should add attack');
+assert(
+  !xphbShieldMasterRangedAttack.notes.includes('盾牌大师'),
+  \`XPHB Shield Master should not apply to ranged attacks, got \${xphbShieldMasterRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '擒抱者', 'auto-feat-Grappler-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbGrapplerWeaponAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbGrapplerWeaponAttack, 'PHB Grappler weapon fixture should add attack');
+assert(
+  phbGrapplerWeaponAttack.notes.includes('擒抱者') && phbGrapplerWeaponAttack.notes.includes('具有优势'),
+  \`PHB Grappler weapon attack should include advantage against grappled target note, got \${phbGrapplerWeaponAttack.notes}\`,
+);
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const phbGrapplerUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(phbGrapplerUnarmedAttack, 'PHB Grappler unarmed fixture should add attack');
+assert(
+  phbGrapplerUnarmedAttack.notes.includes('压制被你擒抱的生物'),
+  \`PHB Grappler unarmed attack should include pin note, got \${phbGrapplerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '擒抱者', 'auto-feat-Grappler-XPHB');
+character = equipWeapon(character, rangedWeapon, content);
+const xphbGrapplerWeaponAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbGrapplerWeaponAttack, 'XPHB Grappler weapon fixture should add attack');
+assert(
+  xphbGrapplerWeaponAttack.notes.includes('擒抱者') && xphbGrapplerWeaponAttack.notes.includes('具有优势'),
+  \`XPHB Grappler weapon attack should include advantage against grappled target note, got \${xphbGrapplerWeaponAttack.notes}\`,
+);
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const xphbGrapplerUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(xphbGrapplerUnarmedAttack, 'XPHB Grappler unarmed fixture should add attack');
+assert(
+  xphbGrapplerUnarmedAttack.notes.includes('同时造成伤害并擒抱') && xphbGrapplerUnarmedAttack.notes.includes('拖行'),
+  \`XPHB Grappler unarmed attack should include punch-and-grab and fast drag notes, got \${xphbGrapplerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '巫师杀手', 'auto-feat-Mage Slayer-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbMageSlayerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbMageSlayerMeleeAttack, 'PHB Mage Slayer melee fixture should add attack');
+assert(
+  phbMageSlayerMeleeAttack.notes.includes('巫师杀手') && phbMageSlayerMeleeAttack.notes.includes('反应近战武器攻击') && phbMageSlayerMeleeAttack.notes.includes('专注'),
+  \`PHB Mage Slayer melee attack should include reaction and concentration notes, got \${phbMageSlayerMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbMageSlayerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbMageSlayerRangedAttack, 'PHB Mage Slayer ranged fixture should add attack');
+assert(
+  phbMageSlayerRangedAttack.notes.includes('巫师杀手')
+    && phbMageSlayerRangedAttack.notes.includes('专注')
+    && !phbMageSlayerRangedAttack.notes.includes('反应近战武器攻击'),
+  \`PHB Mage Slayer ranged attack should include concentration note only, got \${phbMageSlayerRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '巫师杀手', 'auto-feat-Mage Slayer-XPHB');
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const xphbMageSlayerUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(xphbMageSlayerUnarmedAttack, 'XPHB Mage Slayer unarmed fixture should add attack');
+assert(
+  xphbMageSlayerUnarmedAttack.notes.includes('巫师杀手')
+    && xphbMageSlayerUnarmedAttack.notes.includes('专注')
+    && !xphbMageSlayerUnarmedAttack.notes.includes('反应近战武器攻击'),
+  \`XPHB Mage Slayer unarmed attack should include concentration note only, got \${xphbMageSlayerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '酒馆斗殴者', 'auto-feat-Tavern Brawler-PHB');
+character = refreshCharacterAutomation(character, content);
+const phbTavernBrawlerUnarmedAttack = getAttack(character, 'auto-feat-attack-tavern-brawler-unarmed');
+assert(phbTavernBrawlerUnarmedAttack, 'PHB Tavern Brawler should add an unarmed strike attack');
+assert(
+  phbTavernBrawlerUnarmedAttack.damage.includes('1d4+3')
+    && phbTavernBrawlerUnarmedAttack.notes.includes('附赠动作擒抱'),
+  \`PHB Tavern Brawler unarmed strike should use d4 and include bonus grapple note, got \${phbTavernBrawlerUnarmedAttack.damage} / \${phbTavernBrawlerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '酒馆斗殴者', 'auto-feat-Tavern Brawler-XPHB');
+character = refreshCharacterAutomation(character, content);
+const xphbTavernBrawlerUnarmedAttack = getAttack(character, 'auto-feat-attack-tavern-brawler-unarmed');
+assert(xphbTavernBrawlerUnarmedAttack, 'XPHB Tavern Brawler should add an unarmed strike attack');
+assert(
+  xphbTavernBrawlerUnarmedAttack.damage.includes('1d4+3')
+    && xphbTavernBrawlerUnarmedAttack.notes.includes('掷出 1 可重掷'),
+  \`XPHB Tavern Brawler unarmed strike should use d4 and include reroll note, got \${xphbTavernBrawlerUnarmedAttack.damage} / \${xphbTavernBrawlerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '酒馆斗殴者', 'auto-feat-Tavern Brawler-XPHB');
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const xphbTavernBrawlerStyleAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(xphbTavernBrawlerStyleAttack, 'XPHB Tavern Brawler with Unarmed Fighting should keep style attack');
+assert(
+  !getAttack(character, 'auto-feat-attack-tavern-brawler-unarmed')
+    && xphbTavernBrawlerStyleAttack.notes.includes('酒馆斗殴者')
+    && xphbTavernBrawlerStyleAttack.notes.includes('掷出 1 可重掷'),
+  \`XPHB Tavern Brawler should annotate existing unarmed style attack without adding duplicate, got \${xphbTavernBrawlerStyleAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '隐伏者', 'auto-feat-Skulker-PHB');
+character = equipWeapon(character, rangedWeapon, content);
+const phbSkulkerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbSkulkerRangedAttack, 'PHB Skulker ranged fixture should add attack');
+assert(
+  phbSkulkerRangedAttack.notes.includes('隐伏者') && phbSkulkerRangedAttack.notes.includes('远程武器攻击未命中不会暴露位置'),
+  \`PHB Skulker ranged attack should include hidden miss note, got \${phbSkulkerRangedAttack.notes}\`,
+);
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbSkulkerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbSkulkerMeleeAttack, 'PHB Skulker melee fixture should add attack');
+assert(
+  !phbSkulkerMeleeAttack.notes.includes('隐伏者'),
+  \`PHB Skulker should not apply hidden miss note to melee weapon attacks, got \${phbSkulkerMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '隐伏者', 'auto-feat-Skulker-XPHB');
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const xphbSkulkerUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(xphbSkulkerUnarmedAttack, 'XPHB Skulker unarmed fixture should add attack');
+assert(
+  xphbSkulkerUnarmedAttack.notes.includes('隐伏者') && xphbSkulkerUnarmedAttack.notes.includes('攻击检定未命中不会暴露位置'),
+  \`XPHB Skulker unarmed attack should include any-attack hidden miss note, got \${xphbSkulkerUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '灵活移动', 'auto-feat-Mobile-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbMobileMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbMobileMeleeAttack, 'PHB Mobile melee fixture should add attack');
+assert(
+  phbMobileMeleeAttack.notes.includes('灵活移动') && phbMobileMeleeAttack.notes.includes('不引发该目标的借机攻击'),
+  \`PHB Mobile melee attack should include no opportunity attack note, got \${phbMobileMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbMobileRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbMobileRangedAttack, 'PHB Mobile ranged fixture should add attack');
+assert(
+  !phbMobileRangedAttack.notes.includes('灵活移动'),
+  \`PHB Mobile should not apply no opportunity attack note to ranged attacks, got \${phbMobileRangedAttack.notes}\`,
+);
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const phbMobileUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(phbMobileUnarmedAttack, 'PHB Mobile unarmed fixture should add attack');
+assert(
+  phbMobileUnarmedAttack.notes.includes('灵活移动') && phbMobileUnarmedAttack.notes.includes('借机攻击'),
+  \`PHB Mobile unarmed attack should include no opportunity attack note, got \${phbMobileUnarmedAttack.notes}\`,
 );
 
 character = cloneCharacter();
@@ -698,6 +907,166 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '强弩专家', 'auto-feat-Crossbow Expert-PHB');
+character = equipWeapon(character, rangedWeapon, content);
+const phbCrossbowExpertRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbCrossbowExpertRangedAttack, 'PHB Crossbow Expert ranged fixture should add attack');
+assert(
+  phbCrossbowExpertRangedAttack.notes.includes('强弩专家') && phbCrossbowExpertRangedAttack.notes.includes('5 尺内远程攻击不具有劣势') && !phbCrossbowExpertRangedAttack.notes.includes('忽略装填'),
+  \`PHB Crossbow Expert non-crossbow ranged attack should include close-range note only, got \${phbCrossbowExpertRangedAttack.notes}\`,
+);
+character = equipWeapon(character, handCrossbow, content);
+const phbCrossbowExpertHandCrossbowAttack = getAttack(character, \`equip-weapon-\${handCrossbow.id}\`);
+assert(phbCrossbowExpertHandCrossbowAttack, 'PHB Crossbow Expert hand crossbow fixture should add attack');
+assert(
+  phbCrossbowExpertHandCrossbowAttack.notes.includes('忽略装填') && phbCrossbowExpertHandCrossbowAttack.notes.includes('附赠动作手弩攻击'),
+  \`PHB Crossbow Expert hand crossbow attack should include loading and bonus-action notes, got \${phbCrossbowExpertHandCrossbowAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '强弩专家', 'auto-feat-Crossbow Expert-XPHB');
+character = equipWeapon(character, xphbHandCrossbow, content);
+const xphbCrossbowExpertHandCrossbowAttack = getAttack(character, \`equip-weapon-\${xphbHandCrossbow.id}\`);
+assert(xphbCrossbowExpertHandCrossbowAttack, 'XPHB Crossbow Expert hand crossbow fixture should add attack');
+assert(
+  xphbCrossbowExpertHandCrossbowAttack.notes.includes('强弩专家') && xphbCrossbowExpertHandCrossbowAttack.notes.includes('轻型弩额外攻击可加入属性调整值'),
+  \`XPHB Crossbow Expert hand crossbow attack should include light crossbow extra attack note, got \${xphbCrossbowExpertHandCrossbowAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const xphbCrossbowExpertRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(xphbCrossbowExpertRangedAttack, 'XPHB Crossbow Expert non-crossbow ranged fixture should add attack');
+assert(
+  !xphbCrossbowExpertRangedAttack.notes.includes('强弩专家'),
+  \`XPHB Crossbow Expert should not apply to non-crossbow ranged attacks, got \${xphbCrossbowExpertRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '长柄武器大师', 'auto-feat-Polearm Master-PHB');
+character = equipWeapon(character, phbGlaive, content);
+const phbPolearmGlaiveAttack = getAttack(character, \`equip-weapon-\${phbGlaive.id}\`);
+assert(phbPolearmGlaiveAttack, 'PHB Polearm Master glaive fixture should add attack');
+assert(
+  phbPolearmGlaiveAttack.notes.includes('长柄武器大师') && phbPolearmGlaiveAttack.notes.includes('尾击 1d4 钝击'),
+  \`PHB Polearm Master glaive attack should include bonus-action butt attack note, got \${phbPolearmGlaiveAttack.notes}\`,
+);
+character = equipWeapon(character, phbQuarterstaff, content);
+const phbPolearmQuarterstaffAttack = getAttack(character, \`equip-weapon-\${phbQuarterstaff.id}\`);
+assert(phbPolearmQuarterstaffAttack, 'PHB Polearm Master quarterstaff fixture should add attack');
+assert(
+  phbPolearmQuarterstaffAttack.notes.includes('长柄武器大师') && phbPolearmQuarterstaffAttack.notes.includes('借机攻击'),
+  \`PHB Polearm Master quarterstaff attack should include opportunity attack note, got \${phbPolearmQuarterstaffAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '长柄武器大师', 'auto-feat-Polearm Master-XPHB');
+character = equipWeapon(character, xphbGlaive, content);
+const xphbPolearmGlaiveAttack = getAttack(character, \`equip-weapon-\${xphbGlaive.id}\`);
+assert(xphbPolearmGlaiveAttack, 'XPHB Polearm Master glaive fixture should add attack');
+assert(
+  xphbPolearmGlaiveAttack.notes.includes('长柄武器大师') && xphbPolearmGlaiveAttack.notes.includes('反应攻击'),
+  \`XPHB Polearm Master heavy reach weapon should include reaction attack note, got \${xphbPolearmGlaiveAttack.notes}\`,
+);
+character = equipWeapon(character, xphbWhip, content);
+const xphbPolearmWhipAttack = getAttack(character, \`equip-weapon-\${xphbWhip.id}\`);
+assert(xphbPolearmWhipAttack, 'XPHB Polearm Master whip fixture should add attack');
+assert(
+  !xphbPolearmWhipAttack.notes.includes('长柄武器大师'),
+  \`XPHB Polearm Master should not apply to non-heavy reach weapons, got \${xphbPolearmWhipAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '冲锋手', 'auto-feat-Charger-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbChargerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbChargerMeleeAttack, 'PHB Charger melee fixture should add attack');
+assert(
+  phbChargerMeleeAttack.notes.includes('冲锋手') && phbChargerMeleeAttack.notes.includes('+5 伤害'),
+  \`PHB Charger melee attack should include dash damage note, got \${phbChargerMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbChargerRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbChargerRangedAttack, 'PHB Charger ranged fixture should add attack');
+assert(
+  !phbChargerRangedAttack.notes.includes('冲锋手'),
+  \`PHB Charger should not apply to ranged attacks, got \${phbChargerRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '冲锋手', 'auto-feat-Charger-XPHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const xphbChargerMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(xphbChargerMeleeAttack, 'XPHB Charger melee fixture should add attack');
+assert(
+  xphbChargerMeleeAttack.notes.includes('冲锋手') && xphbChargerMeleeAttack.notes.includes('+1d8 伤害'),
+  \`XPHB Charger melee attack should include 2024 charge damage note, got \${xphbChargerMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '哨兵', 'auto-feat-Sentinel-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbSentinelMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbSentinelMeleeAttack, 'PHB Sentinel melee fixture should add attack');
+assert(
+  phbSentinelMeleeAttack.notes.includes('哨兵') && phbSentinelMeleeAttack.notes.includes('撤离仍触发借机攻击'),
+  \`PHB Sentinel melee attack should include disengage opportunity note, got \${phbSentinelMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbSentinelRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbSentinelRangedAttack, 'PHB Sentinel ranged fixture should add attack');
+assert(
+  !phbSentinelRangedAttack.notes.includes('哨兵'),
+  \`PHB Sentinel should not apply to ranged attacks, got \${phbSentinelRangedAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '哨兵', 'auto-feat-Sentinel-XPHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const xphbSentinelMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(xphbSentinelMeleeAttack, 'XPHB Sentinel melee fixture should add attack');
+assert(
+  xphbSentinelMeleeAttack.notes.includes('哨兵') && xphbSentinelMeleeAttack.notes.includes('撤离或攻击他人后'),
+  \`XPHB Sentinel melee attack should include 2024 guardian note, got \${xphbSentinelMeleeAttack.notes}\`,
+);
+
+character = cloneCharacter();
+character = addFeature(character, '防御式决斗', 'auto-feat-Defensive Duelist-PHB');
+character = equipWeapon(character, phbFinesseWeapon, content);
+const phbDefensiveDuelistFinesseAttack = getAttack(character, \`equip-weapon-\${phbFinesseWeapon.id}\`);
+assert(phbDefensiveDuelistFinesseAttack, 'PHB Defensive Duelist finesse fixture should add attack');
+assert(
+  phbDefensiveDuelistFinesseAttack.notes.includes('防御式决斗') && phbDefensiveDuelistFinesseAttack.notes.includes('AC +3'),
+  \`PHB Defensive Duelist finesse attack should include proficiency AC reaction note, got \${phbDefensiveDuelistFinesseAttack.notes}\`,
+);
+character = {
+  ...cloneCharacter(),
+  proficiencies: new Set(),
+};
+character = addFeature(character, '防御式决斗', 'auto-feat-Defensive Duelist-PHB');
+character = equipWeapon(character, phbFinesseWeapon, content);
+const phbDefensiveDuelistUnproficientAttack = getAttack(character, \`equip-weapon-\${phbFinesseWeapon.id}\`);
+assert(phbDefensiveDuelistUnproficientAttack, 'PHB Defensive Duelist unproficient fixture should add attack');
+assert(
+  !phbDefensiveDuelistUnproficientAttack.notes.includes('防御式决斗'),
+  \`PHB Defensive Duelist should require weapon proficiency, got \${phbDefensiveDuelistUnproficientAttack.notes}\`,
+);
+character = cloneCharacter();
+character = addFeature(character, '防御式决斗', 'auto-feat-Defensive Duelist-XPHB');
+character = equipWeapon(character, xphbFinesseWeapon, content);
+const xphbDefensiveDuelistFinesseAttack = getAttack(character, \`equip-weapon-\${xphbFinesseWeapon.id}\`);
+assert(xphbDefensiveDuelistFinesseAttack, 'XPHB Defensive Duelist finesse fixture should add attack');
+assert(
+  xphbDefensiveDuelistFinesseAttack.notes.includes('防御式决斗') && xphbDefensiveDuelistFinesseAttack.notes.includes('持续到下回合开始'),
+  \`XPHB Defensive Duelist finesse attack should include 2024 lasting AC reaction note, got \${xphbDefensiveDuelistFinesseAttack.notes}\`,
+);
+character = equipWeapon(character, nonFinesseMeleeWeapon, content);
+const xphbDefensiveDuelistNonFinesseAttack = getAttack(character, \`equip-weapon-\${nonFinesseMeleeWeapon.id}\`);
+assert(xphbDefensiveDuelistNonFinesseAttack, 'XPHB Defensive Duelist non-finesse fixture should add attack');
+assert(
+  !xphbDefensiveDuelistNonFinesseAttack.notes.includes('防御式决斗'),
+  \`XPHB Defensive Duelist should not apply to non-finesse attacks, got \${xphbDefensiveDuelistNonFinesseAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipOffHandWeapon(character, lightWeapon, content);
 let refreshedOffHandAttack = getAttack(character, \`equip-weapon-offhand-\${lightWeapon.id}\`);
 assert(refreshedOffHandAttack, 'off-hand fixture should add attack before refresh');
@@ -740,14 +1109,23 @@ export default {
   lightWeapon: lightWeapon.name,
   nonLightWeapon: nonLightWeapon.name,
   nonLightMeleeWeapon: nonLightMeleeWeapon.name,
+  nonFinesseMeleeWeapon: nonFinesseMeleeWeapon.name,
   twoHandWeapon: twoHandWeapon.name,
   rangedWeapon: rangedWeapon.name,
+  phbFinesseWeapon: phbFinesseWeapon.name,
+  xphbFinesseWeapon: xphbFinesseWeapon.name,
+  handCrossbow: handCrossbow.name,
+  xphbHandCrossbow: xphbHandCrossbow.name,
   bludgeoningWeapon: bludgeoningWeapon.name,
   piercingWeapon: piercingWeapon.name,
   slashingWeapon: slashingWeapon.name,
   thrownWeapon: thrownWeapon.name,
   loadingAmmunitionWeapon: loadingAmmunitionWeapon.name,
   reachWeapon: reachWeapon.name,
+  phbGlaive: phbGlaive.name,
+  phbQuarterstaff: phbQuarterstaff.name,
+  xphbGlaive: xphbGlaive.name,
+  xphbWhip: xphbWhip.name,
   versatileWeapon: versatileWeapon.name,
   specialWeapon: specialWeapon.name,
   heavyMelee5eWeapon: heavyMelee5eWeapon.name,
@@ -822,6 +1200,17 @@ console.log(JSON.stringify({
     'Crusher, Piercer, and Slasher add damage-type weapon notes',
     'PHB and XPHB Sharpshooter add source-specific ranged notes',
     'PHB and XPHB Great Weapon Master add source-specific heavy weapon notes',
+    'PHB and XPHB Crossbow Expert add source-specific crossbow notes',
+    'PHB and XPHB Polearm Master add source-specific weapon notes',
+    'PHB and XPHB Charger add source-specific melee notes',
+    'PHB and XPHB Sentinel add source-specific melee notes',
+    'PHB and XPHB Defensive Duelist add source-specific finesse weapon notes',
+    'PHB and XPHB Shield Master add shield-gated melee notes',
+    'PHB and XPHB Grappler add weapon and unarmed strike notes',
+    'PHB and XPHB Mage Slayer add source-specific concentration notes',
+    'PHB and XPHB Tavern Brawler add unarmed strike notes',
+    'PHB and XPHB Skulker add source-specific hidden attack notes',
+    'PHB Mobile adds melee no-opportunity attack notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],

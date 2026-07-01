@@ -240,6 +240,27 @@ const hasPhbSharpshooter = (character: CharacterData): boolean => hasFeatSource(
 const hasXphbSharpshooter = (character: CharacterData): boolean => hasFeatSource(character, 'Sharpshooter', 'XPHB');
 const hasPhbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'PHB');
 const hasXphbGreatWeaponMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Great Weapon Master', 'XPHB');
+const hasPhbCrossbowExpert = (character: CharacterData): boolean => hasFeatSource(character, 'Crossbow Expert', 'PHB');
+const hasXphbCrossbowExpert = (character: CharacterData): boolean => hasFeatSource(character, 'Crossbow Expert', 'XPHB');
+const hasPhbPolearmMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Polearm Master', 'PHB');
+const hasXphbPolearmMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Polearm Master', 'XPHB');
+const hasPhbCharger = (character: CharacterData): boolean => hasFeatSource(character, 'Charger', 'PHB');
+const hasXphbCharger = (character: CharacterData): boolean => hasFeatSource(character, 'Charger', 'XPHB');
+const hasPhbSentinel = (character: CharacterData): boolean => hasFeatSource(character, 'Sentinel', 'PHB');
+const hasXphbSentinel = (character: CharacterData): boolean => hasFeatSource(character, 'Sentinel', 'XPHB');
+const hasPhbDefensiveDuelist = (character: CharacterData): boolean => hasFeatSource(character, 'Defensive Duelist', 'PHB');
+const hasXphbDefensiveDuelist = (character: CharacterData): boolean => hasFeatSource(character, 'Defensive Duelist', 'XPHB');
+const hasPhbShieldMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Shield Master', 'PHB');
+const hasXphbShieldMaster = (character: CharacterData): boolean => hasFeatSource(character, 'Shield Master', 'XPHB');
+const hasPhbGrappler = (character: CharacterData): boolean => hasFeatSource(character, 'Grappler', 'PHB');
+const hasXphbGrappler = (character: CharacterData): boolean => hasFeatSource(character, 'Grappler', 'XPHB');
+const hasPhbMageSlayer = (character: CharacterData): boolean => hasFeatSource(character, 'Mage Slayer', 'PHB');
+const hasXphbMageSlayer = (character: CharacterData): boolean => hasFeatSource(character, 'Mage Slayer', 'XPHB');
+const hasPhbTavernBrawler = (character: CharacterData): boolean => hasFeatSource(character, 'Tavern Brawler', 'PHB');
+const hasXphbTavernBrawler = (character: CharacterData): boolean => hasFeatSource(character, 'Tavern Brawler', 'XPHB');
+const hasPhbSkulker = (character: CharacterData): boolean => hasFeatSource(character, 'Skulker', 'PHB');
+const hasXphbSkulker = (character: CharacterData): boolean => hasFeatSource(character, 'Skulker', 'XPHB');
+const hasPhbMobile = (character: CharacterData): boolean => hasFeatSource(character, 'Mobile', 'PHB');
 const hasCrusherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Crusher');
 const hasPiercerFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Piercer');
 const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(character, 'Slasher');
@@ -248,6 +269,86 @@ const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature
 const hasPhbDualWielder = (character: CharacterData): boolean => (
   character.featureEntries.some(feature => feature.sourceId === 'auto-feat-Dual Wielder-PHB')
 );
+
+const isCrossbow = (weapon: AutoBuilderWeapon): boolean => (
+  /crossbow/i.test(`${weapon.key} ${weapon.englishName || ''}`)
+  || weapon.name.includes('弩')
+);
+
+const isHandCrossbow = (weapon: AutoBuilderWeapon): boolean => (
+  /hand crossbow/i.test(`${weapon.key} ${weapon.englishName || ''}`)
+  || weapon.name.includes('手弩')
+);
+
+const hasWeaponKey = (weapon: AutoBuilderWeapon, keys: string[]): boolean => (
+  keys.includes(weapon.key)
+  || (weapon.englishName ? keys.includes(weapon.englishName) : false)
+);
+
+const isPhbPolearmMasterWeapon = (weapon: AutoBuilderWeapon): boolean => (
+  !isRangedWeapon(weapon)
+  && hasWeaponKey(weapon, ['Glaive', 'Halberd', 'Quarterstaff', 'Pike', 'Spear'])
+);
+
+const isXphbPolearmMasterWeapon = (weapon: AutoBuilderWeapon): boolean => (
+  !isRangedWeapon(weapon)
+  && (
+    hasWeaponKey(weapon, ['Quarterstaff', 'Spear'])
+    || (hasProperty(weapon, 'H') && hasProperty(weapon, 'R'))
+  )
+);
+
+const getGrapplerAttackNotes = (character: CharacterData, unarmed = false): string[] => {
+  const notes: string[] = [];
+  if (hasPhbGrappler(character)) {
+    notes.push('擒抱者: 攻击被你擒抱的生物具有优势');
+    if (unarmed) notes.push('擒抱者: 可用动作尝试压制被你擒抱的生物');
+  }
+  if (hasXphbGrappler(character)) {
+    notes.push('擒抱者: 攻击被你擒抱的生物具有优势');
+    if (unarmed) notes.push('擒抱者: 每回合一次徒手打击命中可同时造成伤害并擒抱, 拖行同体型或更小目标不额外消耗移动');
+  }
+  return notes;
+};
+
+const getMageSlayerAttackNotes = (character: CharacterData, meleeWeapon = false): string[] => {
+  const notes: string[] = [];
+  if (hasPhbMageSlayer(character)) {
+    if (meleeWeapon) notes.push('巫师杀手: 5 尺内生物施法后可反应近战武器攻击');
+    notes.push('巫师杀手: 对专注目标造成伤害后, 其维持专注豁免具有劣势');
+  }
+  if (hasXphbMageSlayer(character)) {
+    notes.push('巫师杀手: 对专注目标造成伤害后, 其维持专注豁免具有劣势');
+  }
+  return notes;
+};
+
+const getTavernBrawlerUnarmedNotes = (character: CharacterData): string[] => {
+  const notes: string[] = [];
+  if (hasPhbTavernBrawler(character)) {
+    notes.push('酒馆斗殴者: 徒手打击伤害骰为 d4; 徒手打击或临时武器命中后可附赠动作擒抱');
+  }
+  if (hasXphbTavernBrawler(character)) {
+    notes.push('酒馆斗殴者: 徒手打击可造成 1d4 + 力量调整值钝击; 徒手伤害骰掷出 1 可重掷');
+  }
+  return notes;
+};
+
+const getSkulkerAttackNotes = (character: CharacterData, rangedWeapon = false): string[] => {
+  const notes: string[] = [];
+  if (hasPhbSkulker(character) && rangedWeapon) {
+    notes.push('隐伏者: 躲藏状态下远程武器攻击未命中不会暴露位置');
+  }
+  if (hasXphbSkulker(character)) {
+    notes.push('隐伏者: 躲藏状态下攻击检定未命中不会暴露位置');
+  }
+  return notes;
+};
+
+const getMobileAttackNotes = (character: CharacterData, meleeAttack = false): string[] => {
+  if (!meleeAttack || !hasPhbMobile(character)) return [];
+  return ['灵活移动: 对目标发动近战攻击后, 本回合不引发该目标的借机攻击'];
+};
 
 const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
   {
@@ -649,6 +750,50 @@ const formatWeaponNotes = (character: CharacterData, weapon: AutoBuilderWeapon):
   } else if (isRangedWeapon(weapon) && hasPhbSharpshooter(character)) {
     properties.push('神射手: 远程攻击长射程不劣势, 无视半身/四分之三掩护; 熟练远程武器可选 -5 命中 +10 伤害');
   }
+  if (isRangedWeapon(weapon) && hasPhbCrossbowExpert(character)) {
+    properties.push('强弩专家: 5 尺内远程攻击不具有劣势');
+    if (isCrossbow(weapon)) properties.push('强弩专家: 使用弩时忽略装填属性');
+    if (isHandCrossbow(weapon)) properties.push('强弩专家: 攻击动作使用单手武器后可附赠动作手弩攻击');
+  }
+  if (isCrossbow(weapon) && hasXphbCrossbowExpert(character)) {
+    properties.push('强弩专家: 弩攻击 5 尺内不具有劣势, 忽略装填属性');
+    if (hasProperty(weapon, 'L')) properties.push('强弩专家: 轻型弩额外攻击可加入属性调整值');
+  }
+  if (isPhbPolearmMasterWeapon(weapon) && hasPhbPolearmMaster(character)) {
+    properties.push('长柄武器大师: 攻击动作后可附赠动作尾击 1d4 钝击; 生物进入触及范围时可借机攻击');
+  }
+  if (isXphbPolearmMasterWeapon(weapon) && hasXphbPolearmMaster(character)) {
+    properties.push('长柄武器大师: 攻击动作后可附赠动作尾击 1d4 钝击; 生物进入触及范围时可反应攻击');
+  }
+  if (!isRangedWeapon(weapon) && hasPhbCharger(character)) {
+    properties.push('冲锋手: 疾走后附赠动作近战攻击, 直线移动 10 尺后命中 +5 伤害或推离 10 尺');
+  }
+  if (!isRangedWeapon(weapon) && hasXphbCharger(character)) {
+    properties.push('冲锋手: 攻击前直线移动 10+ 尺后, 每回合一次 +1d8 伤害或推离 10 尺');
+  }
+  if (!isRangedWeapon(weapon) && hasPhbSentinel(character)) {
+    properties.push('哨兵: 借机攻击命中使速度变为 0; 撤离仍触发借机攻击; 5 尺内敌人攻击他人后可反应近战攻击');
+  }
+  if (!isRangedWeapon(weapon) && hasXphbSentinel(character)) {
+    properties.push('哨兵: 借机攻击命中使速度变为 0; 5 尺内敌人撤离或攻击他人后可借机攻击');
+  }
+  if (hasProperty(weapon, 'F') && hasPhbDefensiveDuelist(character) && isWeaponProficient(character, weapon)) {
+    properties.push(`防御式决斗: 反应使本次近战攻击 AC +${calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)))}`);
+  }
+  if (hasProperty(weapon, 'F') && hasXphbDefensiveDuelist(character)) {
+    properties.push(`防御式决斗: 反应使近战攻击 AC +${calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)))}, 持续到下回合开始`);
+  }
+  if (!isRangedWeapon(weapon) && getEquippedShieldId(character) && hasPhbShieldMaster(character)) {
+    properties.push('盾牌大师: 攻击动作后可附赠动作以盾牌推撞 5 尺内目标');
+  }
+  if (!isRangedWeapon(weapon) && getEquippedShieldId(character) && hasXphbShieldMaster(character)) {
+    const dc = 8 + calculateModifier(character.abilities.STR) + calculateProficiencyBonus(Math.max(1, getTotalLevel(character.classes)));
+    properties.push(`盾牌大师: 每回合一次近战命中后盾击, 力量豁免 DC ${dc}, 失败推离 5 尺或倒地`);
+  }
+  properties.push(...getMobileAttackNotes(character, !isRangedWeapon(weapon)));
+  properties.push(...getSkulkerAttackNotes(character, isRangedWeapon(weapon)));
+  properties.push(...getMageSlayerAttackNotes(character, !isRangedWeapon(weapon)));
+  properties.push(...getGrapplerAttackNotes(character));
   if (!isRangedWeapon(weapon) && hasDuelingStyle(character) && !hasProperty(weapon, '2H')) properties.push('对决 +2 伤害 (单手且无副手武器)');
   if (hasThrownWeaponStyle(character) && hasProperty(weapon, 'T')) properties.push('投掷武器战斗 +2 伤害');
   if (hasTwoWeaponStyle(character) && hasProperty(weapon, 'L')) properties.push('双武器战斗: 轻型额外攻击可加属性调整值');
@@ -1238,10 +1383,18 @@ const removeAutomaticStyleAttacks = (character: CharacterData): CharacterData =>
 
 const createNaturalAttack = (
   definition: NaturalAttackDefinition,
+  character: CharacterData,
   abilityMod: number,
   profBonus: number,
 ): Attack => {
   const sourceId = `auto-race-attack-${definition.attackKey}`;
+  const notes = [
+    definition.notes,
+    ...getMobileAttackNotes(character, true),
+    ...getSkulkerAttackNotes(character),
+    ...getMageSlayerAttackNotes(character),
+    ...getGrapplerAttackNotes(character, true),
+  ].filter(Boolean).join(' ');
   return {
     id: `${sourceId}-attack`,
     sourceId,
@@ -1251,7 +1404,7 @@ const createNaturalAttack = (
     bonus: formatModifier(abilityMod + profBonus),
     damage: definition.fixedDamage || `${definition.die}${abilityMod === 0 ? '' : formatModifier(abilityMod)} ${definition.damageType}`,
     type: definition.fixedDamage ? '种族攻击' : '徒手打击',
-    notes: definition.notes,
+    notes,
   };
 };
 
@@ -1265,7 +1418,7 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
     if (!hasOriginFeature(next, definition.raceKey, definition.raceSource, definition.featureNames)) continue;
     const sourceId = `auto-race-attack-${definition.attackKey}`;
     const abilityMod = definition.ability === 'CON' ? conMod : strMod;
-    const attack = createNaturalAttack(definition, abilityMod, profBonus);
+    const attack = createNaturalAttack(definition, next, abilityMod, profBonus);
     next = applyCharacterAdjustments(next, {
       id: sourceId,
       sourceId,
@@ -1287,7 +1440,14 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       bonus: formatModifier(strMod + profBonus),
       damage: `1d6${strMod === 0 ? '' : formatModifier(strMod)} 钝击`,
       type: '徒手打击',
-      notes: '徒手战斗: 未持握武器和盾牌时伤害骰为 1d8. 回合开始时可对受擒目标造成 1d4 钝击.',
+      notes: [
+        '徒手战斗: 未持握武器和盾牌时伤害骰为 1d8. 回合开始时可对受擒目标造成 1d4 钝击.',
+        ...getMobileAttackNotes(next, true),
+        ...getSkulkerAttackNotes(next),
+        ...getTavernBrawlerUnarmedNotes(next),
+        ...getMageSlayerAttackNotes(next),
+        ...getGrapplerAttackNotes(next, true),
+      ].join(' '),
     };
 
     next = applyCharacterAdjustments(next, {
@@ -1315,13 +1475,50 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
       bonus: formatModifier(ability.modifier + profBonus),
       damage: `${die}${ability.modifier === 0 ? '' : formatModifier(ability.modifier)} 钝击`,
       type: '徒手打击',
-      notes: `武艺: 可用${ability.label}进行徒手打击和武僧武器攻击. 武艺骰 ${die}.`,
+      notes: [
+        `武艺: 可用${ability.label}进行徒手打击和武僧武器攻击. 武艺骰 ${die}.`,
+        ...getMobileAttackNotes(next, true),
+        ...getSkulkerAttackNotes(next),
+        ...getTavernBrawlerUnarmedNotes(next),
+        ...getMageSlayerAttackNotes(next),
+        ...getGrapplerAttackNotes(next, true),
+      ].join(' '),
     };
 
     next = applyCharacterAdjustments(next, {
       id: sourceId,
       sourceId,
       sourceName: '武艺',
+      operations: [
+        { type: 'addAttack', attack },
+      ],
+    });
+  }
+
+  if ((hasPhbTavernBrawler(next) || hasXphbTavernBrawler(next)) && !hasUnarmedFightingStyle(next) && !hasMartialArts(next)) {
+    const sourceId = 'auto-feat-attack-tavern-brawler-unarmed';
+    const attack: Attack = {
+      id: `${sourceId}-attack`,
+      sourceId,
+      sourceName: '酒馆斗殴者',
+      automatic: true,
+      name: '徒手打击',
+      bonus: formatModifier(strMod + profBonus),
+      damage: `1d4${strMod === 0 ? '' : formatModifier(strMod)} 钝击`,
+      type: '徒手打击',
+      notes: [
+        ...getMobileAttackNotes(next, true),
+        ...getSkulkerAttackNotes(next),
+        ...getTavernBrawlerUnarmedNotes(next),
+        ...getMageSlayerAttackNotes(next),
+        ...getGrapplerAttackNotes(next, true),
+      ].join(' '),
+    };
+
+    next = applyCharacterAdjustments(next, {
+      id: sourceId,
+      sourceId,
+      sourceName: '酒馆斗殴者',
       operations: [
         { type: 'addAttack', attack },
       ],
@@ -1402,7 +1599,7 @@ export const equipShield = (
 	  const sourceId = `equip-shield-${shield.id}`;
 	  const bonus = Number(shield.ac) || 2;
 	  next = removeAutomaticDualWielderArmorBonus(removeAutomaticArmorClass(removeEquippedShields(next)));
-	  return refreshAutomaticArmorClass(applyCharacterAdjustments(next, {
+	  const equipped = refreshAutomaticArmorClass(applyCharacterAdjustments(next, {
 	    id: sourceId,
 	    sourceId,
 	    sourceName: shield.name,
@@ -1421,6 +1618,9 @@ export const equipShield = (
 	      },
 	    ],
 	  }));
+	  return content
+	    ? refreshEquippedMagicWeapons(refreshEquippedWeapons(equipped, content), content)
+	    : equipped;
 	};
 
 export const unequipShield = (
