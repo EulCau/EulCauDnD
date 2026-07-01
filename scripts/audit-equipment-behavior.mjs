@@ -484,6 +484,31 @@ assert(
 );
 
 character = cloneCharacter();
+character = addFeature(character, '灵活移动', 'auto-feat-Mobile-PHB');
+character = equipWeapon(character, nonLightMeleeWeapon, content);
+const phbMobileMeleeAttack = getAttack(character, \`equip-weapon-\${nonLightMeleeWeapon.id}\`);
+assert(phbMobileMeleeAttack, 'PHB Mobile melee fixture should add attack');
+assert(
+  phbMobileMeleeAttack.notes.includes('灵活移动') && phbMobileMeleeAttack.notes.includes('不引发该目标的借机攻击'),
+  \`PHB Mobile melee attack should include no opportunity attack note, got \${phbMobileMeleeAttack.notes}\`,
+);
+character = equipWeapon(character, rangedWeapon, content);
+const phbMobileRangedAttack = getAttack(character, \`equip-weapon-\${rangedWeapon.id}\`);
+assert(phbMobileRangedAttack, 'PHB Mobile ranged fixture should add attack');
+assert(
+  !phbMobileRangedAttack.notes.includes('灵活移动'),
+  \`PHB Mobile should not apply no opportunity attack note to ranged attacks, got \${phbMobileRangedAttack.notes}\`,
+);
+character = addFeature(character, 'Unarmed Fighting');
+character = refreshCharacterAutomation(character, content);
+const phbMobileUnarmedAttack = getAttack(character, 'auto-style-attack-unarmed-fighting');
+assert(phbMobileUnarmedAttack, 'PHB Mobile unarmed fixture should add attack');
+assert(
+  phbMobileUnarmedAttack.notes.includes('灵活移动') && phbMobileUnarmedAttack.notes.includes('借机攻击'),
+  \`PHB Mobile unarmed attack should include no opportunity attack note, got \${phbMobileUnarmedAttack.notes}\`,
+);
+
+character = cloneCharacter();
 character = equipWeapon(character, nonLightWeapon, content);
 const magicWeapon = {
   ...lightWeapon,
@@ -1185,6 +1210,7 @@ console.log(JSON.stringify({
     'PHB and XPHB Mage Slayer add source-specific concentration notes',
     'PHB and XPHB Tavern Brawler add unarmed strike notes',
     'PHB and XPHB Skulker add source-specific hidden attack notes',
+    'PHB Mobile adds melee no-opportunity attack notes',
     'off-hand weapon refreshes after adding two-weapon fighting',
     'Medium Armor Master raises medium armor Dexterity cap from +2 to +3',
   ],
