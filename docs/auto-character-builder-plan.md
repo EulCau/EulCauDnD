@@ -1772,6 +1772,27 @@
 
 - 本阶段只结构化旧版“一战一次”的使用次数. MPMM 版本是条件性额外伤害, 当前攻击栏还没有按战斗先手状态自动切换额外伤害的接口.
 
+## 阶段 3bp 记录
+
+状态: 已完成.
+
+范围: XPHB 隐伏者结构化感官.
+
+改动:
+
+- XPHB `Skulker|隐伏者` 会通过 `addTextEntry` 写入 `senses: 盲视 10 尺`.
+- 该调整复用现有可撤销结构化文本字段, 随 `auto-feat-Skulker-XPHB` 的 `sourceId` 应用和撤销.
+- 扩展 `audit-feat-behavior`, 通过真实升级选择专长路径验证 XPHB `Skulker` 会加入 10 尺盲视.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+- `npm run build`
+
+说明:
+
+- 本阶段只结构化固定感官字段. 隐伏者的躲藏攻击未命中不暴露位置已在阶段 4ad 写入攻击备注, 其他躲藏优势仍保留在专长描述中.
+
 ## 阶段 4a 记录
 
 状态: 已完成。
@@ -2924,6 +2945,7 @@
 - 战技专家和超魔导师会通过 `upsertResource` 写入卓越骰和专长术法点, 并由选择型特性路径写入所选战技/超魔描述.
 - 大厨, 索拉尼亚侍从, 卡牌占卜师, 位面漫游者, 色彩龙赋礼, 宝石龙赋礼, 金属龙赋礼, 火巨人之余烬, 霜巨人之狂怒, 云巨人之诡诈, 石巨人之敏锐, 风暴巨人之灵魂, XPHB 巫师杀手会通过 `upsertResource` 写入对应使用次数资源, 熟练加值型资源会随升级刷新.
 - 火巨人之余烬会通过 `addTextEntry` 写入火焰抗性, 霜巨人之狂怒会通过 `addTextEntry` 写入寒冷抗性.
+- XPHB 隐伏者会通过 `addTextEntry` 写入 10 尺盲视.
 - 黑暗视觉和抗性仍保留 `featureEntries` 描述, 避免丢失规则文字。
 - `FeaturesBox` 显示结构化抗性和感官。
 - 新增 `npm run audit:origin-structured-behavior`, 通过真实建卡路径验证 MPMM `Aasimar`, PHB `Dragonborn`, PHB `Dwarf` 的结构化字段, 固定武器熟练与撤销行为。

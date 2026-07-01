@@ -4708,6 +4708,9 @@ const createFeatOperations = (
     if (feat.key === 'Boon of Truesight') {
       featOperations.push({ type: 'addTextEntry', path: 'senses', value: '真实视觉 60 尺' });
     }
+    if (feat.key === 'Skulker' && feat.source === 'XPHB') {
+      featOperations.push({ type: 'addTextEntry', path: 'senses', value: '盲视 10 尺' });
+    }
     if (feat.key === 'Ember of the Fire Giant') {
       featOperations.push({ type: 'addTextEntry', path: 'damageResistances', value: '火焰' });
     }

@@ -743,6 +743,20 @@ assert(
   \`XPHB Boon of Truesight should add 60-foot truesight, got \${boonOfTruesightCharacter.senses.join(', ')}\`,
 );
 
+const xphbSkulkerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Skulker|XPHB',
+    featAbility: 'DEX',
+  },
+});
+assert(
+  xphbSkulkerCharacter.senses.includes('盲视 10 尺'),
+  \`XPHB Skulker should add 10-foot blindsight, got \${xphbSkulkerCharacter.senses.join(', ')}\`,
+);
+
 const allSkillKeys = [
   'Acrobatics',
   'Animal Handling',
@@ -1115,6 +1129,7 @@ export default {
     'XPHB Telepathic adds Detect Thoughts resource and spell profile',
     'XPHB Boon of Recovery adds Last Stand and recovery dice resources',
     'XPHB fixed boon effects add HP, speed, and truesight adjustments',
+    'XPHB Skulker adds 10-foot blindsight',
     'XPHB Boon of Skill adds all skill proficiencies',
     'Squat Nimbleness adds speed and selected skill proficiency',
     'XPHB Boon of Fate adds Fate resource',
