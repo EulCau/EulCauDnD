@@ -347,6 +347,7 @@ export type AutoBuilderLanguageChoiceSelection = Record<string, string[]>;
 export type AutoBuilderSkillChoiceSelection = Record<string, string[]>;
 export type AutoBuilderWeaponChoiceSelection = Record<string, string[]>;
 export type AutoBuilderTextChoiceSelection = Record<string, string[]>;
+export type AutoBuilderOriginFeatureChoiceSelection = Record<string, string>;
 
 export type AutoBuilderAbilityChoice = {
   mode: 'plus2plus1' | 'plus1three';
@@ -419,6 +420,7 @@ export type AutoBuilderRaceChoice = {
   abilities?: AbilityName[];
   skills?: string[];
   size?: string;
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection;
   toolChoices?: AutoBuilderToolChoiceSelection;
   languageChoices?: AutoBuilderLanguageChoiceSelection;
   weaponChoices?: AutoBuilderWeaponChoiceSelection;
@@ -427,6 +429,50 @@ export type AutoBuilderRaceChoice = {
 const RULE_SOURCE: Record<RuleSystem, 'PHB' | 'XPHB'> = {
   '5e': 'PHB',
   '5r': 'XPHB',
+};
+
+const XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS = [
+  {
+    value: 'cloud',
+    label: '云之远迹（云巨人）',
+    note: '云之远迹: 以附赠动作魔法传送到 30 尺内可见的未占据空间.',
+  },
+  {
+    value: 'fire',
+    label: '火之燃烧（火巨人）',
+    note: '火之燃烧: 攻击检定命中并造成伤害时, 额外造成 1d10 火焰伤害.',
+  },
+  {
+    value: 'frost',
+    label: '霜之刺骨（霜巨人）',
+    note: '霜之刺骨: 攻击检定命中并造成伤害时, 额外造成 1d6 寒冷伤害, 且目标速度降低 10 尺直到你的下一回合开始.',
+  },
+  {
+    value: 'hill',
+    label: '山之翻撞（山丘巨人）',
+    note: '山之翻撞: 攻击检定命中不超过大型的生物并造成伤害时, 可令其倒地.',
+  },
+  {
+    value: 'stone',
+    label: '石之坚韧（石巨人）',
+    note: '石之坚韧: 受到伤害时用反应掷 1d12, 此次伤害减少骰值 + 体质调整值.',
+  },
+  {
+    value: 'storm',
+    label: '岚之暴鸣（风暴巨人）',
+    note: '岚之暴鸣: 60 尺内生物对你造成伤害时, 可用反应对该生物造成 1d8 雷鸣伤害.',
+  },
+];
+
+const getXphbGoliathGiantAncestryNote = (
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
+): string => {
+  const selected = XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS.find(option => (
+    option.value === featureChoices?.['giant-ancestry']
+  ));
+  return selected
+    ? `次数等于熟练加值. ${selected.note}`
+    : '次数等于熟练加值. 使用你选择的巨人先祖恩惠, 如传送, 额外伤害, 减速, 击倒, 减伤或反击雷鸣伤害.';
 };
 
 const OFFICIAL_FEAT_SOURCES = new Set([
@@ -1206,6 +1252,30 @@ export const getRaceSkillChoiceOptions = (
     }
   }
   return null;
+};
+
+export const getRaceFeatureChoiceOptions = (
+  race: AutoBuilderOrigin | undefined,
+  subrace?: AutoBuilderOrigin,
+): Array<{ id: string; label: string; options: Array<{ value: string; label: string }> }> => {
+  const entities = [race, subrace].filter((origin): origin is AutoBuilderOrigin => Boolean(origin));
+  return entities.flatMap(origin => {
+    if (
+      origin.key === 'Goliath'
+      && origin.source === 'XPHB'
+      && (origin.features || []).some(feature => feature.englishName === 'Giant Ancestry' || feature.name === '巨人先祖')
+    ) {
+      return [{
+        id: 'giant-ancestry',
+        label: '巨人先祖',
+        options: XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS.map(option => ({
+          value: option.value,
+          label: option.label,
+        })),
+      }];
+    }
+    return [];
+  });
 };
 
 const getOfficialFeatOptions = (
@@ -3760,6 +3830,8 @@ const createOriginResourceOperations = (
   kind: 'race' | 'background',
   ruleSystem: RuleSystem,
   characterLevel = 1,
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
+  resourceNotes?: Record<string, string | undefined>,
 ): AdjustmentOperation[] => {
   if (kind !== 'race') return [];
   const operations: AdjustmentOperation[] = [];
@@ -3852,7 +3924,7 @@ const createOriginResourceOperations = (
       '巨人先祖',
       profBonus,
       'longRest',
-      '次数等于熟练加值. 使用你选择的巨人先祖恩惠, 如传送, 额外伤害, 减速, 击倒, 减伤或反击雷鸣伤害.',
+      resourceNotes?.['giant-ancestry'] || getXphbGoliathGiantAncestryNote(featureChoices),
     ));
   }
   if ((entity.features || []).some(feature => feature.englishName === 'Starlight Step' || feature.name === '星光步')) {
@@ -4274,11 +4346,12 @@ const createOriginOperations = (
   abilityChoice?: AutoBuilderAbilityChoice,
   toolChoices?: AutoBuilderToolChoiceSelection,
   characterLevel = 1,
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
     ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel),
-    ...createOriginResourceOperations(entity, kind, ruleSystem, characterLevel),
+    ...createOriginResourceOperations(entity, kind, ruleSystem, characterLevel, featureChoices),
     ...createAbilityOperations(entity, abilityChoice),
     ...createFixedProficiencyOperations(entity.skillProficiencies, ''),
     ...createFixedProficiencyOperations(entity.toolProficiencies, 'tool'),
@@ -5024,11 +5097,17 @@ const createExistingOriginLevelUpOperations = (
     features: NonNullable<AutoBuilderOrigin['features']>,
   ) => {
     if (!hasAppliedRace(character, key, source)) return;
+    const resourcePrefix = `auto-resource-race-${key}-${source}-`;
+    const resourceNotes = Object.fromEntries(character.resources
+      .filter(resource => resource.sourceId.startsWith(resourcePrefix))
+      .map(resource => [resource.sourceId.slice(resourcePrefix.length), resource.note]));
     operations.push(...createOriginResourceOperations(
       { key, name, source, features },
       'race',
       ruleSystem,
       newCharacterLevel,
+      undefined,
+      resourceNotes,
     ));
   };
   if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
@@ -5510,8 +5589,8 @@ export const buildLevelOneCharacter = (
       type: 'setSpellcasting',
       value: nextSpellcasting,
     },
-    ...createOriginOperations(options.race, 'race', options.ruleSystem),
-    ...(options.subrace ? createOriginOperations(options.subrace, 'race', options.ruleSystem) : []),
+    ...createOriginOperations(options.race, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices),
+    ...(options.subrace ? createOriginOperations(options.subrace, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices) : []),
     ...createRaceChoiceOperations(content, character, options.race, options.ruleSystem, options.raceChoices),
     ...createToolChoiceOperations(options.raceChoices?.toolChoices),
     ...createLanguageChoiceOperations(options.raceChoices?.languageChoices),

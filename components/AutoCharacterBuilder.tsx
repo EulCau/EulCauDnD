@@ -61,6 +61,7 @@ import {
   getOriginToolChoiceOptions,
   getOriginWeaponChoiceOptions,
   getRaceAbilityChoiceOptions,
+  getRaceFeatureChoiceOptions,
   getRaceFeatChoiceOptions,
   getRaceResistanceOptions,
   getRaceSizeChoiceOptions,
@@ -160,6 +161,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   );
   const raceResistanceOptions = getRaceResistanceOptions(selectedRace, selectedSubrace);
   const raceSizeOptions = getRaceSizeChoiceOptions(selectedRace, selectedSubrace);
+  const raceFeatureChoiceOptions = getRaceFeatureChoiceOptions(selectedRace, selectedSubrace);
   const raceAbilityChoiceState = getRaceAbilityChoiceOptions(selectedRace, selectedSubrace);
   const raceSkillChoiceState = getRaceSkillChoiceOptions(selectedRace, selectedSubrace);
   const raceFeatChoiceState = content ? getRaceFeatChoiceOptions(content, ruleSystem, data, selectedRace, selectedSubrace) : null;
@@ -937,6 +939,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	    || (
 	      (raceResistanceOptions.length === 0 || Boolean(raceChoices.resistance ?? raceResistanceOptions[0]))
 	      && (raceSizeOptions.length === 0 || Boolean(raceChoices.size ?? raceSizeOptions[0]?.value))
+	      && raceFeatureChoiceOptions.every(choice => Boolean(raceChoices.featureChoices?.[choice.id]))
 	      && (!raceAbilityChoiceState || (raceChoices.abilities || []).length === raceAbilityChoiceState.count)
 	      && (!raceSkillChoiceState || (raceChoices.skills || []).length === raceSkillChoiceState.count)
 	      && (!raceFeatChoiceState || (
@@ -1080,7 +1083,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         ruleSystem,
         race: selectedRace,
         subrace: selectedSubrace,
-        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length) ? raceChoices : undefined,
+        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceFeatureChoiceOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length) ? raceChoices : undefined,
         background: selectedBackground,
         subclass: needsSubclassChoice ? selectedSubclass : undefined,
         decoupleOriginFromBackground: isOriginDecoupled,
@@ -1229,7 +1232,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState) && (
+          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceFeatureChoiceOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState) && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
               <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.raceChoices')}</h3>
               <div className="grid grid-cols-1 gap-3">
@@ -1261,6 +1264,27 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                     </select>
                   </label>
                 )}
+                {raceFeatureChoiceOptions.map(choice => (
+                  <label key={choice.id} className="flex flex-col gap-1 text-xs max-w-xs">
+                    <span className="text-[10px] text-gray-500 uppercase font-bold">{choice.label}</span>
+                    <select
+                      value={raceChoices.featureChoices?.[choice.id] || ''}
+                      onChange={event => setRaceChoices(prev => ({
+                        ...prev,
+                        featureChoices: {
+                          ...(prev.featureChoices || {}),
+                          [choice.id]: event.target.value,
+                        },
+                      }))}
+                      className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+                    >
+                      <option value="">{t('auto.choose')}</option>
+                      {choice.options.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
                 {raceAbilityChoiceState && (
                   <div>
                     <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">
