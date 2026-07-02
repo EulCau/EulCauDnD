@@ -394,10 +394,26 @@ export type AutoBuilderFeatChoice = {
   featSpellBlockId?: string;
   featSpellAbility?: AbilityName;
   featSpellChoices?: AutoBuilderSkillChoiceSelection;
+  featSpellReplaceRemoveId?: string;
+  featSpellReplaceAddId?: string;
   featFightingStyleFeatureId?: string;
   featInvocations?: string[];
   featManeuvers?: string[];
   featMetamagics?: string[];
+};
+
+export type AutoBuilderFeatSpellReplacementOption = {
+  id: string;
+  name: string;
+  englishName?: string;
+  source?: string;
+};
+
+export type AutoBuilderFeatSpellReplacementState = {
+  profileId: string;
+  label: string;
+  removeOptions: AutoBuilderFeatSpellReplacementOption[];
+  addOptions: AutoBuilderFeatSpellReplacementOption[];
 };
 
 export type AutoBuilderClassFeatureChoice = {
@@ -413,6 +429,7 @@ export type AutoBuilderClassFeatureChoice = {
 export type AutoBuilderExistingFeatChoiceState = {
   feat: AutoBuilderFeat;
   state: { blocks: AutoBuilderFeatSpellBlockChoice[] };
+  replacement?: AutoBuilderFeatSpellReplacementState;
 };
 
 export type AutoBuilderRaceChoice = {
@@ -2062,6 +2079,49 @@ const getFeatSpellProfileId = (feat: AutoBuilderFeat): string => (
   `auto-feat-${normalizeKey(feat.key)}-${feat.source}-spells`
 );
 
+const getRuneShaperSpellReplacementState = (
+  content: AutoBuilderContent,
+  feat: AutoBuilderFeat,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  characterLevel: number,
+): AutoBuilderFeatSpellReplacementState | undefined => {
+  if (feat.key !== 'Rune Shaper' || feat.source !== 'BGG') return undefined;
+  const profileId = getFeatSpellProfileId(feat);
+  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+  if (!existingProfile) return undefined;
+  const fullState = getFeatSpellChoiceState(content, feat, ruleSystem, characterLevel);
+  const block = fullState?.blocks[0];
+  const runeChoice = block?.choices[0];
+  if (!runeChoice?.options.length) return undefined;
+  const fixedSpellKeys = new Set((block.fixedSpells || []).map(spell => spell.englishName || spell.name));
+  const existingRuneSpells = existingProfile.spells
+    .filter(spell => !fixedSpellKeys.has(spell.englishName || spell.name))
+    .map(spell => ({
+      id: spell.id,
+      name: spell.name,
+      englishName: spell.englishName,
+      source: spell.source,
+    }));
+  if (!existingRuneSpells.length) return undefined;
+  const existingRuneKeys = new Set(existingRuneSpells.map(spell => spell.englishName || spell.name));
+  const addOptions = runeChoice.options
+    .filter(spell => !existingRuneKeys.has(spell.englishName || spell.name))
+    .map(spell => ({
+      id: spell.id,
+      name: spell.name,
+      englishName: spell.englishName,
+      source: spell.source,
+    }));
+  if (!addOptions.length) return undefined;
+  return {
+    profileId,
+    label: '替换已知符文',
+    removeOptions: existingRuneSpells,
+    addOptions,
+  };
+};
+
 const filterNewFeatSpellChoiceState = (
   current: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
   previous: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
@@ -2105,7 +2165,8 @@ export const getExistingFeatSpellLevelUpChoiceState = (
       getFeatSpellChoiceState(content, feat, ruleSystem, newCharacterLevel),
       getFeatSpellChoiceState(content, feat, ruleSystem, oldCharacterLevel),
     );
-    if (state) return { feat, state };
+    const replacement = getRuneShaperSpellReplacementState(content, feat, character, ruleSystem, newCharacterLevel);
+    if (state || replacement) return { feat, state: state || { blocks: [] }, replacement };
   }
   return null;
 };
@@ -3560,23 +3621,42 @@ const createExistingFeatSpellChoiceOperations = (
   const choice = choiceByFeatId.get(featId) || choiceByFeatId.get(state.feat.key);
   if (!choice) return [];
   const block = state.state.blocks.find(item => item.id === choice.featSpellBlockId) || (state.state.blocks.length === 1 ? state.state.blocks[0] : undefined);
-  if (!block) return [];
+  const profileId = getFeatSpellProfileId(state.feat);
+  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+  const replacementOperations: AdjustmentOperation[] = [];
+  if (state.replacement && choice.featSpellReplaceRemoveId && choice.featSpellReplaceAddId) {
+    const replacementSpell = content.spells.find(spell => spell.id === choice.featSpellReplaceAddId);
+    if (replacementSpell) {
+      replacementOperations.push({
+        type: 'removeSpell',
+        profileId: state.replacement.profileId,
+        spellId: choice.featSpellReplaceRemoveId,
+      });
+      replacementOperations.push({
+        type: 'addSpell',
+        profileId: state.replacement.profileId,
+        spell: toCharacterSpell(replacementSpell, true),
+      });
+    }
+  }
+  if (!block) return replacementOperations;
   const selectedSpellIds = new Set(Object.values(choice.featSpellChoices || {}).flat());
   const selectedSpells = uniqueSpells([
     ...block.fixedSpells,
     ...block.choices.flatMap(group => group.options.filter(spell => selectedSpellIds.has(spell.id))),
   ]);
-  if (!selectedSpells.length) return [];
-  const profileId = getFeatSpellProfileId(state.feat);
-  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+  if (!selectedSpells.length) return replacementOperations;
   const ability = choice.featSpellAbility || existingProfile?.ability || choice.featAbility || block.ability;
-  if (!ability && block.abilityOptions.length) return [];
+  if (!ability && block.abilityOptions.length) return replacementOperations;
   if (existingProfile) {
-    return selectedSpells.map(spell => ({
+    return [
+      ...replacementOperations,
+      ...selectedSpells.map(spell => ({
       type: 'addSpell',
       profileId,
       spell: toCharacterSpell(spell, true),
-    } satisfies AdjustmentOperation));
+      } satisfies AdjustmentOperation)),
+    ];
   }
   const profile: SpellcastingProfile = {
     id: profileId,
@@ -3588,7 +3668,7 @@ const createExistingFeatSpellChoiceOperations = (
     slots: createEmptySpellSlots(),
     spells: selectedSpells.map(spell => toCharacterSpell(spell, true)),
   };
-  return [{ type: 'upsertSpellcastingProfile', profile }];
+  return [...replacementOperations, { type: 'upsertSpellcastingProfile', profile }];
 };
 
 const getClassHitDie = (

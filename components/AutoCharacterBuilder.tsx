@@ -877,6 +877,59 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     );
   };
 
+  const renderFeatSpellReplacementChoice = (
+    replacement: NonNullable<ReturnType<typeof getExistingFeatSpellLevelUpChoiceState>>['replacement'],
+    choice: AutoBuilderFeatChoice,
+    setChoice: (updater: (previous: AutoBuilderFeatChoice) => AutoBuilderFeatChoice) => void,
+  ) => {
+    if (!replacement) return null;
+    return (
+      <div className="md:col-span-2 border border-gray-200 rounded p-3">
+        <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.spellReplacement')}</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="text-[10px] text-gray-500 uppercase font-bold">{t('auto.replaceRemove')}</span>
+            <select
+              value={choice.featSpellReplaceRemoveId || ''}
+              onChange={event => setChoice(previous => ({
+                ...previous,
+                featSpellReplaceRemoveId: event.target.value || undefined,
+                featSpellReplaceAddId: undefined,
+              }))}
+              className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+            >
+              <option value="">{t('auto.replaceNone')}</option>
+              {replacement.removeOptions.map(spell => (
+                <option key={spell.id} value={spell.id}>
+                  {spell.name}{spell.source ? ` ${spell.source}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="text-[10px] text-gray-500 uppercase font-bold">{t('auto.replaceAdd')}</span>
+            <select
+              value={choice.featSpellReplaceAddId || ''}
+              onChange={event => setChoice(previous => ({
+                ...previous,
+                featSpellReplaceAddId: event.target.value || undefined,
+              }))}
+              disabled={!choice.featSpellReplaceRemoveId}
+              className="bg-white border border-gray-300 rounded px-2 py-2 text-xs disabled:bg-gray-100"
+            >
+              <option value="">{t('auto.replaceChooseNew')}</option>
+              {replacement.addOptions.map(spell => (
+                <option key={spell.id} value={spell.id}>
+                  {spell.name}{spell.source ? ` ${spell.source}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+    );
+  };
+
   const isSkillSelectionComplete = !activeSkillChoiceState || skillChoices.length === activeSkillChoiceState.count;
   const currentCantripIds = new Set(spellChoiceState?.cantrips.map(spell => spell.id) || []);
   const currentLeveledSpellIds = new Set(spellChoiceState?.leveled.map(spell => spell.id) || []);
@@ -984,7 +1037,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     && isFightingStyleFeatureChoiceComplete
     && isFightingStyleCantripChoiceComplete;
   const isExistingFeatChoiceComplete = !existingFeatSpellChoiceState
-    || isFeatSpellChoiceComplete(existingFeatSpellChoiceState.state, existingFeatChoice);
+    || (
+      (!existingFeatSpellChoiceState.state.blocks.length || isFeatSpellChoiceComplete(existingFeatSpellChoiceState.state, existingFeatChoice))
+      && (!existingFeatChoice.featSpellReplaceRemoveId || Boolean(existingFeatChoice.featSpellReplaceAddId))
+    );
   const isClassExpertiseChoiceComplete = classExpertiseChoiceOptions.length === 0
     || areChoiceGroupsComplete(classExpertiseChoiceOptions, classFeatureChoices.expertise);
   const currentWeaponMasteryIds = new Set(weaponMasteryChoiceState?.options.map(weapon => weapon.id) || []);
@@ -2375,8 +2431,21 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {existingFeatSpellChoiceState && renderFeatSpellChoiceGroup(
+          {existingFeatSpellChoiceState?.state.blocks.length ? renderFeatSpellChoiceGroup(
             existingFeatSpellChoiceState.state,
+            existingFeatChoice,
+            updater => setExistingFeatChoices(prev => ({
+              ...prev,
+              [existingFeatChoiceKey]: {
+                ...existingFeatChoice,
+                ...updater(existingFeatChoice),
+                featId: existingFeatChoiceKey,
+              },
+            })),
+          ) : null}
+
+          {existingFeatSpellChoiceState && renderFeatSpellReplacementChoice(
+            existingFeatSpellChoiceState.replacement,
             existingFeatChoice,
             updater => setExistingFeatChoices(prev => ({
               ...prev,

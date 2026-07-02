@@ -23,6 +23,7 @@ import {
   getFeatWeaponChoiceOptions,
   getExistingFeatSpellLevelUpChoiceState,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
+import { removeCharacterAdjustments } from '${projectImport('utils/characterAdjustments.ts')}';
 import { equipWeapon } from '${projectImport('utils/equipmentRules.ts')}';
 import content from '${projectImport('public/data/auto-builder-core.json')}';
 
@@ -482,6 +483,48 @@ const runeShaperWithRuneProfile = runeShaperWithRune.spellcastingProfiles.find(p
 assert(
   runeShaperWithRuneProfile?.spells.some(spell => spell.id === selectedRuneSpell.id && spell.prepared),
   \`Rune Shaper should add the selected rune spell, got \${runeShaperWithRuneProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+const runeShaperReplacementState = getExistingFeatSpellLevelUpChoiceState(content, runeShaperWithRune, '5e', 4, 5);
+assert(runeShaperReplacementState?.feat.key === 'Rune Shaper', \`Rune Shaper level 5 upgrade should expose Rune Shaper replacement, got \${runeShaperReplacementState?.feat.key}\`);
+assert(runeShaperReplacementState.state.blocks.length === 0, \`Rune Shaper level 5 replacement should not require extra rune choices, got \${runeShaperReplacementState.state.blocks.length}\`);
+assert(runeShaperReplacementState.replacement?.removeOptions.some(spell => spell.id === selectedRuneSpell.id), 'Rune Shaper replacement should expose the known rune spell as removable');
+const replacementRuneSpell = runeShaperReplacementState.replacement?.addOptions.find(spell => (
+  spell.id !== selectedRuneSpell.id
+    && spell.name !== selectedRuneSpell.name
+    && spell.englishName !== selectedRuneSpell.englishName
+));
+assert(replacementRuneSpell, 'Rune Shaper replacement should have a different rune spell option');
+const runeShaperLevelFiveWithReplacement = buildLevelUpCharacter(runeShaperWithRune, content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  existingFeatChoices: [{
+    featId: 'Rune Shaper|BGG',
+    featSpellReplaceRemoveId: selectedRuneSpell.id,
+    featSpellReplaceAddId: replacementRuneSpell.id,
+  }],
+});
+const runeShaperReplacementProfile = runeShaperLevelFiveWithReplacement.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Rune Shaper-BGG-spells');
+assert(
+  runeShaperReplacementProfile?.spells.some(spell => spell.name === '通晓语言' && spell.prepared),
+  'Rune Shaper replacement should preserve fixed Comprehend Languages',
+);
+assert(
+  !runeShaperReplacementProfile?.spells.some(spell => spell.id === selectedRuneSpell.id),
+  \`Rune Shaper replacement should remove the old rune spell, got \${runeShaperReplacementProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+assert(
+  runeShaperReplacementProfile?.spells.some(spell => spell.id === replacementRuneSpell.id && spell.prepared),
+  \`Rune Shaper replacement should add the selected replacement rune spell, got \${runeShaperReplacementProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+const runeShaperReplacementReverted = removeCharacterAdjustments(runeShaperLevelFiveWithReplacement, 'auto-Wizard-PHB-level-5');
+const runeShaperRevertedProfile = runeShaperReplacementReverted.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Rune Shaper-BGG-spells');
+assert(
+  runeShaperRevertedProfile?.spells.some(spell => spell.id === selectedRuneSpell.id && spell.prepared),
+  \`reverting Rune Shaper replacement should restore old rune spell, got \${runeShaperRevertedProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+assert(
+  !runeShaperRevertedProfile?.spells.some(spell => spell.id === replacementRuneSpell.id),
+  \`reverting Rune Shaper replacement should remove replacement rune spell, got \${runeShaperRevertedProfile?.spells.map(spell => spell.id).join(', ')}\`,
 );
 const runeShaperLevelEight = {
   ...runeShaperWithRune,
@@ -1341,7 +1384,7 @@ export default {
     'Solamnia knight feats refresh proficiency-based resources',
     'Cartomancer adds Hidden Ace resource and Prestidigitation profile',
     'Planar Wanderer adds Portal Sense long-rest resource',
-    'Rune Shaper adds Rune Magic resource, fixed Comprehend Languages, selected rune spells, and proficiency-threshold rune upgrades',
+    'Rune Shaper adds Rune Magic resource, fixed Comprehend Languages, selected rune spells, level-up replacement, and proficiency-threshold rune upgrades',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',
