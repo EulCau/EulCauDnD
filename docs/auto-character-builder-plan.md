@@ -3182,14 +3182,14 @@
 
 目标: 搜索从当前应用内搜索扩展为轻量资料检索。
 
-状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 6f 已完成怪物环境和标签筛选, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
+状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 6f 已完成怪物环境和标签筛选, 阶段 6g 已完成怪物体型和阵营筛选, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
 
 任务:
 
 1. 已新增 `scripts/extract-bestiary-metadata.mjs`, 从 `third_party/5etools-cn/data/bestiary/*.json` 抽取怪物元数据。
 2. 已输出 `public/data/bestiary-index.json`, 字段包括 id, name, englishName, source, cr, type, size, alignment, environment, ac, hp, speed, tags。
 3. 已在 `SearchPanel` 新增 monsters tab。
-4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR, 怪物环境, 怪物标签。
+4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR, 怪物体型, 怪物阵营, 怪物环境, 怪物标签.
 5. 已让怪物详情显示 statblock 摘要, 包含属性, 豁免/技能, 感官/语言, 特性, 施法, 动作等分节。
 6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。
 7. 已将怪物索引改为搜索面板按需加载, 并拆分轻量索引和按需详情文件. 未完成: 5etools 原站级完整怪物渲染.
@@ -3207,6 +3207,26 @@
 - 怪物筛选任一项激活时仍会触发怪物索引按需加载, 不恢复启动加载.
 - 新增 `scripts/audit-search-filter-behavior.mjs` 和 `npm run audit:search-filter-behavior`.
 - 审计使用真实 `public/data/bestiary-index.json` 验证环境选项, 标签选项, 单项筛选和组合筛选.
+
+已通过验证:
+
+- `npm run audit:search-filter-behavior`
+- `npm run audit:search-source-behavior`
+- `npm run audit:search-lazy-loading`
+- `npm run build`
+
+## 阶段 6g 记录
+
+状态: 已完成.
+
+范围: 怪物搜索的体型和阵营筛选.
+
+改动:
+
+- `utils/searchFilters.ts` 扩展怪物体型和阵营选项生成, 以及对应严格字段匹配.
+- `SearchPanel` 增加怪物体型和怪物阵营筛选下拉框, 并与来源, 类型, CR, 环境, 标签, 关键词筛选组合生效.
+- 怪物体型或阵营筛选激活时仍会触发怪物索引按需加载, 不恢复启动加载.
+- 扩展 `audit-search-filter-behavior`, 使用真实 `public/data/bestiary-index.json` 验证体型选项, 阵营选项, 单项筛选和多字段组合筛选.
 
 已通过验证:
 
