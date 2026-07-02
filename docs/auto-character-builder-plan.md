@@ -13,9 +13,11 @@
 - 装备, AC, 攻击派生规则: `utils/equipmentRules.ts`
 - 5etools 数据抽取脚本: `scripts/extract-5etools-character-data.mjs`
 - 魔法物品抽取脚本: `scripts/extract-magic-items.mjs`
+- 5etools 搜索索引抽取脚本: `scripts/extract-5etools-search-index.mjs`
 - 当前自动车卡数据: `public/data/auto-builder-core.json`
 - 当前通用核心数据: `public/data/core.json`
 - 当前魔法物品数据: `public/data/magic-items.json`
+- 当前 5etools 站内搜索索引: `public/data/search-index.json`
 - 5etools 中文站源码与数据: `third_party/5etools-cn`
 
 `third_party/5etools-cn` 是完整站点副本, 包含 `data/class`, `data/spells`, `data/races.json`, `data/backgrounds.json`, `data/items-base.json`, `data/items.json`, `data/bestiary` 等数据目录, 以及 `js/omnidexer.js`, `js/search.js` 等站内搜索相关代码。后续应优先复用这些 JSON 数据结构, 不应手写内容表。
@@ -45,6 +47,13 @@
 - 生成时间: `2026-06-23T02:35:16.393Z`
 - 总数: 1370
 - 分类: weapon 285, armor 116, wondrous 668, scroll 95, potion 61, focus 17, other 128
+
+5etools 搜索索引 `public/data/search-index.json` 当前统计:
+
+- 总数: 17804
+- 分类: 53
+- 来源: 175
+- 关键分类: 怪物 4551, 法术 972, 物品 3017, 专长 276, 种族 260, 职业特性 677
 
 ## 已完成内容
 
@@ -188,7 +197,7 @@
 
 主要缺口:
 
-- 搜索结果没有复用 5etools 的 `search/index.json` 或 `omnidexer` 元数据, 当前是应用内数组过滤。
+- 已有 `scripts/extract-5etools-search-index.mjs` 可把 5etools 的 `search/index.json` 解压并规范化到 `public/data/search-index.json`, 但 `SearchPanel` 尚未接入该通用站内索引, 当前 UI 仍主要使用应用内数组和怪物轻量索引过滤。
 - 怪物详情已显示 statblock 摘要字段, 但未复用 5etools 原站的完整渲染器。
 - 搜索筛选控件已按当前规则版本处理 5e/5r 来源优先级, 同名搜索结果已按来源优先级去重。
 - 怪物索引已从应用启动加载改为 SearchPanel 按需加载。
@@ -3202,7 +3211,7 @@
 
 目标: 搜索从当前应用内搜索扩展为轻量资料检索。
 
-状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 6f 已完成怪物环境和标签筛选, 阶段 6g 已完成怪物体型和阵营筛选, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
+状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 6f 已完成怪物环境和标签筛选, 阶段 6g 已完成怪物体型和阵营筛选, 阶段 6h 已完成 5etools 站内搜索索引抽取, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
 
 任务:
 
@@ -3212,7 +3221,8 @@
 4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR, 怪物体型, 怪物阵营, 怪物环境, 怪物标签.
 5. 已让怪物详情显示 statblock 摘要, 包含属性, 豁免/技能, 感官/语言, 特性, 施法, 动作等分节。
 6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。
-7. 已将怪物索引改为搜索面板按需加载, 并拆分轻量索引和按需详情文件. 未完成: 5etools 原站级完整怪物渲染.
+7. 已将怪物索引改为搜索面板按需加载, 并拆分轻量索引和按需详情文件.
+8. 已从 5etools 原站 `search/index.json` 解压生成 `public/data/search-index.json`, 保留分类, 来源, 中英文名, hash, 页码和 hover 元数据. 未完成: `SearchPanel` 接入该通用站内索引, 以及 5etools 原站级完整怪物渲染.
 
 ## 阶段 6f 记录
 
@@ -3254,6 +3264,24 @@
 - `npm run audit:search-source-behavior`
 - `npm run audit:search-lazy-loading`
 - `npm run build`
+
+## 阶段 6h 记录
+
+状态: 已完成.
+
+范围: 5etools 站内搜索索引抽取.
+
+改动:
+
+- 新增 `scripts/extract-5etools-search-index.mjs`, 读取 `third_party/5etools-cn/search/index.json`, 按 5etools Omnidexer 的元数据映射解压压缩字段.
+- 输出 `public/data/search-index.json`, 字段包括 id, categoryId, category, prop, name, englishName, source, hash, page, sitePage, hover, searchText.
+- `searchText` 包含中文名, 英文名, 来源, 分类, 5etools prop 和 hash, 便于后续 SearchPanel 接入通用站内搜索.
+- 新增 `scripts/audit-search-index-behavior.mjs` 和 `npm run audit:search-index-behavior`, 验证索引总量, 来源覆盖, 关键分类映射, 中英文名保留, hash 解码和 5e/5r 来源同时存在.
+
+已通过验证:
+
+- `npm run extract:search-index`
+- `npm run audit:search-index-behavior`
 
 ### 阶段 7: 来源优先级和同名去重
 
