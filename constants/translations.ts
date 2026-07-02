@@ -239,12 +239,15 @@ export const TRANSLATIONS = {
 
 	    // Search
 	    "search.open": "Search",
-	    "search.placeholder": "Search spells, features, magic items, monsters...",
-	    "search.hint": "Type to search through spells, features, magic items, and monsters.",
+	    "search.placeholder": "Search spells, features, magic items, monsters, site index...",
+	    "search.hint": "Type to search through spells, features, magic items, monsters, and the site index.",
 	    "search.noResults": "No results found.",
 	    "search.loadingMonsters": "Loading monster index...",
+	    "search.loadingSiteIndex": "Loading site index...",
 	    "search.chooseSource": "Choose source:",
 	    "search.source": "Source",
+	    "search.category": "Category",
+	    "search.page": "Page",
 	    "search.rarity": "Rarity",
 	    "search.cr": "CR",
 	    "search.size": "Size",
@@ -268,6 +271,7 @@ export const TRANSLATIONS = {
 	    "search.tabFeatures": "Features",
 	    "search.tabItems": "Items",
 	    "search.tabMonsters": "Monsters",
+	    "search.tabSite": "Site",
 
 	    // Footer
     "footer.text": "EulCau D&D 5e auto card. Not affiliated with Wizards of the Coast.",
@@ -555,12 +559,15 @@ export const TRANSLATIONS = {
 
 		    // Search
 		    "search.open": "搜索",
-		    "search.placeholder": "搜索法术, 特性, 魔法物品, 怪物...",
-		    "search.hint": "输入关键词搜索法术, 特性, 魔法物品和怪物.",
+		    "search.placeholder": "搜索法术, 特性, 魔法物品, 怪物, 站内索引...",
+		    "search.hint": "输入关键词搜索法术, 特性, 魔法物品, 怪物和站内索引.",
 		    "search.noResults": "未找到结果.",
 		    "search.loadingMonsters": "正在加载怪物索引...",
+		    "search.loadingSiteIndex": "正在加载站内索引...",
 		    "search.chooseSource": "选择来源:",
 		    "search.source": "来源",
+		    "search.category": "分类",
+		    "search.page": "页码",
 		    "search.rarity": "稀有度",
 		    "search.cr": "CR",
 		    "search.size": "体型",
@@ -584,6 +591,7 @@ export const TRANSLATIONS = {
 		    "search.tabFeatures": "特性",
 		    "search.tabItems": "物品",
 		    "search.tabMonsters": "怪物",
+		    "search.tabSite": "站内",
 
 	    // Footer
     "footer.text": "EulCau D&D 5e auto card。与威世智无关。",

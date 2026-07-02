@@ -21,6 +21,7 @@
     "audit:search-source-behavior": "node scripts/audit-search-source-behavior.mjs",
     "audit:search-filter-behavior": "node scripts/audit-search-filter-behavior.mjs",
     "audit:search-index-behavior": "node scripts/audit-search-index-behavior.mjs",
+    "audit:site-search-behavior": "node scripts/audit-site-search-behavior.mjs",
     "audit:search-lazy-loading": "node scripts/audit-search-lazy-loading.mjs",
     "preview": "vite preview"
   },

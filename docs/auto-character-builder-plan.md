@@ -186,18 +186,19 @@
 - 职业/子职特性搜索
 - 魔法物品搜索
 - 怪物图鉴轻量元数据搜索
-- 按 tabs 切换 all, spells, features, items, monsters
+- 5etools 站内索引补充搜索
+- 按 tabs 切换 all, spells, features, items, monsters, site
 - 同名特性的来源选择
 - 从搜索结果购买物品加入背包
 - 结构化筛选:
   - 全局来源
   - 法术环阶
   - 物品分类与稀有度
-  - 怪物类型与 CR
+  - 怪物类型, CR, 体型, 阵营, 环境, 标签
 
 主要缺口:
 
-- 已有 `scripts/extract-5etools-search-index.mjs` 可把 5etools 的 `search/index.json` 解压并规范化到 `public/data/search-index.json`, 但 `SearchPanel` 尚未接入该通用站内索引, 当前 UI 仍主要使用应用内数组和怪物轻量索引过滤。
+- `SearchPanel` 已按需接入 `public/data/search-index.json`, 作为站内资料 tab 和 all tab 的补充结果. all tab 会跳过法术, 物品, 怪物这些已有详情视图的一等分类, 避免重复结果.
 - 怪物详情已显示 statblock 摘要字段, 但未复用 5etools 原站的完整渲染器。
 - 搜索筛选控件已按当前规则版本处理 5e/5r 来源优先级, 同名搜索结果已按来源优先级去重。
 - 怪物索引已从应用启动加载改为 SearchPanel 按需加载。
@@ -2962,7 +2963,7 @@
 说明:
 
 - 本阶段只做来源过滤和排序, 没有做同名结果自动去重.
-- 搜索仍使用应用内数组过滤, 还没有接入 5etools 的 `search/index.json` 或 `omnidexer`.
+- 本阶段完成时搜索仍使用应用内数组过滤, 后续阶段 6h 和 6i 已分别完成 5etools `search/index.json` 抽取与 SearchPanel 接入.
 
 ## 阶段 7c 记录
 
@@ -2991,7 +2992,7 @@
 说明:
 
 - 本阶段只去重结果列表, 不删除详情中的来源选择能力.
-- 搜索仍未接入 5etools 的 `search/index.json` 或 `omnidexer`.
+- 本阶段完成时搜索仍未接入 5etools 的 `search/index.json` 或 `omnidexer`, 后续阶段 6h 和 6i 已补齐.
 
 ## 阶段 6c 记录
 
@@ -3211,7 +3212,7 @@
 
 目标: 搜索从当前应用内搜索扩展为轻量资料检索。
 
-状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 6f 已完成怪物环境和标签筛选, 阶段 6g 已完成怪物体型和阵营筛选, 阶段 6h 已完成 5etools 站内搜索索引抽取, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
+状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 6f 已完成怪物环境和标签筛选, 阶段 6g 已完成怪物体型和阵营筛选, 阶段 6h 已完成 5etools 站内搜索索引抽取, 阶段 6i 已完成 SearchPanel 接入 5etools 站内索引, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
 
 任务:
 
@@ -3222,7 +3223,8 @@
 5. 已让怪物详情显示 statblock 摘要, 包含属性, 豁免/技能, 感官/语言, 特性, 施法, 动作等分节。
 6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。
 7. 已将怪物索引改为搜索面板按需加载, 并拆分轻量索引和按需详情文件.
-8. 已从 5etools 原站 `search/index.json` 解压生成 `public/data/search-index.json`, 保留分类, 来源, 中英文名, hash, 页码和 hover 元数据. 未完成: `SearchPanel` 接入该通用站内索引, 以及 5etools 原站级完整怪物渲染.
+8. 已从 5etools 原站 `search/index.json` 解压生成 `public/data/search-index.json`, 保留分类, 来源, 中英文名, hash, 页码和 hover 元数据.
+9. 已在 `SearchPanel` 中按需加载站内索引, 增加 site tab, 并在 all tab 中补充非一等详情分类结果. 未完成: 5etools 原站级完整怪物渲染.
 
 ## 阶段 6f 记录
 
@@ -3282,6 +3284,30 @@
 
 - `npm run extract:search-index`
 - `npm run audit:search-index-behavior`
+
+## 阶段 6i 记录
+
+状态: 已完成.
+
+范围: SearchPanel 接入 5etools 站内搜索索引.
+
+改动:
+
+- 新增 `utils/siteSearchIndex.ts`, 通过 `fetch('./data/search-index.json')` 按需加载并缓存站内索引.
+- `SearchPanel` 新增 site tab, 可搜索 `public/data/search-index.json` 中的完整站内条目.
+- all tab 搜索时会按需加载站内索引, 但跳过法术, 物品, 怪物这些已有详情视图的一等分类, 只作为补充资料结果.
+- 站内搜索继续复用 5e/5r 来源过滤和同名来源去重规则.
+- 站内详情显示分类, 来源, 英文名, 页码和 hash.
+- 新增 `scripts/audit-site-search-behavior.mjs` 和 `npm run audit:site-search-behavior`, 验证站内索引加载, site tab, all tab 补充规则, 来源过滤和翻译键.
+
+已通过验证:
+
+- `npm run audit:site-search-behavior`
+- `npm run audit:search-index-behavior`
+- `npm run audit:search-source-behavior`
+- `npm run audit:search-filter-behavior`
+- `npm run audit:search-lazy-loading`
+- `npm run build`
 
 ### 阶段 7: 来源优先级和同名去重
 
