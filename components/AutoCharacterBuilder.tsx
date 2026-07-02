@@ -53,6 +53,7 @@ import {
   isCharacterClassForDefinition,
   getLevelOneSpellChoiceState,
   getOriginFeatChoiceOptions,
+  getOriginSpellChoiceState,
   getClassToolChoiceOptions,
   getMulticlassSkillChoiceOptions,
   getMulticlassToolChoiceOptions,
@@ -177,6 +178,18 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const raceFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedRaceFeat);
   const raceFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedRaceFeat);
   const raceFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedRaceFeat, ruleSystem, 1) : null;
+  const raceOriginSpellStates = content
+    ? [
+        getOriginSpellChoiceState(content, selectedRace, ruleSystem, 1),
+        getOriginSpellChoiceState(content, selectedSubrace, ruleSystem, 1),
+      ].filter((state): state is NonNullable<ReturnType<typeof getOriginSpellChoiceState>> => Boolean(state))
+    : [];
+  const raceOriginSpellAbilityOptions = Array.from(new Set(
+    raceOriginSpellStates.flatMap(state => state.blocks.flatMap(block => block.abilityOptions)),
+  ));
+  const raceOriginSpellNames = Array.from(new Set(
+    raceOriginSpellStates.flatMap(state => state.blocks.flatMap(block => block.fixedSpells.map(spell => spell.name))),
+  ));
   const backgroundAbilityOptions = isOriginDecoupled ? ALL_ABILITIES : getBackgroundAbilityOptions(selectedBackground);
   const backgroundFeats = content && !isOriginDecoupled ? getBackgroundFeats(content, selectedBackground) : [];
   const originFeatChoiceState = content && isOriginDecoupled ? getOriginFeatChoiceOptions(content, ruleSystem, data) : null;
@@ -1007,6 +1020,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	        && areChoiceGroupsComplete(raceFeatSavingThrowChoiceOptions, raceChoices.featSavingThrowChoices)
 	        && isFeatSpellChoiceComplete(raceFeatSpellChoiceState, raceChoices)
       ))
+      && (raceOriginSpellAbilityOptions.length === 0 || Boolean(raceChoices.originSpellAbility))
       && raceToolChoiceOptions.every(choice => (raceChoices.toolChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
       && raceWeaponChoiceOptions.every(choice => (raceChoices.weaponChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
       && raceLanguageChoiceOptions.every(choice => (raceChoices.languageChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
@@ -1139,7 +1153,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         ruleSystem,
         race: selectedRace,
         subrace: selectedSubrace,
-        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceFeatureChoiceOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length) ? raceChoices : undefined,
+        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceFeatureChoiceOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length || raceOriginSpellAbilityOptions.length) ? raceChoices : undefined,
         background: selectedBackground,
         subclass: needsSubclassChoice ? selectedSubclass : undefined,
         decoupleOriginFromBackground: isOriginDecoupled,
@@ -1288,7 +1302,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceFeatureChoiceOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState) && (
+          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceFeatureChoiceOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceOriginSpellAbilityOptions.length > 0) && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
               <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.raceChoices')}</h3>
               <div className="grid grid-cols-1 gap-3">
@@ -1424,6 +1438,24 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                       <option value="">{t('auto.chooseAbility')}</option>
                       {raceFeatAbilityOptions.map(renderAbilityOption)}
                     </select>
+                  </label>
+                )}
+                {raceOriginSpellAbilityOptions.length > 0 && (
+                  <label className="flex flex-col gap-1 text-xs max-w-xs">
+                    <span className="text-[10px] text-gray-500 uppercase font-bold">{t('auto.originSpellAbility')}</span>
+                    <select
+                      value={raceChoices.originSpellAbility || ''}
+                      onChange={event => setRaceChoices(prev => ({ ...prev, originSpellAbility: event.target.value as AbilityName }))}
+                      className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+                    >
+                      <option value="">{t('auto.chooseAbility')}</option>
+                      {raceOriginSpellAbilityOptions.map(renderAbilityOption)}
+                    </select>
+                    {raceOriginSpellNames.length ? (
+                      <span className="text-[10px] text-gray-500">
+                        {raceOriginSpellNames.join(', ')}
+                      </span>
+                    ) : null}
                   </label>
                 )}
                 {raceFeatChoiceState && renderSkillChoiceGroup(
