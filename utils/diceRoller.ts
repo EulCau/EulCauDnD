@@ -417,17 +417,7 @@ function evaluateDice(node: Extract<Node, { type: 'dice' }>): EvalResult {
 
   for (const modifier of node.modifiers) {
     if (modifier.kind === 'reroll') {
-      rolls = rolls.map(roll => {
-        const original = roll;
-        let next = roll;
-        let attempts = 0;
-        while (matchesCompare(next, modifier.op, modifier.target)) {
-          attempts += 1;
-          if (attempts > 100) throw new Error('Reroll did not terminate because every die face matches.');
-          next = rollDie(node.sides);
-        }
-        return original === next ? next : next;
-      });
+      rolls = rolls.map(roll => matchesCompare(roll, modifier.op, modifier.target) ? rollDie(node.sides) : roll);
       detail.push(`reroll ${modifier.op}${modifier.target}: [${rolls.join(', ')}]`);
     } else if (modifier.kind === 'explode') {
       const exploded: number[] = [];
@@ -644,12 +634,25 @@ function exactDistribution(node: Node): ExactDistribution {
 }
 
 function averageSingleDieAfterReroll(sides: number, modifiers: Extract<Modifier, { kind: 'reroll' }>[]): AverageResult {
-  let allowed = faceValues(sides);
+  let probabilities = new Map(faceValues(sides).map(face => [face, 1 / sides]));
   for (const modifier of modifiers) {
-    allowed = allowed.filter(face => !matchesCompare(face, modifier.op, modifier.target));
-    if (!allowed.length) return { ok: false, reason: 'reroll condition matches every die face, so the expectation is undefined.' };
+    const next = new Map<number, number>();
+    for (const [face, probability] of probabilities) {
+      if (!matchesCompare(face, modifier.op, modifier.target)) {
+        next.set(face, (next.get(face) || 0) + probability);
+        continue;
+      }
+      const replacementProbability = probability / sides;
+      for (const replacement of faceValues(sides)) {
+        next.set(replacement, (next.get(replacement) || 0) + replacementProbability);
+      }
+    }
+    probabilities = next;
   }
-  return { ok: true, value: allowed.reduce((sum, face) => sum + face, 0) / allowed.length };
+  return {
+    ok: true,
+    value: [...probabilities].reduce((sum, [face, probability]) => sum + face * probability, 0),
+  };
 }
 
 function averageSingleDieAfterExplode(sides: number, modifiers: Extract<Modifier, { kind: 'explode' }>[]): AverageResult {
