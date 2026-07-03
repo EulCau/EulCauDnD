@@ -13,9 +13,11 @@
 - 装备, AC, 攻击派生规则: `utils/equipmentRules.ts`
 - 5etools 数据抽取脚本: `scripts/extract-5etools-character-data.mjs`
 - 魔法物品抽取脚本: `scripts/extract-magic-items.mjs`
+- 5etools 搜索索引抽取脚本: `scripts/extract-5etools-search-index.mjs`
 - 当前自动车卡数据: `public/data/auto-builder-core.json`
 - 当前通用核心数据: `public/data/core.json`
 - 当前魔法物品数据: `public/data/magic-items.json`
+- 当前 5etools 站内搜索索引: `public/data/search-index.json`
 - 5etools 中文站源码与数据: `third_party/5etools-cn`
 
 `third_party/5etools-cn` 是完整站点副本, 包含 `data/class`, `data/spells`, `data/races.json`, `data/backgrounds.json`, `data/items-base.json`, `data/items.json`, `data/bestiary` 等数据目录, 以及 `js/omnidexer.js`, `js/search.js` 等站内搜索相关代码。后续应优先复用这些 JSON 数据结构, 不应手写内容表。
@@ -45,6 +47,13 @@
 - 生成时间: `2026-06-23T02:35:16.393Z`
 - 总数: 1370
 - 分类: weapon 285, armor 116, wondrous 668, scroll 95, potion 61, focus 17, other 128
+
+5etools 搜索索引 `public/data/search-index.json` 当前统计:
+
+- 总数: 17804
+- 分类: 53
+- 来源: 175
+- 关键分类: 怪物 4551, 法术 972, 物品 3017, 专长 276, 种族 260, 职业特性 677
 
 ## 已完成内容
 
@@ -177,18 +186,19 @@
 - 职业/子职特性搜索
 - 魔法物品搜索
 - 怪物图鉴轻量元数据搜索
-- 按 tabs 切换 all, spells, features, items, monsters
+- 5etools 站内索引补充搜索
+- 按 tabs 切换 all, spells, features, items, monsters, site
 - 同名特性的来源选择
 - 从搜索结果购买物品加入背包
 - 结构化筛选:
   - 全局来源
   - 法术环阶
   - 物品分类与稀有度
-  - 怪物类型与 CR
+  - 怪物类型, CR, 体型, 阵营, 环境, 标签
 
 主要缺口:
 
-- 搜索结果没有复用 5etools 的 `search/index.json` 或 `omnidexer` 元数据, 当前是应用内数组过滤。
+- `SearchPanel` 已按需接入 `public/data/search-index.json`, 作为站内资料 tab 和 all tab 的补充结果. all tab 会跳过法术, 物品, 怪物这些已有详情视图的一等分类, 避免重复结果.
 - 怪物详情已显示 statblock 摘要字段, 但未复用 5etools 原站的完整渲染器。
 - 搜索筛选控件已按当前规则版本处理 5e/5r 来源优先级, 同名搜索结果已按来源优先级去重。
 - 怪物索引已从应用启动加载改为 SearchPanel 按需加载。
@@ -753,7 +763,7 @@
 说明:
 
 - 后续阶段 3bu 已补充 "已知符文数量等于熟练加值一半" 和熟练加值阈值提升时的新增符文选择.
-- 每级升级时替换一个已知符文仍未实现, 需要更通用的已选专长法术替换 UI.
+- 后续阶段 3bv 已补充每级升级时替换一个已知符文的选择 UI.
 
 ## 阶段 3bu 记录
 
@@ -774,7 +784,27 @@
 
 说明:
 
-- 本阶段仍不实现 "每次等级提升可替换一个已知符文" 的替换 UI. 现有 `existingFeatChoices` 只支持追加选择, 不支持删除并替换既有专长法术.
+- 后续阶段 3bv 已补充 "每次等级提升可替换一个已知符文" 的替换 UI.
+
+## 阶段 3bv 记录
+
+状态: 已完成.
+
+范围: `Rune Shaper|BGG` 升级替换已知符文.
+
+改动:
+
+- `AdjustmentOperation` 新增 `removeSpell`, 可从指定法术 profile 移除法术, 并记录 `previousSpell` 以支持撤销.
+- 已拥有 `Rune Shaper|BGG` 的角色每次升级时, 若已有可替换的符文法术, 会暴露替换状态.
+- 升级 UI 在已有专长法术区域显示可选的法术替换控件, 可选择旧符文和新符文; 不选择则不替换.
+- 替换会先移除旧符文法术, 再把新符文法术以 prepared 状态加入 `Rune Shaper` 专长法术 profile.
+- 扩展 `audit-feat-behavior`, 验证 4 级升 5 级时没有新增符文数量但仍能替换一个已知符文, 并保留固定 `通晓语言`.
+- 同一审计会撤销 5 级升级调整, 验证旧符文恢复且新符文移除.
+
+已通过验证:
+
+- `npm run audit:feat-behavior`
+- `npm run build`
 
 ## 阶段 3t 记录
 
@@ -1100,7 +1130,7 @@
 说明:
 
 - 本阶段只结构化使用次数和恢复节奏. 临时生命值的实际获得仍保留在资源备注中, 等角色卡有临时生命值事件接口后再接入.
-- 坚韧不屈仍未结构化为资源, 后续可以按同一 helper 增加 1/长休资源.
+- 后续阶段 3ai 已补充坚韧不屈 1/长休资源.
 
 ## 阶段 3ai 记录
 
@@ -1644,7 +1674,31 @@
 
 说明:
 
-- 本阶段暂不处理 `Hex Magic|巫咒魔法`, 因为它需要在建卡时选择智力, 感知或魅力作为施法属性, 应并入后续种族赠法术选择流程.
+- 本阶段完成时暂不处理 `Hex Magic|巫咒魔法`, 因为它需要在建卡时选择智力, 感知或魅力作为施法属性. 后续阶段 3bw 已接入 VRGR 巫咒之子的种族赠法术和施法属性选择.
+
+## 阶段 3bw 记录
+
+状态: 已完成.
+
+范围: VRGR 巫咒之子巫咒魔法.
+
+改动:
+
+- `scripts/extract-5etools-character-data.mjs` 保留 race, subrace, background 的 `additionalSpells` 字段, 使 `Hexblood|VRGR` 的 `Hex Magic|巫咒魔法` 可进入自动车卡数据.
+- 新增 `getOriginSpellChoiceState`, 复用专长赠法术的解析逻辑读取固定种族法术和施法属性选项.
+- `AutoCharacterBuilder` 在种族需要施法属性时显示起源法术属性选择, 目前覆盖 VRGR 巫咒之子的 INT/WIS/CHA 选择.
+- `buildLevelOneCharacter` 会通过可撤销的 `upsertSpellcastingProfile` 写入种族法术 profile. VRGR 巫咒之子会加入 `易容术` 和 `脆弱诅咒`, 并按所选属性设置 spellcasting profile.
+- 运行时暂时只启用已审计的 `Hexblood|VRGR` origin spell block. 其他包含分支或等级门槛的种族法术数据已保留在 JSON 中, 但需要后续逐个接入对应选项和升级逻辑, 避免错误地一次性加入所有分支法术.
+- 扩展 `audit-origin-structured-behavior`, 覆盖 additionalSpells 数据保留, 施法属性选项, 未选属性时不写 profile, 选择 WIS 后写入并可撤销.
+
+已通过验证:
+
+- `npm run extract:5etools`
+- `npm run audit:origin-structured-behavior`
+- `npm run audit:character-data`
+- `npm run audit:spell-behavior`
+- `npm run audit:feat-spell-behavior`
+- `npm run build`
 
 ## 阶段 3bi 记录
 
@@ -1835,7 +1889,7 @@
 
 说明:
 
-- 本阶段只读取字符串型固定条目. `Boon of Energy Resistance` 等选择型抗性仍需要后续 UI 选择模型, 临时或条件抗性仍保留在专长描述中.
+- 本阶段只读取字符串型固定条目. 后续阶段 3br 已补充 `Boon of Energy Resistance` 等显式选择型抗性 UI. 临时或条件抗性仍保留在专长描述中.
 
 ## 阶段 3br 记录
 
@@ -2623,7 +2677,7 @@
 
 说明:
 
-- XPHB `Skulker` 的 10 尺盲视属于感官结构化缺口, 本阶段没有处理. 后续应通过专长结构化字段把它写入 `senses`.
+- XPHB `Skulker` 的 10 尺盲视已在阶段 3bp 通过专长结构化字段写入 `senses`.
 
 ## 阶段 4ae 记录
 
@@ -2933,7 +2987,7 @@
 说明:
 
 - 本阶段只做来源过滤和排序, 没有做同名结果自动去重.
-- 搜索仍使用应用内数组过滤, 还没有接入 5etools 的 `search/index.json` 或 `omnidexer`.
+- 本阶段完成时搜索仍使用应用内数组过滤, 后续阶段 6h 和 6i 已分别完成 5etools `search/index.json` 抽取与 SearchPanel 接入.
 
 ## 阶段 7c 记录
 
@@ -2962,7 +3016,7 @@
 说明:
 
 - 本阶段只去重结果列表, 不删除详情中的来源选择能力.
-- 搜索仍未接入 5etools 的 `search/index.json` 或 `omnidexer`.
+- 本阶段完成时搜索仍未接入 5etools 的 `search/index.json` 或 `omnidexer`, 后续阶段 6h 和 6i 已补齐.
 
 ## 阶段 6c 记录
 
@@ -3094,7 +3148,7 @@
 
 目标: 每个特性, 专长, 武器, 物品尽量通过统一接口调整角色卡, 且可撤销。
 
-状态: 进行中. 阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化, 阶段 3f 已完成选择型武器熟练, 阶段 3g 已完成种族免疫, 易伤和特殊感官结构化, 阶段 3h 已完成常驻种族 AC 规则, 阶段 3i 已完成 Lucky 专长资源, 阶段 3j 已完成战技专家和超魔导师资源, 阶段 3k 已完成龙类赠礼和 XPHB 巫师杀手资源, 阶段 3l 已完成金属龙赋礼资源, 阶段 3m 已完成火巨人之余烬结构化效果, 阶段 3n 已完成 BGG 巨人后续专长资源, 阶段 3o 已完成大厨资源, 阶段 3p 已完成索拉尼亚侍从资源, 阶段 3q 已完成卡牌占卜师资源, 阶段 3r 已完成位面漫游者资源, 阶段 3s 已完成符文塑形者资源, 阶段 3t 已完成 SatO 外层位面后续专长资源, 阶段 3u 已完成外域使节免费施法资源, 阶段 3v 已完成索拉尼亚后续专长资源, 阶段 3w 已完成 XPHB 固定专长资源, 阶段 3x 已完成 XPHB 恩惠和仪式资源, 阶段 3y 已完成精类/影界触碰固定免费施法资源, 阶段 3z 已完成 XGE 固定免费施法资源, 阶段 3aa 已完成毒师酿毒资源, 阶段 3ab 已完成 XPHB 固定史诗恩惠数值效果, 阶段 3ac 已完成低身机敏速度和博学多才熟练审计, 阶段 3ad 已完成护甲和武器固定熟练专长审计, 阶段 3ae 已完成选择型语言专长审计, 阶段 3af 已完成 XPHB 观察力已熟练技能转专精规则, 阶段 3ag 已完成 XPHB 矮人刚毅生命值上限规则, 阶段 3ah 已完成兽人激昂冲锋种族资源, 阶段 3ai 已完成坚韧不屈种族资源, 阶段 3aj 已完成阿斯莫治愈之手种族资源, 阶段 3ak 已完成歌利亚石之坚韧种族资源, 阶段 3al 已完成龙裔吐息和 5 级龙裔资源, 阶段 3am 已完成常见种族传送, 隐形, 变身和特殊攻击资源, 阶段 3an 已完成地精和大地精检定/伤害加成资源, 阶段 3ao 已完成化兽者化形资源, 阶段 3ap 已完成兔人先攻和兔子跳跃资源, 阶段 3aq 已完成回想, 鼓舞, 传送和豁免改写类种族资源, 阶段 3ar 已完成种族天然武器自动攻击条目, 阶段 3as 已完成半血裔吸血啃咬资源和 CON 攻击条目, 阶段 3at 已完成地底侏儒斯涅布力伪装资源, 阶段 3au 已完成自动侏儒铸订成功资源, 阶段 3av 已完成哈多兹闪避资源, 阶段 3aw 已完成诘弗人星界火花资源, 阶段 3ax 已完成大地精精类赠礼资源, 阶段 3ay 已完成坎德人嘲讽资源, 阶段 3az 已完成 XPHB 矮人石中精妙资源, 阶段 3ba 已完成狮族畏惧咆哮资源, 阶段 3bb 已完成人狼裔尖啸资源, 阶段 3bc 已完成科拉瓦怠惰恢复力资源, 阶段 3bd 已完成维多肯临时两栖资源, 阶段 3be 已完成 XPHB 人类适应力激励, 阶段 3bf 已完成 XPHB 歌利亚大型形态资源, 阶段 3bg 已完成 PSZ 吸血鬼嗜血攻击条目, 阶段 3bh 已完成巫咒之子神秘信物资源, 阶段 3bi 已完成牛头人角击攻击备注, 阶段 3bj 已完成纳迦天生武器攻击条目, 阶段 3bk 已完成 XPHB 歌利亚巨人先祖资源, 阶段 3bl 已完成佛丹人 5 级体型变化, 阶段 3bm 已完成萨提尔攻城槌攻击条目, 阶段 3bn 已完成斑猫人猫之迅捷资源, 阶段 3bo 已完成旧版熊地精突袭攻击资源, 阶段 3bp 已完成 XPHB 隐伏者结构化感官, 阶段 3bq 已完成专长固定结构化字段通用化, 阶段 3br 已完成专长选择型抗性, 阶段 3bs 已完成专长固定免疫审计覆盖, 阶段 3bt 已完成 XPHB 歌利亚巨人先祖具体分支选择, 阶段 3bu 已完成 Rune Shaper 符文法术选择和阈值新增.
+状态: 进行中. 阶段 3a 已完成种族结构化字段的基础覆盖, 阶段 3b 已完成低风险专长升级缩放, 阶段 3c 已完成专长选择型熟练审计与豁免选择修复, 阶段 3d 已完成种族感官和抗性的结构化可撤销字段, 阶段 3e 已完成种族固定熟练 key 规范化, 阶段 3f 已完成选择型武器熟练, 阶段 3g 已完成种族免疫, 易伤和特殊感官结构化, 阶段 3h 已完成常驻种族 AC 规则, 阶段 3i 已完成 Lucky 专长资源, 阶段 3j 已完成战技专家和超魔导师资源, 阶段 3k 已完成龙类赠礼和 XPHB 巫师杀手资源, 阶段 3l 已完成金属龙赋礼资源, 阶段 3m 已完成火巨人之余烬结构化效果, 阶段 3n 已完成 BGG 巨人后续专长资源, 阶段 3o 已完成大厨资源, 阶段 3p 已完成索拉尼亚侍从资源, 阶段 3q 已完成卡牌占卜师资源, 阶段 3r 已完成位面漫游者资源, 阶段 3s 已完成符文塑形者资源, 阶段 3t 已完成 SatO 外层位面后续专长资源, 阶段 3u 已完成外域使节免费施法资源, 阶段 3v 已完成索拉尼亚后续专长资源, 阶段 3w 已完成 XPHB 固定专长资源, 阶段 3x 已完成 XPHB 恩惠和仪式资源, 阶段 3y 已完成精类/影界触碰固定免费施法资源, 阶段 3z 已完成 XGE 固定免费施法资源, 阶段 3aa 已完成毒师酿毒资源, 阶段 3ab 已完成 XPHB 固定史诗恩惠数值效果, 阶段 3ac 已完成低身机敏速度和博学多才熟练审计, 阶段 3ad 已完成护甲和武器固定熟练专长审计, 阶段 3ae 已完成选择型语言专长审计, 阶段 3af 已完成 XPHB 观察力已熟练技能转专精规则, 阶段 3ag 已完成 XPHB 矮人刚毅生命值上限规则, 阶段 3ah 已完成兽人激昂冲锋种族资源, 阶段 3ai 已完成坚韧不屈种族资源, 阶段 3aj 已完成阿斯莫治愈之手种族资源, 阶段 3ak 已完成歌利亚石之坚韧种族资源, 阶段 3al 已完成龙裔吐息和 5 级龙裔资源, 阶段 3am 已完成常见种族传送, 隐形, 变身和特殊攻击资源, 阶段 3an 已完成地精和大地精检定/伤害加成资源, 阶段 3ao 已完成化兽者化形资源, 阶段 3ap 已完成兔人先攻和兔子跳跃资源, 阶段 3aq 已完成回想, 鼓舞, 传送和豁免改写类种族资源, 阶段 3ar 已完成种族天然武器自动攻击条目, 阶段 3as 已完成半血裔吸血啃咬资源和 CON 攻击条目, 阶段 3at 已完成地底侏儒斯涅布力伪装资源, 阶段 3au 已完成自动侏儒铸订成功资源, 阶段 3av 已完成哈多兹闪避资源, 阶段 3aw 已完成诘弗人星界火花资源, 阶段 3ax 已完成大地精精类赠礼资源, 阶段 3ay 已完成坎德人嘲讽资源, 阶段 3az 已完成 XPHB 矮人石中精妙资源, 阶段 3ba 已完成狮族畏惧咆哮资源, 阶段 3bb 已完成人狼裔尖啸资源, 阶段 3bc 已完成科拉瓦怠惰恢复力资源, 阶段 3bd 已完成维多肯临时两栖资源, 阶段 3be 已完成 XPHB 人类适应力激励, 阶段 3bf 已完成 XPHB 歌利亚大型形态资源, 阶段 3bg 已完成 PSZ 吸血鬼嗜血攻击条目, 阶段 3bh 已完成巫咒之子神秘信物资源, 阶段 3bi 已完成牛头人角击攻击备注, 阶段 3bj 已完成纳迦天生武器攻击条目, 阶段 3bk 已完成 XPHB 歌利亚巨人先祖资源, 阶段 3bl 已完成佛丹人 5 级体型变化, 阶段 3bm 已完成萨提尔攻城槌攻击条目, 阶段 3bn 已完成斑猫人猫之迅捷资源, 阶段 3bo 已完成旧版熊地精突袭攻击资源, 阶段 3bp 已完成 XPHB 隐伏者结构化感官, 阶段 3bq 已完成专长固定结构化字段通用化, 阶段 3br 已完成专长选择型抗性, 阶段 3bs 已完成专长固定免疫审计覆盖, 阶段 3bt 已完成 XPHB 歌利亚巨人先祖具体分支选择, 阶段 3bu 已完成 Rune Shaper 符文法术选择和阈值新增, 阶段 3bv 已完成 Rune Shaper 升级替换已知符文, 阶段 3bw 已完成 VRGR 巫咒之子巫咒魔法.
 
 任务:
 
@@ -3182,17 +3236,102 @@
 
 目标: 搜索从当前应用内搜索扩展为轻量资料检索。
 
-状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
+状态: 进行中. 阶段 6a 已完成怪物图鉴轻量索引和搜索 tab, 阶段 6b 已完成结构化筛选, 阶段 6c 已完成怪物 statblock 摘要详情, 阶段 6d 已完成怪物索引按需加载, 阶段 6e 已完成轻量索引和按需详情拆分, 阶段 6f 已完成怪物环境和标签筛选, 阶段 6g 已完成怪物体型和阵营筛选, 阶段 6h 已完成 5etools 站内搜索索引抽取, 阶段 6i 已完成 SearchPanel 接入 5etools 站内索引, 阶段 7b 已完成搜索来源规则版本过滤和排序, 阶段 7c 已完成搜索同名结果去重.
 
 任务:
 
 1. 已新增 `scripts/extract-bestiary-metadata.mjs`, 从 `third_party/5etools-cn/data/bestiary/*.json` 抽取怪物元数据。
 2. 已输出 `public/data/bestiary-index.json`, 字段包括 id, name, englishName, source, cr, type, size, alignment, environment, ac, hp, speed, tags。
 3. 已在 `SearchPanel` 新增 monsters tab。
-4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR。
+4. 已加入结构化筛选: 来源, 法术环阶, 物品分类, 物品稀有度, 怪物类型, 怪物 CR, 怪物体型, 怪物阵营, 怪物环境, 怪物标签.
 5. 已让怪物详情显示 statblock 摘要, 包含属性, 豁免/技能, 感官/语言, 特性, 施法, 动作等分节。
 6. 已按当前 5e/5r 规则版本过滤或排序来源, 并按来源优先级去重同名结果。
-7. 已将怪物索引改为搜索面板按需加载, 并拆分轻量索引和按需详情文件. 未完成: 5etools 原站级完整怪物渲染.
+7. 已将怪物索引改为搜索面板按需加载, 并拆分轻量索引和按需详情文件.
+8. 已从 5etools 原站 `search/index.json` 解压生成 `public/data/search-index.json`, 保留分类, 来源, 中英文名, hash, 页码和 hover 元数据.
+9. 已在 `SearchPanel` 中按需加载站内索引, 增加 site tab, 并在 all tab 中补充非一等详情分类结果. 未完成: 5etools 原站级完整怪物渲染.
+
+## 阶段 6f 记录
+
+状态: 已完成.
+
+范围: 怪物搜索的环境和标签筛选.
+
+改动:
+
+- 新增 `utils/searchFilters.ts`, 从怪物索引的 `environment` 和 `tags` 字段生成筛选选项.
+- `SearchPanel` 增加怪物环境和怪物标签筛选下拉框, 并与来源, 类型, CR, 关键词筛选组合生效.
+- 怪物筛选任一项激活时仍会触发怪物索引按需加载, 不恢复启动加载.
+- 新增 `scripts/audit-search-filter-behavior.mjs` 和 `npm run audit:search-filter-behavior`.
+- 审计使用真实 `public/data/bestiary-index.json` 验证环境选项, 标签选项, 单项筛选和组合筛选.
+
+已通过验证:
+
+- `npm run audit:search-filter-behavior`
+- `npm run audit:search-source-behavior`
+- `npm run audit:search-lazy-loading`
+- `npm run build`
+
+## 阶段 6g 记录
+
+状态: 已完成.
+
+范围: 怪物搜索的体型和阵营筛选.
+
+改动:
+
+- `utils/searchFilters.ts` 扩展怪物体型和阵营选项生成, 以及对应严格字段匹配.
+- `SearchPanel` 增加怪物体型和怪物阵营筛选下拉框, 并与来源, 类型, CR, 环境, 标签, 关键词筛选组合生效.
+- 怪物体型或阵营筛选激活时仍会触发怪物索引按需加载, 不恢复启动加载.
+- 扩展 `audit-search-filter-behavior`, 使用真实 `public/data/bestiary-index.json` 验证体型选项, 阵营选项, 单项筛选和多字段组合筛选.
+
+已通过验证:
+
+- `npm run audit:search-filter-behavior`
+- `npm run audit:search-source-behavior`
+- `npm run audit:search-lazy-loading`
+- `npm run build`
+
+## 阶段 6h 记录
+
+状态: 已完成.
+
+范围: 5etools 站内搜索索引抽取.
+
+改动:
+
+- 新增 `scripts/extract-5etools-search-index.mjs`, 读取 `third_party/5etools-cn/search/index.json`, 按 5etools Omnidexer 的元数据映射解压压缩字段.
+- 输出 `public/data/search-index.json`, 字段包括 id, categoryId, category, prop, name, englishName, source, hash, page, sitePage, hover, searchText.
+- `searchText` 包含中文名, 英文名, 来源, 分类, 5etools prop 和 hash, 便于后续 SearchPanel 接入通用站内搜索.
+- 新增 `scripts/audit-search-index-behavior.mjs` 和 `npm run audit:search-index-behavior`, 验证索引总量, 来源覆盖, 关键分类映射, 中英文名保留, hash 解码和 5e/5r 来源同时存在.
+
+已通过验证:
+
+- `npm run extract:search-index`
+- `npm run audit:search-index-behavior`
+
+## 阶段 6i 记录
+
+状态: 已完成.
+
+范围: SearchPanel 接入 5etools 站内搜索索引.
+
+改动:
+
+- 新增 `utils/siteSearchIndex.ts`, 通过 `fetch('./data/search-index.json')` 按需加载并缓存站内索引.
+- `SearchPanel` 新增 site tab, 可搜索 `public/data/search-index.json` 中的完整站内条目.
+- all tab 搜索时会按需加载站内索引, 但跳过法术, 物品, 怪物这些已有详情视图的一等分类, 只作为补充资料结果.
+- 站内搜索继续复用 5e/5r 来源过滤和同名来源去重规则.
+- 站内详情显示分类, 来源, 英文名, 页码和 hash.
+- 新增 `scripts/audit-site-search-behavior.mjs` 和 `npm run audit:site-search-behavior`, 验证站内索引加载, site tab, all tab 补充规则, 来源过滤和翻译键.
+
+已通过验证:
+
+- `npm run audit:site-search-behavior`
+- `npm run audit:search-index-behavior`
+- `npm run audit:search-source-behavior`
+- `npm run audit:search-filter-behavior`
+- `npm run audit:search-lazy-loading`
+- `npm run build`
 
 ### 阶段 7: 来源优先级和同名去重
 

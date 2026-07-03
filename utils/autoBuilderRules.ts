@@ -291,6 +291,7 @@ type AutoBuilderOrigin = {
   weaponProficiencies?: ProficiencyRecord[];
   armorProficiencies?: ProficiencyRecord[];
   feats?: ProficiencyRecord[];
+  additionalSpells?: unknown[];
   features: Array<{
     name: string;
     englishName?: string;
@@ -394,10 +395,26 @@ export type AutoBuilderFeatChoice = {
   featSpellBlockId?: string;
   featSpellAbility?: AbilityName;
   featSpellChoices?: AutoBuilderSkillChoiceSelection;
+  featSpellReplaceRemoveId?: string;
+  featSpellReplaceAddId?: string;
   featFightingStyleFeatureId?: string;
   featInvocations?: string[];
   featManeuvers?: string[];
   featMetamagics?: string[];
+};
+
+export type AutoBuilderFeatSpellReplacementOption = {
+  id: string;
+  name: string;
+  englishName?: string;
+  source?: string;
+};
+
+export type AutoBuilderFeatSpellReplacementState = {
+  profileId: string;
+  label: string;
+  removeOptions: AutoBuilderFeatSpellReplacementOption[];
+  addOptions: AutoBuilderFeatSpellReplacementOption[];
 };
 
 export type AutoBuilderClassFeatureChoice = {
@@ -413,6 +430,7 @@ export type AutoBuilderClassFeatureChoice = {
 export type AutoBuilderExistingFeatChoiceState = {
   feat: AutoBuilderFeat;
   state: { blocks: AutoBuilderFeatSpellBlockChoice[] };
+  replacement?: AutoBuilderFeatSpellReplacementState;
 };
 
 export type AutoBuilderRaceChoice = {
@@ -421,6 +439,7 @@ export type AutoBuilderRaceChoice = {
   skills?: string[];
   size?: string;
   featureChoices?: AutoBuilderOriginFeatureChoiceSelection;
+  originSpellAbility?: AbilityName;
   toolChoices?: AutoBuilderToolChoiceSelection;
   languageChoices?: AutoBuilderLanguageChoiceSelection;
   weaponChoices?: AutoBuilderWeaponChoiceSelection;
@@ -2058,9 +2077,80 @@ export const getFeatSpellChoiceState = (
   return blocks.length ? { blocks } : null;
 };
 
+export const getOriginSpellChoiceState = (
+  content: AutoBuilderContent,
+  origin: AutoBuilderOrigin | undefined,
+  ruleSystem: RuleSystem,
+  characterLevel = Number.POSITIVE_INFINITY,
+): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
+  if (origin?.key !== 'Hexblood' || origin.source !== 'VRGR') return null;
+  const blocks = (origin?.additionalSpells || [])
+    .map((entry, index): AutoBuilderFeatSpellBlockChoice | null => {
+      if (!entry || typeof entry !== 'object') return null;
+      const block = entry as Record<string, unknown>;
+      const id = `origin-${origin?.key || 'unknown'}-${origin?.source || 'unknown'}-spell-block-${index}`;
+      const label = String(block.name || block.ENG_name || `${origin?.name || 'Origin'} ${index + 1}`);
+      const parsed = collectFeatSpellChoices(block, content, ruleSystem, id, characterLevel);
+      if (!parsed.fixedSpells.length && !parsed.choices.length) return null;
+      return {
+        id,
+        label,
+        ability: normalizeFeatSpellAbility(block.ability),
+        abilityOptions: getFeatSpellAbilityOptionsFromBlock(block),
+        fixedSpells: parsed.fixedSpells,
+        choices: parsed.choices,
+      };
+    })
+    .filter((block): block is AutoBuilderFeatSpellBlockChoice => Boolean(block));
+  return blocks.length ? { blocks } : null;
+};
+
 const getFeatSpellProfileId = (feat: AutoBuilderFeat): string => (
   `auto-feat-${normalizeKey(feat.key)}-${feat.source}-spells`
 );
+
+const getRuneShaperSpellReplacementState = (
+  content: AutoBuilderContent,
+  feat: AutoBuilderFeat,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  characterLevel: number,
+): AutoBuilderFeatSpellReplacementState | undefined => {
+  if (feat.key !== 'Rune Shaper' || feat.source !== 'BGG') return undefined;
+  const profileId = getFeatSpellProfileId(feat);
+  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+  if (!existingProfile) return undefined;
+  const fullState = getFeatSpellChoiceState(content, feat, ruleSystem, characterLevel);
+  const block = fullState?.blocks[0];
+  const runeChoice = block?.choices[0];
+  if (!runeChoice?.options.length) return undefined;
+  const fixedSpellKeys = new Set((block.fixedSpells || []).map(spell => spell.englishName || spell.name));
+  const existingRuneSpells = existingProfile.spells
+    .filter(spell => !fixedSpellKeys.has(spell.englishName || spell.name))
+    .map(spell => ({
+      id: spell.id,
+      name: spell.name,
+      englishName: spell.englishName,
+      source: spell.source,
+    }));
+  if (!existingRuneSpells.length) return undefined;
+  const existingRuneKeys = new Set(existingRuneSpells.map(spell => spell.englishName || spell.name));
+  const addOptions = runeChoice.options
+    .filter(spell => !existingRuneKeys.has(spell.englishName || spell.name))
+    .map(spell => ({
+      id: spell.id,
+      name: spell.name,
+      englishName: spell.englishName,
+      source: spell.source,
+    }));
+  if (!addOptions.length) return undefined;
+  return {
+    profileId,
+    label: '替换已知符文',
+    removeOptions: existingRuneSpells,
+    addOptions,
+  };
+};
 
 const filterNewFeatSpellChoiceState = (
   current: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
@@ -2105,7 +2195,8 @@ export const getExistingFeatSpellLevelUpChoiceState = (
       getFeatSpellChoiceState(content, feat, ruleSystem, newCharacterLevel),
       getFeatSpellChoiceState(content, feat, ruleSystem, oldCharacterLevel),
     );
-    if (state) return { feat, state };
+    const replacement = getRuneShaperSpellReplacementState(content, feat, character, ruleSystem, newCharacterLevel);
+    if (state || replacement) return { feat, state: state || { blocks: [] }, replacement };
   }
   return null;
 };
@@ -3544,6 +3635,38 @@ const createFeatSpellOperations = (
   return [{ type: 'upsertSpellcastingProfile', profile }];
 };
 
+const getOriginSpellProfileId = (origin: AutoBuilderOrigin, kind: 'race' | 'background'): string => (
+  `auto-${kind}-${normalizeKey(origin.key)}-${origin.source}-spells`
+);
+
+const createOriginSpellOperations = (
+  content: AutoBuilderContent,
+  origin: AutoBuilderOrigin,
+  kind: 'race' | 'background',
+  ruleSystem: RuleSystem,
+  characterLevel: number,
+  ability?: AbilityName,
+): AdjustmentOperation[] => {
+  const state = getOriginSpellChoiceState(content, origin, ruleSystem, characterLevel);
+  if (!state) return [];
+  const fixedSpells = uniqueSpells(state.blocks.flatMap(block => block.fixedSpells));
+  if (!fixedSpells.length) return [];
+  const requiresAbility = state.blocks.some(block => block.abilityOptions.length > 0);
+  const resolvedAbility = ability || state.blocks.find(block => block.ability)?.ability;
+  if (requiresAbility && !resolvedAbility) return [];
+  const profile: SpellcastingProfile = {
+    id: getOriginSpellProfileId(origin, kind),
+    className: `${origin.name} 法术`,
+    ability: resolvedAbility || 'CHA',
+    preparationMode: 'knownSelection',
+    saveDCOverride: '',
+    attackBonusOverride: '',
+    slots: createEmptySpellSlots(),
+    spells: fixedSpells.map(spell => toCharacterSpell(spell, true)),
+  };
+  return [{ type: 'upsertSpellcastingProfile', profile }];
+};
+
 const createExistingFeatSpellChoiceOperations = (
   content: AutoBuilderContent,
   character: CharacterData,
@@ -3560,23 +3683,42 @@ const createExistingFeatSpellChoiceOperations = (
   const choice = choiceByFeatId.get(featId) || choiceByFeatId.get(state.feat.key);
   if (!choice) return [];
   const block = state.state.blocks.find(item => item.id === choice.featSpellBlockId) || (state.state.blocks.length === 1 ? state.state.blocks[0] : undefined);
-  if (!block) return [];
+  const profileId = getFeatSpellProfileId(state.feat);
+  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+  const replacementOperations: AdjustmentOperation[] = [];
+  if (state.replacement && choice.featSpellReplaceRemoveId && choice.featSpellReplaceAddId) {
+    const replacementSpell = content.spells.find(spell => spell.id === choice.featSpellReplaceAddId);
+    if (replacementSpell) {
+      replacementOperations.push({
+        type: 'removeSpell',
+        profileId: state.replacement.profileId,
+        spellId: choice.featSpellReplaceRemoveId,
+      });
+      replacementOperations.push({
+        type: 'addSpell',
+        profileId: state.replacement.profileId,
+        spell: toCharacterSpell(replacementSpell, true),
+      });
+    }
+  }
+  if (!block) return replacementOperations;
   const selectedSpellIds = new Set(Object.values(choice.featSpellChoices || {}).flat());
   const selectedSpells = uniqueSpells([
     ...block.fixedSpells,
     ...block.choices.flatMap(group => group.options.filter(spell => selectedSpellIds.has(spell.id))),
   ]);
-  if (!selectedSpells.length) return [];
-  const profileId = getFeatSpellProfileId(state.feat);
-  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+  if (!selectedSpells.length) return replacementOperations;
   const ability = choice.featSpellAbility || existingProfile?.ability || choice.featAbility || block.ability;
-  if (!ability && block.abilityOptions.length) return [];
+  if (!ability && block.abilityOptions.length) return replacementOperations;
   if (existingProfile) {
-    return selectedSpells.map(spell => ({
+    return [
+      ...replacementOperations,
+      ...selectedSpells.map(spell => ({
       type: 'addSpell',
       profileId,
       spell: toCharacterSpell(spell, true),
-    } satisfies AdjustmentOperation));
+      } satisfies AdjustmentOperation)),
+    ];
   }
   const profile: SpellcastingProfile = {
     id: profileId,
@@ -3588,7 +3730,7 @@ const createExistingFeatSpellChoiceOperations = (
     slots: createEmptySpellSlots(),
     spells: selectedSpells.map(spell => toCharacterSpell(spell, true)),
   };
-  return [{ type: 'upsertSpellcastingProfile', profile }];
+  return [...replacementOperations, { type: 'upsertSpellcastingProfile', profile }];
 };
 
 const getClassHitDie = (
@@ -4390,6 +4532,7 @@ const createOriginResourceOperations = (
 };
 
 const createOriginOperations = (
+  content: AutoBuilderContent,
   entity: AutoBuilderOrigin,
   kind: 'race' | 'background',
   ruleSystem: RuleSystem,
@@ -4397,6 +4540,7 @@ const createOriginOperations = (
   toolChoices?: AutoBuilderToolChoiceSelection,
   characterLevel = 1,
   featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
+  originSpellAbility?: AbilityName,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
@@ -4409,6 +4553,7 @@ const createOriginOperations = (
     ...createFixedProficiencyOperations(entity.languageProficiencies, 'language'),
     ...createFixedProficiencyOperations(entity.weaponProficiencies, 'weapon'),
     ...createFixedProficiencyOperations(entity.armorProficiencies, 'armor'),
+    ...createOriginSpellOperations(content, entity, kind, ruleSystem, characterLevel, originSpellAbility),
   ];
 
   const walkSpeed = getWalkSpeed(entity.speed);
@@ -5639,8 +5784,8 @@ export const buildLevelOneCharacter = (
       type: 'setSpellcasting',
       value: nextSpellcasting,
     },
-    ...createOriginOperations(options.race, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices),
-    ...(options.subrace ? createOriginOperations(options.subrace, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices) : []),
+    ...createOriginOperations(content, options.race, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices, options.raceChoices?.originSpellAbility),
+    ...(options.subrace ? createOriginOperations(content, options.subrace, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices, options.raceChoices?.originSpellAbility) : []),
     ...createRaceChoiceOperations(content, character, options.race, options.ruleSystem, options.raceChoices),
     ...createToolChoiceOperations(options.raceChoices?.toolChoices),
     ...createLanguageChoiceOperations(options.raceChoices?.languageChoices),
@@ -5649,7 +5794,7 @@ export const buildLevelOneCharacter = (
           ...createOriginProficiencyOperations(options.background, options.backgroundToolChoices),
           ...createAbilityOperations(options.background, options.backgroundAbilityChoice, false),
         ]
-      : createOriginOperations(options.background, 'background', options.ruleSystem, options.backgroundAbilityChoice, options.backgroundToolChoices)
+      : createOriginOperations(content, options.background, 'background', options.ruleSystem, options.backgroundAbilityChoice, options.backgroundToolChoices)
     ),
     ...createLanguageChoiceOperations(options.backgroundLanguageChoices),
     ...createFeatOperations(backgroundFeats, options.ruleSystem, 1),

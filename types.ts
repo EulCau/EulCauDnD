@@ -202,6 +202,12 @@ export type AdjustmentOperation =
 	      previousSpell?: Spell;
 	    }
 	  | {
+	      type: 'removeSpell';
+	      profileId: string;
+	      spellId: string;
+	      previousSpell?: Spell;
+	    }
+	  | {
 	      type: 'addItem';
 	      item: InventoryItem;
 	      previousItem?: InventoryItem;

@@ -13,6 +13,7 @@ import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
   buildLevelOneCharacter,
   buildLevelUpCharacter,
+  getOriginSpellChoiceState,
   getOriginWeaponChoiceOptions,
   getRaceFeatureChoiceOptions,
   getRaceResistanceOptions,
@@ -140,6 +141,7 @@ assert(vrgrDhampir, 'missing VRGR Dhampir fixture');
 assert(vampire, 'missing PSZ Vampire fixture');
 assert(rhwHexblood, 'missing RHW Hexblood fixture');
 assert(vrgrHexblood, 'missing VRGR Hexblood fixture');
+assert(vrgrHexblood.additionalSpells?.length, 'VRGR Hexblood should preserve Hex Magic additionalSpells data');
 assert(deepGnome, 'missing MPMM Deep Gnome fixture');
 assert(hadozee, 'missing AAG Hadozee fixture');
 assert(giff, 'missing AAG Giff fixture');
@@ -821,6 +823,53 @@ for (const [hexblood, source] of [
   assert(!getResource(removedHexblood, resourceId), \`removing auto-character should remove \${source} Hexblood Eerie Token resource\`);
 }
 
+const hexbloodSpellState = getOriginSpellChoiceState(content, vrgrHexblood, '5r', 1);
+assert(hexbloodSpellState?.blocks.length === 1, \`VRGR Hexblood should expose one Hex Magic spell block, got \${hexbloodSpellState?.blocks.length}\`);
+const hexbloodSpellBlock = hexbloodSpellState.blocks[0];
+assert(
+  ['INT', 'WIS', 'CHA'].every(ability => hexbloodSpellBlock.abilityOptions.includes(ability)),
+  \`VRGR Hexblood Hex Magic should allow INT/WIS/CHA, got \${hexbloodSpellBlock.abilityOptions.join(', ')}\`,
+);
+assert(
+  hexbloodSpellBlock.fixedSpells.some(spell => spell.name === '易容术')
+    && hexbloodSpellBlock.fixedSpells.some(spell => spell.name === '脆弱诅咒'),
+  \`VRGR Hexblood Hex Magic should include Disguise Self and Hex, got \${hexbloodSpellBlock.fixedSpells.map(spell => spell.name).join(', ')}\`,
+);
+const hexbloodWithoutAbility = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ruleSystem: '5r',
+  race: vrgrHexblood,
+  background,
+  skillChoices: ['Athletics', 'Perception'],
+  spellChoices: { cantrips: [], leveled: [] },
+  invocationChoices: { invocationIds: [] },
+});
+assert(
+  !hexbloodWithoutAbility.spellcastingProfiles.some(profile => profile.id === 'auto-race-Hexblood-VRGR-spells'),
+  'VRGR Hexblood should not add Hex Magic profile until a spellcasting ability is selected',
+);
+const hexbloodWithMagic = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ruleSystem: '5r',
+  race: vrgrHexblood,
+  raceChoices: { originSpellAbility: 'WIS' },
+  background,
+  skillChoices: ['Athletics', 'Perception'],
+  spellChoices: { cantrips: [], leveled: [] },
+  invocationChoices: { invocationIds: [] },
+});
+const hexbloodSpellProfile = hexbloodWithMagic.spellcastingProfiles.find(profile => profile.id === 'auto-race-Hexblood-VRGR-spells');
+assert(hexbloodSpellProfile?.ability === 'WIS', \`VRGR Hexblood Hex Magic should use selected WIS ability, got \${hexbloodSpellProfile?.ability}\`);
+assert(hexbloodSpellProfile?.preparationMode === 'knownSelection', 'VRGR Hexblood Hex Magic should create a known-selection racial spell profile');
+assert(
+  hexbloodSpellProfile?.spells.some(spell => spell.name === '易容术' && spell.prepared)
+    && hexbloodSpellProfile?.spells.some(spell => spell.name === '脆弱诅咒' && spell.prepared),
+  \`VRGR Hexblood Hex Magic profile should add prepared Disguise Self and Hex, got \${hexbloodSpellProfile?.spells.map(spell => spell.name).join(', ')}\`,
+);
+const removedHexbloodMagic = removeCharacterAdjustments(hexbloodWithMagic, 'auto-character-5r');
+assert(
+  !removedHexbloodMagic.spellcastingProfiles.some(profile => profile.id === 'auto-race-Hexblood-VRGR-spells'),
+  'removing auto-character should remove VRGR Hexblood Hex Magic spell profile',
+);
+
 const deepGnomeResourceId = 'auto-resource-race-Deep Gnome-MPMM-svirfneblin-camouflage';
 let deepGnomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -1213,6 +1262,7 @@ export default {
     'Dhampir Vampiric Bite adds source-specific resource and CON-based attack',
     'PSZ Vampire Blood Thirst adds fixed-damage race attack',
     'Hexblood Eerie Token adds source-specific long-rest resource',
+    'VRGR Hexblood Hex Magic adds reversible racial spell profile after ability selection',
     'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
     'Hadozee Dodge refreshes proficiency-based uses',
     'Giff Astral Spark refreshes proficiency-based uses',

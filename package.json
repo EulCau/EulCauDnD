@@ -9,6 +9,7 @@
 	    "extract:5etools": "node scripts/extract-5etools-character-data.mjs",
 	    "extract:magic-items": "node scripts/extract-magic-items.mjs",
 	    "extract:bestiary": "node scripts/extract-bestiary-metadata.mjs",
+    "extract:search-index": "node scripts/extract-5etools-search-index.mjs",
     "audit:character-data": "node scripts/audit-character-data.mjs",
     "audit:spell-behavior": "node scripts/audit-spell-behavior.mjs",
     "audit:spell-levelup-behavior": "node scripts/audit-spell-levelup-behavior.mjs",
@@ -18,6 +19,9 @@
     "audit:feat-behavior": "node scripts/audit-feat-behavior.mjs",
     "audit:source-priority": "node scripts/audit-source-priority.mjs",
     "audit:search-source-behavior": "node scripts/audit-search-source-behavior.mjs",
+    "audit:search-filter-behavior": "node scripts/audit-search-filter-behavior.mjs",
+    "audit:search-index-behavior": "node scripts/audit-search-index-behavior.mjs",
+    "audit:site-search-behavior": "node scripts/audit-site-search-behavior.mjs",
     "audit:search-lazy-loading": "node scripts/audit-search-lazy-loading.mjs",
     "preview": "vite preview"
   },

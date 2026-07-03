@@ -181,6 +181,14 @@ const withPreviousValue = (character: CharacterData, operation: AdjustmentOperat
 	        previousSpell: previousSpell ? cloneSpell(previousSpell) : undefined,
 	      };
 	    }
+	    case 'removeSpell': {
+	      const profile = character.spellcastingProfiles.find(item => item.id === operation.profileId);
+	      const previousSpell = profile?.spells.find(spell => spell.id === operation.spellId);
+	      return {
+	        ...operation,
+	        previousSpell: previousSpell ? cloneSpell(previousSpell) : undefined,
+	      };
+	    }
 	    case 'addItem': {
 	      const previousItem = character.inventory.find(item => item.id === operation.item.id);
 	      return {
@@ -275,6 +283,18 @@ const applyOperation = (character: MutableCharacter, operation: AdjustmentOperat
                   ...profile.spells.filter(spell => spell.id !== operation.spell.id),
                   operation.spell,
                 ],
+              }
+            : profile
+        )),
+      };
+    case 'removeSpell':
+      return {
+        ...character,
+        spellcastingProfiles: character.spellcastingProfiles.map(profile => (
+          profile.id === operation.profileId
+            ? {
+                ...profile,
+                spells: profile.spells.filter(spell => spell.id !== operation.spellId),
               }
             : profile
         )),
@@ -413,6 +433,22 @@ const removeOperation = (character: MutableCharacter, operation: AdjustmentOpera
                       cloneSpell(operation.previousSpell),
                     ]
                   : profile.spells.filter(spell => spell.id !== operation.spell.id),
+              }
+            : profile
+        )),
+      };
+    case 'removeSpell':
+      if (!operation.previousSpell) return character;
+      return {
+        ...character,
+        spellcastingProfiles: character.spellcastingProfiles.map(profile => (
+          profile.id === operation.profileId
+            ? {
+                ...profile,
+                spells: [
+                  ...profile.spells.filter(spell => spell.id !== operation.spellId),
+                  cloneSpell(operation.previousSpell),
+                ],
               }
             : profile
         )),

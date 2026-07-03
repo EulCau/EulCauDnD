@@ -318,6 +318,7 @@ const normalizeEntityForAutoBuilder = entity => ({
   weaponProficiencies: entity.weaponProficiencies,
   armorProficiencies: entity.armorProficiencies,
   feats: entity.feats,
+  additionalSpells: entity.additionalSpells,
   features: normalizeFeatureEntries(entity.entries),
 });
 
@@ -612,6 +613,7 @@ const coreData = {
       'speed',
       'ability',
       'traitTags',
+      'additionalSpells',
       'languageProficiencies',
       'entries',
     ])),
@@ -623,6 +625,7 @@ const coreData = {
       'raceSource',
       'edition',
       'ability',
+      'additionalSpells',
       'entries',
     ])),
   },
@@ -636,6 +639,7 @@ const coreData = {
     'skillProficiencies',
     'toolProficiencies',
     'languageProficiencies',
+    'additionalSpells',
     'startingEquipment',
     'entries',
   ])),
