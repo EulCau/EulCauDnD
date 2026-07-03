@@ -119,6 +119,11 @@
 - 5e 吟游诗人 Magical Secrets 有独立选择入口
 - `SpellcastingProfile.preparationMode` 已能区分 `preparedAll`, `knownSelection`, `manual`
 - `Spell.prepared` 已能表示是否自动准备
+- 种族 `additionalSpells` 已从 Hexblood 单例扩展为通用 origin spell 框架:
+  - 支持多个起源法表分支, 如 XPHB Elf 的 Drow/High Elf/Wood Elf, XPHB Tiefling 的 Abyssal/Chthonic/Infernal
+  - 支持起源法术施法属性选择
+  - 支持分支内 `choose` 法术, 如 XPHB High Elf 选择 1 个 Wizard cantrip
+  - 只会应用用户选择的分支, 不会把同一种族所有同级分支混入同一个法表
 - `audit-spell-behavior` 已覆盖 5e/5r prepared-all 与 known-selection 的关键分类:
   - prepared-all: PHB/XPHB Cleric, PHB/XPHB Druid, PHB/XPHB Paladin, XPHB Ranger
   - known-selection: PHB/XPHB Bard, PHB/XPHB Sorcerer, PHB/XPHB Warlock, PHB Ranger
@@ -126,12 +131,14 @@
 - `audit-spell-behavior` 已验证 Warlock pact slots 可正确推导可选法术环阶。
 - `audit-spell-behavior` 已验证职业和子职额外准备法术会进入法表并标记 `prepared = true`。
 - `audit:feat-spell-behavior` 已通过真实 1 级建卡路径验证专长赠法术会进入专长法术 profile 并标记 `prepared = true`。
+- `audit:origin-structured-behavior` 已通过真实 1 级建卡路径验证 VRGR Hexblood, XPHB Elf, XPHB Tiefling 的 origin spell profile, 包括分支选择, 施法属性选择, `choose` 法术选择, 自动 prepared 标记和撤销。
 
 需要继续验证和补齐的点:
 
 - prepared-all 职业的 1 级建卡与多次升级后的法表已有脚本级不变量覆盖, 但仍需要 UI 实测。
 - 法师升级学法术的 UI 已有选择机制, 但需要继续确认固定环阶组 UI 与 spellbook 行为是否足够明确。
 - 完整 UI 流程仍需要继续测试 prepared 标记。
+- origin/race 法术框架已覆盖当前数据中最常见的 fixed spell, branch, choose spell, ability choose 形态。后续若遇到更复杂的 `additionalSpells` 语法, 应优先扩展 `collectFeatSpellChoices`, 不要在 UI 或建卡流程里写来源特判。
 
 ### 4. 装备与攻击
 

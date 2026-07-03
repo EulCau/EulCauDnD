@@ -184,12 +184,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         getOriginSpellChoiceState(content, selectedSubrace, ruleSystem, 1),
       ].filter((state): state is NonNullable<ReturnType<typeof getOriginSpellChoiceState>> => Boolean(state))
     : [];
-  const raceOriginSpellAbilityOptions = Array.from(new Set(
-    raceOriginSpellStates.flatMap(state => state.blocks.flatMap(block => block.abilityOptions)),
-  ));
-  const raceOriginSpellNames = Array.from(new Set(
-    raceOriginSpellStates.flatMap(state => state.blocks.flatMap(block => block.fixedSpells.map(spell => spell.name))),
-  ));
+  const raceOriginSpellChoiceState = raceOriginSpellStates.length
+    ? { blocks: raceOriginSpellStates.flatMap(state => state.blocks) }
+    : null;
   const backgroundAbilityOptions = isOriginDecoupled ? ALL_ABILITIES : getBackgroundAbilityOptions(selectedBackground);
   const backgroundFeats = content && !isOriginDecoupled ? getBackgroundFeats(content, selectedBackground) : [];
   const originFeatChoiceState = content && isOriginDecoupled ? getOriginFeatChoiceOptions(content, ruleSystem, data) : null;
@@ -802,6 +799,24 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     );
   };
 
+  const getSelectedOriginSpellBlock = (
+    state: ReturnType<typeof getOriginSpellChoiceState>,
+    choice: AutoBuilderRaceChoice,
+  ) => state?.blocks.find(block => block.id === choice.originSpellBlockId) || (state?.blocks.length === 1 ? state.blocks[0] : undefined);
+
+  const isOriginSpellChoiceComplete = (
+    state: ReturnType<typeof getOriginSpellChoiceState>,
+    choice: AutoBuilderRaceChoice,
+  ): boolean => {
+    if (!state) return true;
+    const block = getSelectedOriginSpellBlock(state, choice);
+    if (!block) return false;
+    return (
+      (!block.abilityOptions.length || Boolean(choice.originSpellAbility))
+      && areChoiceGroupsComplete(block.choices, choice.originSpellChoices)
+    );
+  };
+
   const renderFeatSpellChoiceGroup = (
     state: ReturnType<typeof getFeatSpellChoiceState>,
     choice: AutoBuilderFeatChoice,
@@ -873,6 +888,94 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                           featSpellChoices: {
                             ...(previous.featSpellChoices || {}),
                             [group.id]: toggleLimitedChoice(spell.id, previous.featSpellChoices?.[group.id] || [], group.count),
+                          },
+                        }))}
+                        disabled={!selected.includes(spell.id) && selected.length >= group.count}
+                        className="accent-dnd-red"
+                      />
+                      {spell.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderOriginSpellChoiceGroup = (
+    state: ReturnType<typeof getOriginSpellChoiceState>,
+    choice: AutoBuilderRaceChoice,
+    setChoice: (updater: (previous: AutoBuilderRaceChoice) => AutoBuilderRaceChoice) => void,
+  ) => {
+    if (!state) return null;
+    const block = getSelectedOriginSpellBlock(state, choice);
+    return (
+      <div className="md:col-span-2 border border-gray-200 rounded p-3">
+        <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.originSpells')}</h3>
+        <div className="grid grid-cols-1 gap-3">
+          {state.blocks.length > 1 && (
+            <label className="flex flex-col gap-1 text-xs max-w-xs">
+              <span className="text-[10px] text-gray-500 uppercase font-bold">{t('auto.spellList')}</span>
+              <select
+                value={choice.originSpellBlockId || ''}
+                onChange={event => setChoice(previous => ({
+                  ...previous,
+                  originSpellBlockId: event.target.value,
+                  originSpellAbility: undefined,
+                  originSpellChoices: {},
+                }))}
+                className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+              >
+                <option value="">{t('auto.chooseSpellList')}</option>
+                {state.blocks.map(option => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {block?.abilityOptions.length ? (
+            <label className="flex flex-col gap-1 text-xs max-w-xs">
+              <span className="text-[10px] text-gray-500 uppercase font-bold">{t('spells.ability')}</span>
+              <select
+                value={choice.originSpellAbility || ''}
+                onChange={event => setChoice(previous => ({
+                  ...previous,
+                  originSpellAbility: event.target.value as AbilityName,
+                }))}
+                className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+              >
+                <option value="">{t('auto.chooseAbility')}</option>
+                {block.abilityOptions.map(renderAbilityOption)}
+              </select>
+            </label>
+          ) : null}
+          {block?.fixedSpells.length ? (
+            <div className="text-xs text-gray-700">
+              <span className="font-bold">{t('auto.fixedSpells')}: </span>
+              {block.fixedSpells.map(spell => spell.name).join(', ')}
+            </div>
+          ) : null}
+          {block?.choices.map(group => (
+            <div key={group.id}>
+              <div className="text-xs font-bold text-gray-700 mb-1">
+                {t('auto.chooseSpells')} {(choice.originSpellChoices?.[group.id] || []).length}/{group.count}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {group.options.map(spell => {
+                  const selected = choice.originSpellChoices?.[group.id] || [];
+                  return (
+                    <label key={`${group.id}-${spell.id}`} className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(spell.id)}
+                        onChange={() => setChoice(previous => ({
+                          ...previous,
+                          originSpellChoices: {
+                            ...(previous.originSpellChoices || {}),
+                            [group.id]: toggleLimitedChoice(spell.id, previous.originSpellChoices?.[group.id] || [], group.count),
                           },
                         }))}
                         disabled={!selected.includes(spell.id) && selected.length >= group.count}
@@ -1020,7 +1123,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	        && areChoiceGroupsComplete(raceFeatSavingThrowChoiceOptions, raceChoices.featSavingThrowChoices)
 	        && isFeatSpellChoiceComplete(raceFeatSpellChoiceState, raceChoices)
       ))
-      && (raceOriginSpellAbilityOptions.length === 0 || Boolean(raceChoices.originSpellAbility))
+      && isOriginSpellChoiceComplete(raceOriginSpellChoiceState, raceChoices)
       && raceToolChoiceOptions.every(choice => (raceChoices.toolChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
       && raceWeaponChoiceOptions.every(choice => (raceChoices.weaponChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
       && raceLanguageChoiceOptions.every(choice => (raceChoices.languageChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
@@ -1153,7 +1256,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         ruleSystem,
         race: selectedRace,
         subrace: selectedSubrace,
-        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceFeatureChoiceOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length || raceOriginSpellAbilityOptions.length) ? raceChoices : undefined,
+        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceFeatureChoiceOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length || raceOriginSpellChoiceState) ? raceChoices : undefined,
         background: selectedBackground,
         subclass: needsSubclassChoice ? selectedSubclass : undefined,
         decoupleOriginFromBackground: isOriginDecoupled,
@@ -1302,7 +1405,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceFeatureChoiceOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceOriginSpellAbilityOptions.length > 0) && (
+          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceFeatureChoiceOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceOriginSpellChoiceState) && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
               <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.raceChoices')}</h3>
               <div className="grid grid-cols-1 gap-3">
@@ -1440,23 +1543,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                     </select>
                   </label>
                 )}
-                {raceOriginSpellAbilityOptions.length > 0 && (
-                  <label className="flex flex-col gap-1 text-xs max-w-xs">
-                    <span className="text-[10px] text-gray-500 uppercase font-bold">{t('auto.originSpellAbility')}</span>
-                    <select
-                      value={raceChoices.originSpellAbility || ''}
-                      onChange={event => setRaceChoices(prev => ({ ...prev, originSpellAbility: event.target.value as AbilityName }))}
-                      className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
-                    >
-                      <option value="">{t('auto.chooseAbility')}</option>
-                      {raceOriginSpellAbilityOptions.map(renderAbilityOption)}
-                    </select>
-                    {raceOriginSpellNames.length ? (
-                      <span className="text-[10px] text-gray-500">
-                        {raceOriginSpellNames.join(', ')}
-                      </span>
-                    ) : null}
-                  </label>
+                {raceOriginSpellChoiceState && renderOriginSpellChoiceGroup(
+                  raceOriginSpellChoiceState,
+                  raceChoices,
+                  updater => setRaceChoices(prev => updater(prev)),
                 )}
                 {raceFeatChoiceState && renderSkillChoiceGroup(
                   t('auto.featSkills'),

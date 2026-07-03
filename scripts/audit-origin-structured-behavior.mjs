@@ -41,6 +41,7 @@ const metallicDragonborn = content.races.find(item => item.key === 'Dragonborn (
 const eladrin = content.races.find(item => item.key === 'Eladrin' && item.source === 'MPMM');
 const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'PHB');
 const xphbDwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'XPHB');
+const xphbElf = content.races.find(item => item.key === 'Elf' && item.source === 'XPHB');
 const xphbOrc = content.races.find(item => item.key === 'Orc' && item.source === 'XPHB');
 const mpmmOrc = content.races.find(item => item.key === 'Orc' && item.source === 'MPMM');
 const halfOrc = content.races.find(item => item.key === 'Half-Orc' && item.source === 'PHB');
@@ -94,6 +95,7 @@ const vedalken = content.races.find(item => item.key === 'Vedalken' && item.sour
 const verdan = content.races.find(item => item.key === 'Verdan' && item.source === 'AI');
 const xphbHuman = content.races.find(item => item.key === 'Human' && item.source === 'XPHB');
 const mpmmSatyr = content.races.find(item => item.key === 'Satyr' && item.source === 'MPMM');
+const xphbTiefling = content.races.find(item => item.key === 'Tiefling' && item.source === 'XPHB');
 const tortle = content.races.find(item => item.key === 'Tortle' && item.source === 'MPMM');
 const warforged = content.races.find(item => item.key === 'Warforged' && item.source === 'ERLW');
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
@@ -113,6 +115,7 @@ assert(metallicDragonborn, 'missing FTD Metallic Dragonborn fixture');
 assert(eladrin, 'missing MPMM Eladrin fixture');
 assert(dwarf, 'missing PHB Dwarf fixture');
 assert(xphbDwarf, 'missing XPHB Dwarf fixture');
+assert(xphbElf, 'missing XPHB Elf fixture');
 assert(xphbOrc, 'missing XPHB Orc fixture');
 assert(mpmmOrc, 'missing MPMM Orc fixture');
 assert(halfOrc, 'missing PHB Half-Orc fixture');
@@ -167,6 +170,7 @@ assert(vedalken, 'missing GGR Vedalken fixture');
 assert(verdan, 'missing AI Verdan fixture');
 assert(xphbHuman, 'missing XPHB Human fixture');
 assert(mpmmSatyr, 'missing MPMM Satyr fixture');
+assert(xphbTiefling, 'missing XPHB Tiefling fixture');
 assert(tortle, 'missing MPMM Tortle fixture');
 assert(warforged, 'missing ERLW Warforged fixture');
 assert(battleaxe, 'missing PHB Battleaxe fixture');
@@ -870,6 +874,75 @@ assert(
   'removing auto-character should remove VRGR Hexblood Hex Magic spell profile',
 );
 
+const xphbElfSpellState = getOriginSpellChoiceState(content, xphbElf, '5r', 1);
+assert(xphbElfSpellState?.blocks.length === 3, \`XPHB Elf should expose three lineage spell blocks, got \${xphbElfSpellState?.blocks.length}\`);
+const highElfSpellBlock = xphbElfSpellState.blocks.find(block => block.label === '高等精灵' || block.label === 'High Elf');
+assert(highElfSpellBlock, 'XPHB Elf should expose High Elf spell block');
+assert(highElfSpellBlock.choices.length === 1, \`XPHB High Elf should require one wizard cantrip choice, got \${highElfSpellBlock.choices.length}\`);
+assert(highElfSpellBlock.choices[0].count === 1, \`XPHB High Elf cantrip choice should choose one spell, got \${highElfSpellBlock.choices[0].count}\`);
+assert(highElfSpellBlock.choices[0].options.some(spell => spell.name === '法师之手'), 'XPHB High Elf wizard cantrip choices should include Mage Hand');
+const highElfCantrip = highElfSpellBlock.choices[0].options.find(spell => spell.name === '法师之手') || highElfSpellBlock.choices[0].options[0];
+const highElfWithoutChoice = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ruleSystem: '5r',
+  race: xphbElf,
+  raceChoices: {
+    originSpellBlockId: highElfSpellBlock.id,
+    originSpellAbility: 'INT',
+  },
+  background,
+  skillChoices: ['Athletics', 'Perception'],
+  spellChoices: { cantrips: [], leveled: [] },
+  invocationChoices: { invocationIds: [] },
+});
+assert(
+  !highElfWithoutChoice.spellcastingProfiles.some(profile => profile.id === 'auto-race-Elf-XPHB-spells'),
+  'XPHB High Elf should not add origin spell profile until its cantrip is selected',
+);
+const highElfWithCantrip = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ruleSystem: '5r',
+  race: xphbElf,
+  raceChoices: {
+    originSpellBlockId: highElfSpellBlock.id,
+    originSpellAbility: 'INT',
+    originSpellChoices: { [highElfSpellBlock.choices[0].id]: [highElfCantrip.id] },
+  },
+  background,
+  skillChoices: ['Athletics', 'Perception'],
+  spellChoices: { cantrips: [], leveled: [] },
+  invocationChoices: { invocationIds: [] },
+});
+const highElfSpellProfile = highElfWithCantrip.spellcastingProfiles.find(profile => profile.id === 'auto-race-Elf-XPHB-spells');
+assert(highElfSpellProfile?.ability === 'INT', \`XPHB High Elf origin spell profile should use selected INT ability, got \${highElfSpellProfile?.ability}\`);
+assert(
+  highElfSpellProfile?.spells.length === 1 && highElfSpellProfile.spells.some(spell => spell.id === highElfCantrip.id && spell.prepared),
+  \`XPHB High Elf origin spell profile should add only selected cantrip, got \${highElfSpellProfile?.spells.map(spell => spell.name).join(', ')}\`,
+);
+
+const xphbTieflingSpellState = getOriginSpellChoiceState(content, xphbTiefling, '5r', 1);
+assert(xphbTieflingSpellState?.blocks.length === 3, \`XPHB Tiefling should expose three legacy spell blocks, got \${xphbTieflingSpellState?.blocks.length}\`);
+const infernalTieflingBlock = xphbTieflingSpellState.blocks.find(block => block.label === '炼狱语' || block.label === 'Infernal');
+assert(infernalTieflingBlock, 'XPHB Tiefling should expose Infernal spell block');
+const infernalTiefling = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ruleSystem: '5r',
+  race: xphbTiefling,
+  raceChoices: {
+    originSpellBlockId: infernalTieflingBlock.id,
+    originSpellAbility: 'CHA',
+  },
+  background,
+  skillChoices: ['Athletics', 'Perception'],
+  spellChoices: { cantrips: [], leveled: [] },
+  invocationChoices: { invocationIds: [] },
+});
+const infernalTieflingProfile = infernalTiefling.spellcastingProfiles.find(profile => profile.id === 'auto-race-Tiefling-XPHB-spells');
+assert(infernalTieflingProfile?.ability === 'CHA', \`XPHB Tiefling origin spell profile should use selected CHA ability, got \${infernalTieflingProfile?.ability}\`);
+assert(
+  infernalTieflingProfile?.spells.some(spell => spell.name === '奇术')
+    && infernalTieflingProfile?.spells.some(spell => spell.name === '火焰箭')
+    && !infernalTieflingProfile?.spells.some(spell => spell.name === '毒气喷涌' || spell.name === '颤栗之触'),
+  \`XPHB Infernal Tiefling should add only Infernal level-one spells, got \${infernalTieflingProfile?.spells.map(spell => spell.name).join(', ')}\`,
+);
+
 const deepGnomeResourceId = 'auto-resource-race-Deep Gnome-MPMM-svirfneblin-camouflage';
 let deepGnomeCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -1234,7 +1307,7 @@ const removedVerdanLevelFive = removeCharacterAdjustments(verdanCharacter, 'auto
 assert(removedVerdanLevelFive.bodyType === '小型', 'removing level 5 adjustment should restore AI Verdan Small size');
 
 export default {
-  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, erlwBugbear.name, mpmmBugbear.name, vgmBugbear.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, mpmmTabaxi.name, vgmTabaxi.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, mpmmSatyr.name, tortle.name, warforged.name],
+  races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbElf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, erlwBugbear.name, mpmmBugbear.name, vgmBugbear.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, mpmmTabaxi.name, vgmTabaxi.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, mpmmSatyr.name, xphbTiefling.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
     'fixed race resistances add reversible structured resistances',
@@ -1263,6 +1336,8 @@ export default {
     'PSZ Vampire Blood Thirst adds fixed-damage race attack',
     'Hexblood Eerie Token adds source-specific long-rest resource',
     'VRGR Hexblood Hex Magic adds reversible racial spell profile after ability selection',
+    'XPHB Elf origin spells support branch, ability, and cantrip choices',
+    'XPHB Tiefling origin spells apply only the selected legacy branch',
     'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
     'Hadozee Dodge refreshes proficiency-based uses',
     'Giff Astral Spark refreshes proficiency-based uses',
