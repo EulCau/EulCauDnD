@@ -11,6 +11,7 @@ import { SpellList } from './components/SpellList';
 import { BackstoryGenerator } from './components/BackstoryGenerator';
 import { AuthScreen } from './components/AuthScreen';
 import { AutoCharacterBuilder } from './components/AutoCharacterBuilder';
+import { FloatingDiceRoller } from './components/FloatingDiceRoller';
 import SearchPanel from './components/SearchPanel';
 import { CharacterData, INITIAL_CHARACTER, AbilityName } from './types';
 import { calculatePassivePerception, calculateProficiencyBonus, getTotalLevel } from './utils/dndCalculations';
@@ -378,6 +379,7 @@ export default function App() {
       <footer className="mt-12 text-center text-gray-400 text-xs pb-4">
         <p>&copy; {new Date().getFullYear()} {t('footer.text')}</p>
       </footer>
+      <FloatingDiceRoller />
     </div>
   );
 }
