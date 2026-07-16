@@ -13,6 +13,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { AutoCharacterBuilder } from './components/AutoCharacterBuilder';
 import { FloatingDiceRoller } from './components/FloatingDiceRoller';
 import SearchPanel from './components/SearchPanel';
+import { ThemeToggle } from './components/ThemeToggle';
 import { CharacterData, INITIAL_CHARACTER, AbilityName } from './types';
 import { calculatePassivePerception, calculateProficiencyBonus, getTotalLevel } from './utils/dndCalculations';
 import { ABILITIES } from './constants';
@@ -27,6 +28,7 @@ import { refreshAutomaticArmorClass, refreshAutomaticStyleAttacks, refreshCharac
 export default function App() {
   const [character, setCharacter] = useState<CharacterData>(INITIAL_CHARACTER);
   const [isTouchMode, setIsTouchMode] = useState(() => localStorage.getItem('dnd_touch_mode') === 'true');
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('dnd_theme') === 'dark');
   const [isAutoBuilderOpen, setIsAutoBuilderOpen] = useState(false);
   const [autoBuilderContent, setAutoBuilderContent] = useState<AutoBuilderContent | null>(null);
   const [magicItems, setMagicItems] = useState<MagicItemData[]>([]);
@@ -76,6 +78,12 @@ export default function App() {
 	  }, [autoBuilderContent]);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
+    localStorage.setItem('dnd_theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   useEffect(() => {
     document.body.classList.toggle('touch-mode', isTouchMode);
@@ -228,7 +236,12 @@ export default function App() {
   };
 
   if (!user) {
-      return <AuthScreen />;
+      return (
+        <>
+          <ThemeToggle isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(current => !current)} />
+          <AuthScreen />
+        </>
+      );
   }
 
   const totalLevel = getTotalLevel(character.classes);
@@ -240,7 +253,9 @@ export default function App() {
   );
 
   return (
-    <div className="container mx-auto max-w-7xl p-4 bg-white">
+    <>
+      <ThemeToggle isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(current => !current)} />
+      <div className="container mx-auto max-w-7xl p-4 bg-white">
       
       {/* HEADER */}
       <Header 
@@ -380,6 +395,7 @@ export default function App() {
         <p>&copy; {new Date().getFullYear()} {t('footer.text')}</p>
       </footer>
       <FloatingDiceRoller />
-    </div>
+      </div>
+    </>
   );
 }
