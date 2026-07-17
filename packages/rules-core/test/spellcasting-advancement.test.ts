@@ -80,8 +80,8 @@ test('builds fixed-level Warlock spell groups', async () => {
   const result = createRuleSpellcastingAdvancementState(
     context(catalog, '5e'),
     findClass(catalog, 'Warlock', 'PHB'),
-    0,
-    1,
+    10,
+    11,
   );
   assert.equal(result.ok, true);
   if (!result.ok || !result.value) return;

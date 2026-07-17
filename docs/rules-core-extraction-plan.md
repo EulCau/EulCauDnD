@@ -1236,14 +1236,14 @@ R7 拆分为以下可独立回归的提交边界:
 
 #### R7.1 法术池和 progression choice state
 
-- 状态: 实现完成, 待补跑共享包运行时测试.
+- 状态: 已完成.
 - 共享职业/子职法术池、授权来源优先级、同名版本选择和最大可用环阶.
 - 共享 preparedAll、knownSelection、spellbook、戏法、累计目标和固定环阶 choice groups.
 - 先迁移 EulCauDnD 查询 façade, 保留 profile 写入逻辑不变.
 - `spellcasting-advancement` 已实现授权职业/子职校验、法术来源优先级、扩展法术、最大环阶、施法模式、累计 deficit 和固定环阶组.
 - EulCauDnD 的 `getClassSpellOptions`, `getSpellChoiceState`, `getSpellOptionsForClassLevel` 和 `getMaxSpellLevel` 已消费共享入口; XPHB Bard 10 级扩展池按计划暂留到 R7.4.
 - 新增 6 项表驱动测试并通过 TypeScript 严格编译. `audit:spell-behavior`, `audit:spell-levelup-behavior` 和生产构建通过.
-- 当前沙箱禁止 `tsx` 创建 `/tmp/tsx-1000/*.pipe`, 沙箱外运行又受执行额度限制, 因此共享包 86 项运行时测试需在可创建 IPC socket 的环境补跑后才能将本节标记为已完成.
+- 共享包 86 项运行时测试已在允许 `tsx` 创建 IPC socket 的环境通过. Warlock 固定环阶夹具已修正为首次取得 6 环秘奥秘法的 10 -> 11 级边界, 避免在不存在固定环阶选择的 1 级产生错误断言.
 
 提交:
 
