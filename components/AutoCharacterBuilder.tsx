@@ -87,11 +87,31 @@ const collectToolChoices = (choices?: AutoBuilderToolChoiceSelection): string[] 
   Object.values(choices || {}).flat().map(tool => `tool:${tool}`)
 );
 
-interface AutoCharacterBuilderProps {
+export type AutoCharacterBuilderMode = 'auto' | 'level-one' | 'level-up';
+export type AutoCharacterBuilderLevelOneSelection = Parameters<typeof buildLevelOneCharacter>[3];
+export type AutoCharacterBuilderLevelUpSelection = Parameters<typeof buildLevelUpCharacter>[3];
+
+export type AutoCharacterBuilderSubmission = {
+  mode: 'level-one';
+  character: CharacterData;
+  classTarget: { key: string; source: string };
+  selection: AutoCharacterBuilderLevelOneSelection;
+} | {
+  mode: 'level-up';
+  character: CharacterData;
+  classTarget: { key: string; source: string; classId?: string };
+  selection: AutoCharacterBuilderLevelUpSelection;
+};
+
+export interface AutoCharacterBuilderProps {
   isOpen: boolean;
   data: CharacterData;
   onClose: () => void;
-  onApply: (character: CharacterData) => void;
+  onApply?: (character: CharacterData) => void;
+  onSubmit?: (submission: AutoCharacterBuilderSubmission) => void | Promise<void>;
+  mode?: AutoCharacterBuilderMode;
+  initialContent?: AutoBuilderContent;
+  loadContent?: () => Promise<AutoBuilderContent>;
 }
 
 export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
@@ -99,6 +119,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   data,
   onClose,
   onApply,
+  onSubmit,
+  mode = 'auto',
+  initialContent,
+  loadContent = loadAutoBuilderContent,
 }) => {
   const { t } = useLanguage();
   const [ruleSystem, setRuleSystem] = useState<RuleSystem>(data.automation.ruleSystem);
@@ -106,8 +130,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const [subraceKey, setSubraceKey] = useState('');
   const [backgroundKey, setBackgroundKey] = useState('');
   const [className, setClassName] = useState(data.classes[0]?.name || 'Fighter');
-  const [content, setContent] = useState<AutoBuilderContent | null>(null);
+  const [content, setContent] = useState<AutoBuilderContent | null>(initialContent || null);
   const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [skillChoices, setSkillChoices] = useState<string[]>([]);
   const [spellChoices, setSpellChoices] = useState<AutoBuilderSpellChoice>({ cantrips: [], leveled: [] });
   const [invocationChoices, setInvocationChoices] = useState<AutoBuilderInvocationChoice>({ invocationIds: [] });
@@ -128,14 +154,18 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const [magicalSecretReplaceAddId, setMagicalSecretReplaceAddId] = useState<string | null>(null);
   const [existingFeatChoices, setExistingFeatChoices] = useState<Record<string, AutoBuilderFeatChoice>>({});
   const [existingOriginSpellChoices, setExistingOriginSpellChoices] = useState<Record<string, AutoBuilderRaceChoice>>({});
-  const isLevelUpMode = data.automation.active;
+  const isLevelUpMode = mode === 'level-up' || (mode === 'auto' && data.automation.active);
 
   useEffect(() => {
     if (!isOpen || content) return;
-    loadAutoBuilderContent()
+    loadContent()
       .then(setContent)
       .catch(error => setLoadError(error instanceof Error ? error.message : String(error)));
-  }, [content, isOpen]);
+  }, [content, isOpen, loadContent]);
+
+  useEffect(() => {
+    if (initialContent) setContent(initialContent);
+  }, [initialContent]);
 
   const classOptions = useMemo(() => (
     content ? getAutoBuilderClasses(content, ruleSystem) : []
@@ -1258,8 +1288,10 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     );
   const isSubclassSelectionComplete = !needsSubclassChoice || Boolean(selectedSubclass);
 
-  const applyBuild = () => {
+  const applyBuild = async () => {
     if (!content || !selectedClass) return;
+    setSubmitError('');
+    setIsSubmitting(true);
     const validAbilityScoreImprovementChoice: AutoBuilderAbilityScoreImprovementChoice = {
       ...abilityScoreImprovementChoice,
       featInvocations: validAbilityScoreImprovementFeatInvocations,
@@ -1274,11 +1306,12 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       maneuvers: validManeuverChoices,
     };
 
+    try {
 	    if (isLevelUpMode) {
 	      const spellReplace = (canReplaceSpell && spellReplaceRemoveId && spellReplaceAddId)
 	        ? { removeId: spellReplaceRemoveId, addId: spellReplaceAddId }
 	        : undefined;
-		      onApply(buildLevelUpCharacter(data, content, selectedClass, {
+        const selection: AutoCharacterBuilderLevelUpSelection = {
 		        ruleSystem,
 		        spellChoices,
 		        invocationChoices: validInvocationChoicePayload,
@@ -1293,14 +1326,26 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 		        subclass: needsSubclassChoice ? selectedSubclass : undefined,
 		        replaceSpell: spellReplace,
 		        magicalSecretChoices: isMagicalSecretLevel ? magicalSecretChoices : undefined,
-		      }));
-      onClose();
-      return;
-    }
+        };
+        const character = buildLevelUpCharacter(data, content, selectedClass, selection);
+        await onSubmit?.({
+          mode: 'level-up',
+          character,
+          classTarget: {
+            key: selectedClass.key,
+            source: selectedClass.source,
+            ...(existingClass === undefined ? {} : { classId: existingClass.id }),
+          },
+          selection,
+        });
+        onApply?.(character);
+        onClose();
+        return;
+      }
 
-    if (!selectedRace || !selectedBackground) return;
+      if (!selectedRace || !selectedBackground) return;
 
-    onApply(buildLevelOneCharacter(data, content, selectedClass, {
+      const selection: AutoCharacterBuilderLevelOneSelection = {
         ruleSystem,
         race: selectedRace,
         subrace: selectedSubrace,
@@ -1317,8 +1362,21 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         skillChoices,
         spellChoices,
         invocationChoices: validInvocationChoicePayload,
-    }));
-    onClose();
+      };
+      const character = buildLevelOneCharacter(data, content, selectedClass, selection);
+      await onSubmit?.({
+        mode: 'level-one',
+        character,
+        classTarget: { key: selectedClass.key, source: selectedClass.source },
+        selection,
+      });
+      onApply?.(character);
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1335,6 +1393,11 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
           {loadError && (
             <div className="md:col-span-2 border border-red-200 bg-red-50 text-red-700 rounded p-2 text-xs">
               {loadError}
+            </div>
+          )}
+          {submitError && (
+            <div role="alert" className="md:col-span-2 border border-red-200 bg-red-50 text-red-700 rounded p-2 text-xs">
+              {submitError}
             </div>
           )}
           {!content && !loadError && (
@@ -2831,8 +2894,8 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
               {t('auto.cancel')}
             </button>
             <button
-              onClick={applyBuild}
-              disabled={!content || !selectedClass || (!isLevelUpMode && (!selectedRace || !selectedBackground)) || !isSkillSelectionComplete || !isSpellSelectionComplete || !isInvocationSelectionComplete || !isMetamagicChoiceComplete || !isManeuverChoiceComplete || !isBackgroundAbilityComplete || !isOriginFeatChoiceComplete || !isRaceChoiceComplete || !isBackgroundToolChoiceComplete || !isBackgroundLanguageChoiceComplete || !isClassToolChoiceComplete || !isClassFeatureChoiceComplete || !isExistingFeatChoiceComplete || !isExistingOriginSpellChoiceComplete || !isClassExpertiseChoiceComplete || !isWeaponMasteryChoiceComplete || !isAbilityScoreImprovementComplete || !isSubclassSelectionComplete || !isMagicalSecretComplete}
+              onClick={() => void applyBuild()}
+              disabled={isSubmitting || !content || !selectedClass || (!isLevelUpMode && (!selectedRace || !selectedBackground)) || !isSkillSelectionComplete || !isSpellSelectionComplete || !isInvocationSelectionComplete || !isMetamagicChoiceComplete || !isManeuverChoiceComplete || !isBackgroundAbilityComplete || !isOriginFeatChoiceComplete || !isRaceChoiceComplete || !isBackgroundToolChoiceComplete || !isBackgroundLanguageChoiceComplete || !isClassToolChoiceComplete || !isClassFeatureChoiceComplete || !isExistingFeatChoiceComplete || !isExistingOriginSpellChoiceComplete || !isClassExpertiseChoiceComplete || !isWeaponMasteryChoiceComplete || !isAbilityScoreImprovementComplete || !isSubclassSelectionComplete || !isMagicalSecretComplete}
               className="px-3 py-2 text-xs font-bold uppercase bg-dnd-red text-white rounded hover:bg-red-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {isLevelUpMode ? t('auto.applyLevelUp') : t('auto.applyLevelOne')}
