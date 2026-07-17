@@ -720,7 +720,7 @@ refactor(rules): share structured choice validation
 
 ### R4. 起源规则
 
-状态: 进行中.
+状态: 已完成.
 
 - 迁移种族, 亚种族, 背景, 起源解耦, 起源专长和起源法术.
 - 迁移结构化感官, 抗性, 免疫, 体型, 速度, 资源和升级刷新.
@@ -777,7 +777,7 @@ refactor(rules): share origin effect projection
 
 #### R4.3 起源资源, 法术和升级刷新
 
-- 状态: 进行中.
+- 状态: 已完成.
 - 迁移来源特定资源, 固定 AC, 天生攻击, 起源专长和起源法术 options/effects.
 - 未识别的 `fromFilter` 或 `additionalSpells` 返回 `unsupported_rule_shape`.
 - 迁移熟练加值/等级阈值刷新, Verdan 体型变化和 Dwarf HP 增量.
@@ -818,6 +818,7 @@ refactor(rules): share origin spell rules
 
 ##### R4.3c 起源专长、战斗特征和升级刷新
 
+- 状态: 已完成.
 - 迁移起源专长、固定 AC、天生攻击、Dwarf HP、Verdan 体型、Harengon 先攻和起源法术升级刷新.
 - 删除已经由共享资源、法术和基础 effects 取代的旧分支, 完成 R4 全量审计.
 
@@ -890,6 +891,12 @@ R4.3c 最终清理提交:
 ```text
 refactor(rules): share origin advancement rules
 ```
+
+最终清理:
+
+- 删除已无调用的 `createOriginResourceOperations`, `makeOriginResource` 和本地 Giant Ancestry 资源说明生成器, 避免共享资源规则与旧分支继续双重维护.
+- 搜索确认本地 `NATURAL_ATTACKS`、固定种族 AC 特判、Dwarf/Verdan/Harengon 数值升级分支和旧起源资源入口均已移除.
+- rules-core 42 项测试、Ao 全 workspace TypeScript 检查、EulCauDnD 生产构建、完整起源行为审计、专长审计和法术升级审计通过.
 
 R4 仅在 R4.1-R4.3 全部完成后标记完成. 原单一提交边界由以上三个可独立回归的提交替代.
 
