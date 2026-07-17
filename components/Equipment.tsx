@@ -76,8 +76,12 @@ export const Equipment: React.FC<EquipmentProps> = ({ data, onChange, onUpdateCh
     };
 
     useEffect(() => {
+        if (autoBuilderContent) {
+            setContent(autoBuilderContent);
+            return;
+        }
         loadAutoBuilderContent().then(setContent).catch(() => setContent(null));
-    }, []);
+    }, [autoBuilderContent]);
 
     const weaponOptions = useMemo(() => (
         content ? getWeaponOptions(content, data.automation.ruleSystem) : []
