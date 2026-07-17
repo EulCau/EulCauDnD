@@ -1063,7 +1063,7 @@ refactor(rules): share complete feat rules
 
 ### R6. 职业特有选择
 
-- 状态: 进行中.
+- 状态: 已完成.
 - 迁移子职, 专精, 战斗风格, 祈唤, 战技, 超魔和武器精通.
 - 迁移先决条件和 progression.
 
@@ -1156,8 +1156,13 @@ refactor(rules): share maneuver metamagic advancement
 
 #### R6.5 清理和完整职业选择审计
 
+- 状态: 已完成.
 - 删除已无调用的本地 progression、名称判断和 feature operations.
 - 增加独立职业选择行为审计, 并回归初始构筑、升级、法术、专长和装备行为.
+- `autoBuilderRules.ts` 已删除无调用的本地 feature-level helper, 并将 Warlock 等级和 Superior Technique 判断收敛到稳定 key/source identity.
+- 新增 `audit:class-choice-behavior`, 通过共享 façade 独立覆盖 2014/2024 子职、Rogue 专精、2014/2024 战斗风格、Fighter 武器精通、PHB/XPHB 祈唤和超魔、Battle Master 战技及 Superior Technique 额外战技.
+- 原有法术升级和 origin 审计夹具已补齐严格职业选择, 不再依赖迁移前允许缺失子职或跨规则版本职业来源的宽松行为.
+- 完整回归通过: 共享包 80 项测试, EulCauDnD 生产构建, 法术、法术升级、装备、origin、专长法术、专长、来源优先级和角色 catalog 审计.
 
 提交:
 
@@ -1256,11 +1261,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作是 R6.5 清理和完整职业选择审计:
+下一项工作是 R7 法术规则迁移:
 
-1. 删除 R6.1-R6.4 后无调用的本地 progression、名称判断、来源数组和 feature operations.
-2. 增加独立职业选择行为审计, 覆盖 2014/2024 子职、专精、风格、精通、祈唤、战技和超魔.
-3. 回归初始构筑、升级、法术、专长和装备行为, 确认稳定 ID 与来源优先级.
-4. 更新迁移完成状态并确定 R7 法术规则入口.
+1. 盘点职业法术 progression, prepared/known/spellbook, 替换、Magical Secrets、额外法术和多职业法术位的现有入口.
+2. 先定义共享 spellcasting advancement state/effects 和调用方授权边界, 保留显示正文在 adapter.
+3. 按可独立回归的提交边界拆分 R7, 再迁移 EulCauDnD 初始构筑和升级 façade.
+4. 用现有法术和法术升级审计建立迁移前行为基线, 为共享核心补充严格伪造、重复、来源和 progression 测试.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.

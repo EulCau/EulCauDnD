@@ -33,6 +33,17 @@ const getOrigin = (items, key, source) => {
   return item;
 };
 
+const getSubclass = (cls, key, source) => {
+  const item = content.subclasses.find(entry => (
+    entry.className === cls.name
+    && entry.classSource === cls.source
+    && entry.key === key
+    && entry.source === source
+  ));
+  assert(item, \`missing subclass \${key}|\${source} for \${cls.key}\`);
+  return item;
+};
+
 const getProfile = (character, key, source) => {
   const id = \`auto-\${key.toLowerCase()}-\${source.toLowerCase()}-spellcasting\`;
   const profile = character.spellcastingProfiles.find(item => item.id === id);
@@ -72,6 +83,7 @@ const getWizardSpellLevelCount = (character, spellLevel) => (
 );
 
 const wizard = getClass('Wizard', 'PHB');
+const wizardSubclass = getSubclass(wizard, 'School of Abjuration', 'PHB');
 let wizardState = getSpellChoiceState(content, wizard, 1);
 assert(wizardState.needed.cantrips === 3, \`PHB Wizard level 1 should need 3 cantrips, got \${wizardState.needed.cantrips}\`);
 assert(wizardState.needed.leveled === 6, \`PHB Wizard level 1 should require 6 spellbook spells, got \${wizardState.needed.leveled}\`);
@@ -87,6 +99,7 @@ wizardState = getSpellChoiceState(content, wizard, 2, getProfile(wizardCharacter
 assert(wizardState.needed.leveled === 2, \`PHB Wizard level 2 should require 2 new spellbook spells, got \${wizardState.needed.leveled}\`);
 wizardCharacter = buildLevelUpCharacter(wizardCharacter, content, wizard, {
   ruleSystem: '5e',
+  subclass: wizardSubclass,
   spellChoices: chooseSpellState(wizardState, new Set(getProfile(wizardCharacter, 'Wizard', 'PHB').spells.map(spell => spell.id))),
 });
 assert(getWizardSpellLevelCount(wizardCharacter, 1) === 8, \`PHB Wizard level 2 should have 8 level-1 spellbook spells, got \${getWizardSpellLevelCount(wizardCharacter, 1)}\`);
@@ -106,9 +119,11 @@ wizardCharacter = buildLevelUpCharacter(wizardCharacter, content, wizard, {
 assert(getWizardSpellLevelCount(wizardCharacter, 2) === 2, \`PHB Wizard level 3 should add 2 level-2 spellbook spells, got \${getWizardSpellLevelCount(wizardCharacter, 2)}\`);
 
 const sorcerer = getClass('Sorcerer', 'PHB');
+const sorcererSubclass = getSubclass(sorcerer, 'Draconic Bloodline', 'PHB');
 let sorcererState = getSpellChoiceState(content, sorcerer, 1);
 let sorcererCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, sorcerer, {
   ...baseOptions,
+  subclass: sorcererSubclass,
   spellChoices: chooseSpellState(sorcererState),
 });
 let sorcererProfile = getProfile(sorcererCharacter, 'Sorcerer', 'PHB');
@@ -125,16 +140,25 @@ assert(sorcererProfile.spells.filter(spell => spell.level > 0).length === 3, \`P
 assert(sorcererProfile.spells.filter(spell => spell.level > 0).every(spell => spell.prepared === true), 'PHB Sorcerer known spells should be prepared');
 
 const cleric = getClass('Cleric', 'PHB');
+const clericSubclass = getSubclass(cleric, 'Life Domain', 'PHB');
 let clericState = getSpellChoiceState(content, cleric, 1);
 let clericCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, cleric, {
   ...baseOptions,
+  subclass: clericSubclass,
   spellChoices: chooseSpellState(clericState),
 });
 let clericProfile = getProfile(clericCharacter, 'Cleric', 'PHB');
 const clericLevelOneLeveled = clericProfile.spells.filter(spell => spell.level > 0).length;
 assert(clericProfile.preparationMode === 'preparedAll', \`PHB Cleric should be preparedAll, got \${clericProfile.preparationMode}\`);
 assert(clericLevelOneLeveled > 3, \`PHB Cleric level 1 should include the full level-1 spell list, got \${clericLevelOneLeveled}\`);
-assert(clericProfile.spells.filter(spell => spell.level > 0).every(spell => spell.prepared === false), 'ordinary PHB Cleric prepared-all spells should not be auto-prepared');
+assert(
+  clericProfile.spells.some(spell => spell.level > 0 && spell.prepared === false),
+  'ordinary PHB Cleric prepared-all spells should remain unprepared',
+);
+assert(
+  clericProfile.spells.some(spell => spell.level > 0 && spell.prepared === true),
+  'PHB Life Domain spells should be auto-prepared',
+);
 clericState = getSpellChoiceState(content, cleric, 2, clericProfile.spells);
 assert(clericState.isPreparedAll && clericState.needed.leveled === 0, 'PHB Cleric level 2 should not require leveled spell choices');
 clericCharacter = buildLevelUpCharacter(clericCharacter, content, cleric, {

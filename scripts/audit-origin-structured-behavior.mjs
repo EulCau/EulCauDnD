@@ -11,8 +11,12 @@ const projectImport = relativePath => path.join(ROOT, relativePath).replaceAll(p
 const entrySource = `
 import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
-  buildLevelOneCharacter,
-  buildLevelUpCharacter,
+  buildLevelOneCharacter as buildLevelOneCharacterRaw,
+  buildLevelUpCharacter as buildLevelUpCharacterRaw,
+  getAutoBuilderSubclassAdvancementState,
+  getFightingStyleFeatureChoiceOptions,
+  getFightingStyleFeatChoiceOptions,
+  getWeaponMasteryChoiceState,
   getExistingOriginSpellLevelUpChoiceStates,
   getOriginSpellChoiceState,
   getOriginWeaponChoiceOptions,
@@ -31,6 +35,77 @@ const fighter = content.classes.find(item => item.key === 'Fighter' && item.sour
 const wizard = content.classes.find(item => item.key === 'Wizard' && item.source === 'PHB');
 const background = content.backgrounds.find(item => item.source === 'XPHB') || content.backgrounds[0];
 const phbBackground = content.backgrounds.find(item => item.source === 'PHB') || background;
+
+const resolveClass = (cls, ruleSystem) => content.classes.find(item => (
+  item.key === cls.key
+  && item.source === (ruleSystem === '5r' ? 'XPHB' : 'PHB')
+)) || cls;
+
+const completeClassChoices = (character, cls, options, level) => {
+  const isFighter = cls.key === 'Fighter';
+  const fightingStyle = isFighter && options.ruleSystem === '5r'
+    ? getFightingStyleFeatChoiceOptions(content, '5r', character, cls, level)
+    : null;
+  const fightingStyleFeature = isFighter && options.ruleSystem === '5e'
+    ? getFightingStyleFeatureChoiceOptions(content, '5e', character, cls, level)
+    : null;
+  const weaponMastery = isFighter
+    ? getWeaponMasteryChoiceState(content, cls, character, level)
+    : null;
+  const selectedStyle = fightingStyle?.from[0];
+  const selectedStyleFeature = fightingStyleFeature?.from[0];
+  const currentLevel = Math.max(0, level - 1);
+  const existingSubclass = character.classes.find(item => (
+    item.name === cls.key && item.source === cls.source
+  ))?.subclass || undefined;
+  const subclassState = getAutoBuilderSubclassAdvancementState(
+    content,
+    cls,
+    currentLevel,
+    level,
+    existingSubclass,
+  );
+  return {
+    ...options,
+    ...(subclassState.group && !options.subclass
+      ? { subclass: subclassState.group.options[0] }
+      : {}),
+    classFeatureChoices: {
+      ...options.classFeatureChoices,
+      ...(selectedStyle && !options.classFeatureChoices?.fightingStyle
+        ? { fightingStyle: { featId: \`\${selectedStyle.key}|\${selectedStyle.source}\` } }
+        : {}),
+      ...(selectedStyleFeature && !options.classFeatureChoices?.fightingStyleFeatureId
+        ? { fightingStyleFeatureId: selectedStyleFeature.id }
+        : {}),
+      ...(weaponMastery && !options.classFeatureChoices?.weaponMasteries
+        ? { weaponMasteries: weaponMastery.options.slice(0, weaponMastery.needed).map(({ id }) => id) }
+        : {}),
+    },
+  };
+};
+
+const buildLevelOneCharacter = (character, builderContent, cls, options) => (
+  ((effectiveClass) => buildLevelOneCharacterRaw(
+    character,
+    builderContent,
+    effectiveClass,
+    completeClassChoices(character, effectiveClass, options, 1),
+  ))(resolveClass(cls, options.ruleSystem))
+);
+
+const buildLevelUpCharacter = (character, builderContent, cls, options) => {
+  const effectiveClass = resolveClass(cls, options.ruleSystem);
+  const currentLevel = character.classes.find(item => (
+    item.name === effectiveClass.key && item.source === effectiveClass.source
+  ))?.level || 0;
+  return buildLevelUpCharacterRaw(
+    character,
+    builderContent,
+    effectiveClass,
+    completeClassChoices(character, effectiveClass, options, currentLevel + 1),
+  );
+};
 const aasimar = content.races.find(item => item.key === 'Aasimar' && item.source === 'MPMM');
 const xphbAasimar = content.races.find(item => item.key === 'Aasimar' && item.source === 'XPHB');
 const astralElf = content.races.find(item => item.key === 'Astral Elf' && item.source === 'AAG');

@@ -30,7 +30,7 @@ const featSpellChoices = Object.fromEntries(block.choices.map(group => [
   group.options.slice(0, group.count).map(spell => spell.id),
 ]));
 
-const character = buildLevelOneCharacter(INITIAL_CHARACTER, content, content.classes.find(cls => cls.key === 'Fighter' && cls.source === 'XPHB'), {
+const character = buildLevelOneCharacter(INITIAL_CHARACTER, content, content.classes.find(cls => cls.key === 'Wizard' && cls.source === 'XPHB'), {
   ruleSystem: '5r',
   race: content.races.find(race => race.name === '人类' && race.source === 'XPHB') || content.races[0],
   background: content.backgrounds.find(background => background.source === 'XPHB') || content.backgrounds[0],

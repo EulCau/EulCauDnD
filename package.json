@@ -17,6 +17,7 @@
     "audit:origin-structured-behavior": "node scripts/audit-origin-structured-behavior.mjs",
     "audit:feat-spell-behavior": "node scripts/audit-feat-spell-behavior.mjs",
     "audit:feat-behavior": "node scripts/audit-feat-behavior.mjs",
+    "audit:class-choice-behavior": "node scripts/audit-class-choice-behavior.mjs",
     "audit:source-priority": "node scripts/audit-source-priority.mjs",
     "audit:search-source-behavior": "node scripts/audit-search-source-behavior.mjs",
     "audit:search-filter-behavior": "node scripts/audit-search-filter-behavior.mjs",

@@ -990,16 +990,6 @@ export const isAbilityScoreImprovementLevel = (
   && (feature.name === '属性值提升' || feature.englishName === 'Ability Score Improvement')
 )));
 
-const hasClassFeatureAtLevel = (
-  cls: AutoBuilderClass | undefined,
-  level: number,
-  englishName: string,
-  name: string,
-): boolean => Boolean(cls?.levelFeatures.some(feature => (
-  feature.level === level
-  && (feature.englishName === englishName || feature.name === name)
-)));
-
 const getExistingWeaponMasteryIds = (character: CharacterData): Set<string> => (
   new Set(character.featureEntries
     .filter(feature => feature.sourceId.startsWith('auto-weapon-mastery-'))
@@ -1682,7 +1672,7 @@ const getExistingInvocationIds = (character: CharacterData): string[] => (
 );
 
 const getWarlockLevel = (content: AutoBuilderContent, character: CharacterData): number => {
-  const warlocks = content.classes.filter(cls => cls.key === 'Warlock' || cls.englishName === 'Warlock');
+  const warlocks = content.classes.filter(cls => cls.key === 'Warlock');
   return warlocks.reduce((level, cls) => {
     const characterClass = character.classes.find(item => isCharacterClassForDefinition(item, cls));
     return Math.max(level, characterClass?.level || 0);
@@ -1750,8 +1740,10 @@ const getExistingManeuverExtraTarget = (
   character: CharacterData,
 ): number => {
   const styleCount = character.featureEntries.some(feature => (
-    feature.sourceId.startsWith('auto-fighting-style-')
-    && (feature.name === '卓越技巧' || feature.name === 'Superior Technique')
+    content.fightingStyles.some(style => (
+      style.key === 'Superior Technique'
+      && feature.sourceId === `auto-fighting-style-${style.id}`
+    ))
   )) ? 1 : 0;
   const featCount = content.feats.reduce((count, feat) => {
     if (!feat.maneuverCount || !hasAppliedFeat(character, feat.key, feat.source)) return count;
@@ -3981,7 +3973,7 @@ const getSelectedFightingStyleManeuverCount = (
   const style = content.fightingStyles.find(({ id }) => (
     id === choices?.fightingStyleFeatureId
   ));
-  return style?.key === 'Superior Technique' || style?.name === '卓越技巧' ? 1 : 0;
+  return style?.key === 'Superior Technique' ? 1 : 0;
 };
 
 const createSpecializedFeatOperations = (
