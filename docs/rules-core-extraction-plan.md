@@ -720,15 +720,51 @@ refactor(rules): share structured choice validation
 
 ### R4. 起源规则
 
+状态: 进行中.
+
 - 迁移种族, 亚种族, 背景, 起源解耦, 起源专长和起源法术.
 - 迁移结构化感官, 抗性, 免疫, 体型, 速度, 资源和升级刷新.
 - 原前端通过 adapter 应用 effects.
 
+实施拆分:
+
+#### R4.1 起源 options 和 validation
+
+- 组合 R3 的通用 group, 增加体型, 来源特定特性, 起源专长和起源法术分支.
+- 统一种族, 亚种族和背景默认值, group 依赖及完整性校验.
+- 未识别的 `choose`, `fromFilter` 或 `additionalSpells` 返回 `unsupported_rule_shape`.
+
 提交:
 
 ```text
-refactor(rules): share origin build rules
+refactor(rules): share origin choice options
 ```
+
+#### R4.2 起源基础 effects 和 adapter
+
+- 迁移固定/选择属性, 熟练, 速度, 体型, 感官, 抗性, 免疫, 易伤和状态免疫.
+- 增加 canonical snapshot 的纯 effect 应用器.
+- EulCauDnD adapter 将共享 effects 转为现有 `AdjustmentOperation`.
+
+提交:
+
+```text
+refactor(rules): share origin effect projection
+```
+
+#### R4.3 起源资源, 法术和升级刷新
+
+- 迁移来源特定资源, 固定 AC, 天生攻击, 起源专长和起源法术 effects.
+- 迁移熟练加值/等级阈值刷新, Verdan 体型变化和 Dwarf HP 增量.
+- 以完整起源行为审计验证接入, 删除旧的重复规则分支.
+
+提交:
+
+```text
+refactor(rules): share origin advancement rules
+```
+
+R4 仅在 R4.1-R4.3 全部完成后标记完成. 原单一提交边界由以上三个可独立回归的提交替代.
 
 ### R5. 完整专长规则
 
