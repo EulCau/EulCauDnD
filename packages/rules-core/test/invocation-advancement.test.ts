@@ -74,6 +74,31 @@ test('uses same-turn features and spells when evaluating prerequisites', async (
   assert.equal(withSpell.ok, true);
   if (!withoutSpell.ok || !withSpell.ok) return;
   assert.ok(withSpell.value.group!.options.length >= withoutSpell.value.group!.options.length);
+  const pact = catalog.invocations.find((invocation) => (
+    invocation.key === 'Pact of the Blade' && invocation.source === 'XPHB'
+  ));
+  const thirstingBlade = catalog.invocations.find((invocation) => (
+    invocation.key === 'Thirsting Blade' && invocation.source === 'XPHB'
+  ));
+  assert.ok(pact);
+  assert.ok(thirstingBlade);
+  const withSameTurnPact = createRuleInvocationAdvancementState(
+    context(catalog, '5r'),
+    ruleClass,
+    4,
+    5,
+    catalog.invocations
+      .filter((invocation) => invocation.source === 'XPHB')
+      .slice(0, 3)
+      .map(({ id }) => id),
+    { selectedFeatureIds: [pact.id] },
+  );
+  assert.equal(withSameTurnPact.ok, true);
+  if (withSameTurnPact.ok) {
+    assert.ok(withSameTurnPact.value.group?.options.some(({ id }) => (
+      id === thirstingBlade.id
+    )));
+  }
 });
 
 test('strictly validates invocation selections and projects stable features', async () => {

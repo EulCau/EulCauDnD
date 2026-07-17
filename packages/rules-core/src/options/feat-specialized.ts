@@ -162,7 +162,7 @@ function invocationPrerequisiteMet(
   if (!invocation.prerequisite?.length) return true;
   const known = new Set([
     ...knownFeatureIdentities(context),
-    ...(context.selectedFeatureIds ?? []).map(normalizeRef),
+    ...selectedFeatureIdentities(catalog, context.selectedFeatureIds ?? []),
   ]);
   return invocation.prerequisite.some((alternative) => {
     if (!isRecord(alternative)) return false;
@@ -180,6 +180,25 @@ function invocationPrerequisiteMet(
       if (key === 'spell') return spellPrerequisiteMet(catalog, value, context);
       return false;
     });
+  });
+}
+
+function selectedFeatureIdentities(
+  catalog: RuleCatalog,
+  selectedIds: readonly string[],
+): string[] {
+  return selectedIds.flatMap((id) => {
+    const selected = [
+      ...catalog.invocations,
+      ...catalog.fightingStyles,
+      ...catalog.maneuvers,
+      ...catalog.metamagics,
+    ].find((feature) => (
+      feature.id === id
+      || feature.key === id
+      || `${feature.key}|${feature.source}` === id
+    ));
+    return selected ? entityIdentities(selected) : [normalizeRef(id)];
   });
 }
 
