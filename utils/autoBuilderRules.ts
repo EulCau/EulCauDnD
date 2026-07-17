@@ -20,8 +20,10 @@ import {
   areRuleChoiceSelectionsComplete,
   createRuleOriginChoiceGroups,
   createDefaultRuleAuthorizationPolicy,
+  createRuleAdditionalSpellChoiceState,
   createRuleOriginBaseEffects,
   createRuleOriginResourceEffects,
+  createRuleOriginSpellEffects,
   findRuleClassOption,
   findRuleOriginOption,
   getRuleBackgroundOptions,
@@ -1518,25 +1520,27 @@ export const getOriginSpellChoiceState = (
   ruleSystem: RuleSystem,
   characterLevel = Number.POSITIVE_INFINITY,
 ): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
-  const blocks = (origin?.additionalSpells || [])
-    .map((entry, index): AutoBuilderFeatSpellBlockChoice | null => {
-      if (!entry || typeof entry !== 'object') return null;
-      const block = entry as Record<string, unknown>;
-      const id = `origin-${origin?.key || 'unknown'}-${origin?.source || 'unknown'}-spell-block-${index}`;
-      const label = String(block.name || block.ENG_name || `${origin?.name || 'Origin'} ${index + 1}`);
-      const parsed = collectFeatSpellChoices(block, content, ruleSystem, id, characterLevel);
-      if (!parsed.fixedSpells.length && !parsed.choices.length) return null;
-      return {
-        id,
-        label,
-        ability: normalizeFeatSpellAbility(block.ability),
-        abilityOptions: getFeatSpellAbilityOptionsFromBlock(block),
-        fixedSpells: parsed.fixedSpells,
-        choices: parsed.choices,
-      };
-    })
-    .filter((block): block is AutoBuilderFeatSpellBlockChoice => Boolean(block));
-  return blocks.length ? { blocks } : null;
+  if (!origin) return null;
+  const result = createRuleAdditionalSpellChoiceState(
+    content,
+    ruleSystem,
+    {
+      kind: 'origin',
+      key: origin.key,
+      source: origin.source,
+      name: origin.name,
+      ...(origin.additionalSpells === undefined
+        ? {}
+        : { additionalSpells: origin.additionalSpells }),
+    },
+    characterLevel,
+  );
+  if (result.ok) return result.value;
+  const first = 'issues' in result ? result.issues[0] : undefined;
+  throw new Error(
+    `Unsupported origin spell shape at ${first?.path.join('.') || origin.key}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
 };
 
 const getFeatSpellProfileId = (feat: AutoBuilderFeat): string => (
@@ -3086,25 +3090,53 @@ const createOriginSpellOperations = (
   const block = state.blocks.find(item => item.id === choices?.originSpellBlockId)
     || (state.blocks.length === 1 ? state.blocks[0] : undefined);
   if (!block) return [];
-  const selectedSpellIds = new Set(Object.values(choices?.originSpellChoices || {}).flat());
-  const selectedSpells = uniqueSpells([
-    ...block.fixedSpells,
-    ...block.choices.flatMap(group => group.options.filter(spell => selectedSpellIds.has(spell.id))),
-  ]);
-  if (!selectedSpells.length) return [];
-  const resolvedAbility = choices?.originSpellAbility || block.ability;
-  if (block.abilityOptions.length > 0 && !resolvedAbility) return [];
-  const profile: SpellcastingProfile = {
-    id: getOriginSpellProfileId(origin, kind),
-    className: `${origin.name} 法术`,
-    ability: resolvedAbility || 'CHA',
-    preparationMode: 'knownSelection',
-    saveDCOverride: '',
-    attackBonusOverride: '',
-    slots: createEmptySpellSlots(),
-    spells: selectedSpells.map(spell => toCharacterSpell(spell, true)),
-  };
-  return [{ type: 'upsertSpellcastingProfile', profile }];
+  const groupIds = new Set(block.choices.map(({ id }) => id));
+  const selectedChoices = Object.fromEntries(Object.entries(
+    choices?.originSpellChoices || {},
+  ).filter(([groupId]) => groupIds.has(groupId)));
+  const result = createRuleOriginSpellEffects(
+    content,
+    ruleSystem,
+    origin,
+    kind,
+    characterLevel,
+    {
+      blockId: block.id,
+      ability: choices?.originSpellAbility,
+      choices: selectedChoices,
+    },
+  );
+  if (!result.ok) {
+    if (result.issues.every(({ code }) => code === 'choice_required')) return [];
+    const first = result.issues[0];
+    throw new Error(
+      `Invalid origin spell choice at ${first?.path.join('.') || origin.key}: `
+      + `${first?.detail?.reason || first?.code || 'unknown'}`,
+    );
+  }
+  return result.value.flatMap((effect): AdjustmentOperation[] => {
+    if (effect.type !== 'spell.profile.upsert') {
+      throw new Error(`Unsupported origin spell effect adapter: ${effect.type}`);
+    }
+    const spells = effect.profile.spells.map((ref) => {
+      const spell = content.spells.find(({ id }) => id === ref.id);
+      if (!spell) throw new Error(`Origin spell is missing from catalog: ${ref.id}`);
+      return toCharacterSpell(spell, true);
+    });
+    return [{
+      type: 'upsertSpellcastingProfile',
+      profile: {
+        id: effect.profile.id,
+        className: `${origin.name} 法术`,
+        ability: effect.profile.ability,
+        preparationMode: 'knownSelection',
+        saveDCOverride: '',
+        attackBonusOverride: '',
+        slots: createEmptySpellSlots(),
+        spells,
+      },
+    }];
+  });
 };
 
 const createExistingFeatSpellChoiceOperations = (

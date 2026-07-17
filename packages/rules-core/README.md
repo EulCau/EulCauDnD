@@ -18,6 +18,8 @@ Current scope:
 - project origin abilities, proficiencies, movement, size, senses, resistances,
   immunities, and vulnerabilities into structured effects;
 - project source-specific origin resources and proficiency/level refreshes;
+- parse and validate origin spell branches, abilities, level gates, filters, and
+  selections, then project them into spell profile effects;
 - apply structured effects to a cloned canonical character snapshot;
 - evaluate supported feat prerequisites and return structured failure reasons;
 - filter Ability Score Improvement feat candidates through a caller-supplied

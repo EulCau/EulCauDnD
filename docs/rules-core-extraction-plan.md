@@ -801,11 +801,25 @@ refactor(rules): share origin effect projection
 refactor(rules): share origin resource refresh
 ```
 
-##### R4.3b 起源专长、法术和战斗特征
+##### R4.3b 起源法术 options 和 effects
 
-- 迁移起源专长和 `additionalSpells` options/effects, 固定 AC、天生攻击、Dwarf HP、Verdan 体型和 Harengon 先攻刷新.
-- 对未知 `fromFilter` 和 `additionalSpells` 结构失败关闭.
-- 删除已经由共享资源和 effects 取代的旧分支, 完成 R4 全量审计.
+- 状态: 已完成.
+- 新增 `createRuleAdditionalSpellChoiceState`, 解析固定法术、等级门槛、分支、固定/可选施法属性和法表筛选.
+- catalog 中 77 个带 `additionalSpells` 的种族、亚种族和背景均在 1、3、5、20 级通过结构枚举测试.
+- 多职业法表筛选按每个职业分别解析, 并使用 catalog 的规则版本法术来源优先级去重.
+- 新增 `createRuleOriginSpellEffects`, 严格复核分支 ID、施法属性、选择数量和法术 ID 后输出 spell profile effect.
+- EulCauDnD 起源法术界面和初始建卡均调用共享 options/effects. 未知 block key、container key、filter key 和无法解析的法术引用失败关闭.
+
+提交:
+
+```text
+refactor(rules): share origin spell rules
+```
+
+##### R4.3c 起源专长、战斗特征和升级刷新
+
+- 迁移起源专长、固定 AC、天生攻击、Dwarf HP、Verdan 体型、Harengon 先攻和起源法术升级刷新.
+- 删除已经由共享资源、法术和基础 effects 取代的旧分支, 完成 R4 全量审计.
 
 提交:
 
