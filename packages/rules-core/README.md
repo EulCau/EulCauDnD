@@ -20,6 +20,12 @@ Current scope:
 - project source-specific origin resources and proficiency/level refreshes;
 - parse and validate origin spell branches, abilities, level gates, filters, and
   selections, then project them into spell profile effects;
+- project class spellcasting profiles, strict replacements, automatic spells,
+  Magical Secrets, class/pact slots, and shared multiclass slots;
+- validate and project level-one and level-up class state, subclass thresholds,
+  ability increases, expertise, hit points, class features, and optional
+  spellcasting choices;
+- generate deterministic semantic class instance identifiers;
 - apply structured effects to a cloned canonical character snapshot;
 - evaluate supported feat prerequisites and return structured failure reasons;
 - filter Ability Score Improvement feat candidates through a caller-supplied
@@ -31,8 +37,9 @@ Current scope:
 The complete inventory, target API, ownership boundary, and staged extraction
 plan are documented in
 [`docs/rules-core-extraction-plan.md`](../../docs/rules-core-extraction-plan.md).
-The current package scope is intentionally only the first migrated rule slice;
-it is not yet the complete auto-builder engine.
+Equipment and attack-derived combat rules remain in the browser adapter until
+the deferred R9 migration. They are not required by the authoritative
+level-one and level-up projection boundary.
 
 The package deliberately does not load catalog files, access browser storage,
 render React, or mutate a character. Callers must provide an already reviewed

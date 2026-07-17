@@ -11,7 +11,7 @@ const projectImport = relativePath => path.join(ROOT, relativePath).replaceAll(p
 const entrySource = `
 import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
-  buildLevelUpCharacter,
+  buildLevelUpCharacter as buildLevelUpCharacterRaw,
   getAbilityScoreImprovementFeatOptions,
   getFeatExpertiseChoiceOptions,
   getFeatFightingStyleChoiceState,
@@ -25,6 +25,7 @@ import {
   getFeatSpellChoiceState,
   getFeatWeaponChoiceOptions,
   getExistingFeatSpellLevelUpChoiceState,
+  getSpellChoiceState,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import { removeCharacterAdjustments } from '${projectImport('utils/characterAdjustments.ts')}';
 import { equipWeapon } from '${projectImport('utils/equipmentRules.ts')}';
@@ -63,6 +64,52 @@ const makeLevelThreePhbWizard = () => ({
 
 const wizard = getClass('Wizard', 'XPHB');
 const phbWizard = getClass('Wizard', 'PHB');
+const buildLevelUpCharacter = (character, builderContent, cls, options) => {
+  const currentClass = character.classes.find(item => (
+    item.name === cls.key && item.source === cls.source
+  ));
+  const targetLevel = (currentClass?.level || 0) + 1;
+  const profile = character.spellcastingProfiles.find(item => (
+    item.classId === currentClass?.id
+    || item.id === \`auto-\${cls.key.toLowerCase()}-\${cls.source.toLowerCase()}-spellcasting\`
+  ));
+  const subclass = content.subclasses.find(item => (
+    item.classSource === cls.source
+    && item.name === currentClass?.subclass
+  ));
+  const state = getSpellChoiceState(
+    builderContent,
+    cls,
+    targetLevel,
+    profile?.spells || [],
+    options.subclass || subclass,
+  );
+  const selected = new Set([
+    ...(options.spellChoices?.cantrips || []),
+    ...(options.spellChoices?.leveled || []),
+  ]);
+  const cantrips = [
+    ...(options.spellChoices?.cantrips || []),
+    ...state.cantrips
+      .filter(({ id }) => !selected.has(id))
+      .slice(0, state.needed.cantrips)
+      .map(({ id }) => id),
+  ];
+  const leveled = [
+    ...(options.spellChoices?.leveled || []),
+    ...state.leveled
+      .filter(({ id }) => !selected.has(id))
+      .slice(0, state.needed.leveled)
+      .map(({ id }) => id),
+    ...state.fixedLeveledGroups.flatMap(({ group }) => (
+      group?.options.slice(0, group.max).map(({ id }) => id) || []
+    )),
+  ];
+  return buildLevelUpCharacterRaw(character, builderContent, cls, {
+    ...options,
+    spellChoices: { cantrips, leveled },
+  });
+};
 const battleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'PHB');
 const xphbBattleaxe = content.weapons.find(item => item.key === 'Battleaxe' && item.source === 'XPHB');
 assert(battleaxe, 'missing PHB Battleaxe');

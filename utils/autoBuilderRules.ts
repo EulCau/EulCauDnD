@@ -21,6 +21,7 @@ import {
   createRuleOriginChoiceGroups,
   createDefaultRuleAuthorizationPolicy,
   createRuleAdditionalSpellChoiceState,
+  createRuleClassInstanceId,
   createRuleExpertiseAdvancementEffects,
   createRuleExpertiseAdvancementState,
   createRuleFightingStyleAdvancementEffects,
@@ -2034,7 +2035,7 @@ const projectRuleSpellcastingProfile = (
   newLevel: number,
   choices: AutoBuilderSpellChoice,
   subclass?: AutoBuilderSubclass,
-  classId = 'auto-class-main',
+  classId = createRuleClassInstanceId(cls),
   existing?: SpellcastingProfile,
   replaceSpell?: { removeId: string; addId: string } | null,
   magicalSecretChoices: string[] = [],
@@ -2124,7 +2125,7 @@ const createSpellcastingProfile = (
   choices: AutoBuilderSpellChoice,
   level = 1,
   subclass?: AutoBuilderSubclass,
-  classId = 'auto-class-main',
+  classId = createRuleClassInstanceId(cls),
 ): SpellcastingProfile | null => {
   return projectRuleSpellcastingProfile(
     content,
@@ -4268,7 +4269,7 @@ export const buildLevelOneCharacter = (
     1,
     options.classFeatureChoices?.fightingStyle,
   );
-  const mainClassId = 'auto-class-main';
+  const mainClassId = createRuleClassInstanceId(cls);
   const classes = [{ id: mainClassId, name: cls.key, level: 1, subclass: options.subclass?.name || '', source: cls.source }];
   const spellcastingProfile = createSpellcastingProfile(content, cls, options.spellChoices, 1, options.subclass, mainClassId);
   const classFeatureSpellcasting = addClassFeatureSpellsToSpellcasting(
@@ -4590,7 +4591,7 @@ export const buildLevelUpCharacter = (
   );
   const existingClass = character.classes.find(item => isCharacterClassForDefinition(item, cls));
   const isNewClass = !existingClass;
-  const newClassId = existingClass?.id || `auto-class-${cls.key}-${Date.now()}`;
+  const newClassId = existingClass?.id || createRuleClassInstanceId(cls);
   const selectedSubclass = options.subclass || content.subclasses.find(subclass => (
     subclass.className === cls.name
     && subclass.classSource === cls.source

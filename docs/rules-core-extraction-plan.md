@@ -1270,12 +1270,16 @@ refactor(rules): share complete spellcasting rules
 
 ### R8. 1 级建卡和升级 projection
 
-- 状态: 待开始, 为当前可玩主线最后一个规则阶段.
+- 状态: 已完成, 当前可玩规则主线结束.
 - 实现权威 `validateAndProjectLevelOne`.
 - 实现权威 `validateAndProjectLevelUp`.
 - 移除 `Date.now` 产生的职业 ID, 改用稳定语义 ID 或调用方明确提供的 command ID.
 - 现有 build 函数退化为 adapter façade.
 - 同一阶段完成 Ao 服务端升级入口的必要接入和回归, 不等待 R9-R10.
+- `character-build` 统一验证授权职业、总等级和目标等级, 子职阈值、ASI、专精及可选法术提交, 输出 class、feature、HP、既有专长刷新和 spell profile effects, 再通过不可变 apply 得到 canonical character.
+- `createRuleClassInstanceId` 生成稳定语义职业实例 ID. EulCauDnD 初始建卡和新增多职业不再使用固定 `auto-class-main` 或 `Date.now()`.
+- Ao 保留资格、成员、revision、基础专长先决条件和数据库事务边界, 并在写入前调用共享 level-up projection 独立复算职业等级、子职、属性、专精和 HP. Ao 授权策略严格继承角色规则白名单.
+- 共享包 94 项测试、完整角色 catalog 审计、法术/升级/专长法术/专长/起源/职业选择/装备行为审计、EulCauDnD 生产构建和 Ao workspace TypeScript 检查通过.
 
 提交:
 
