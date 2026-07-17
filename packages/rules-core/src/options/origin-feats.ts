@@ -106,6 +106,9 @@ export function createRuleOriginFeatChoiceState(
   }
   if (choices.length === 1) {
     const choice = choices[0];
+    if (choice === undefined) {
+      return invalid(['origin', origin.key, 'feats'], 'origin_feat_choice_missing');
+    }
     if (choice.options.length < choice.count) {
       return invalid(['origin', origin.key, 'feats'], 'origin_feat_options_insufficient');
     }
