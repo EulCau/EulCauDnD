@@ -254,10 +254,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const selectedFightingStyleFeature = fightingStyleFeatureChoiceState?.from.find(style => (
     style.id === classFeatureChoices.fightingStyleFeatureId
   ));
-  const fightingStyleManeuverCount = (
-    selectedFightingStyleFeature?.key === 'Superior Technique'
-    || selectedFightingStyleFeature?.name === '卓越技巧'
-  ) ? 1 : 0;
+  const fightingStyleManeuverCount = selectedFightingStyleFeature?.key === 'Superior Technique' ? 1 : 0;
   const fightingStyleFeatAbilityOptions = getFeatAbilityChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatSkillChoiceOptions = getFeatSkillChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatToolChoiceOptions = getFeatToolChoiceOptions(selectedFightingStyleFeat);
@@ -334,7 +331,6 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   ));
   const abilityScoreImprovementFeatFightingStyleManeuverCount = (
     selectedAbilityScoreImprovementFeatFightingStyle?.key === 'Superior Technique'
-    || selectedAbilityScoreImprovementFeatFightingStyle?.name === '卓越技巧'
   ) ? 1 : 0;
   const abilityScoreImprovementFeatManeuverChoiceState = content
     ? getFeatManeuverChoiceState(

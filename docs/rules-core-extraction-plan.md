@@ -1157,7 +1157,7 @@ refactor(rules): share maneuver metamagic advancement
 #### R6.5 清理和完整职业选择审计
 
 - 状态: 已完成.
-- 删除已无调用的本地 progression、名称判断和 feature operations.
+- 删除已无调用的本地 progression、名称判断和 feature operations, 包括 UI 中仅用于识别 Superior Technique 的中文名称回退.
 - 增加独立职业选择行为审计, 并回归初始构筑、升级、法术、专长和装备行为.
 - `autoBuilderRules.ts` 已删除无调用的本地 feature-level helper, 并将 Warlock 等级和 Superior Technique 判断收敛到稳定 key/source identity.
 - 新增 `audit:class-choice-behavior`, 通过共享 façade 独立覆盖 2014/2024 子职、Rogue 专精、2014/2024 战斗风格、Fighter 武器精通、PHB/XPHB 祈唤和超魔、Battle Master 战技及 Superior Technique 额外战技.
