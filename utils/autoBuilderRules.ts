@@ -16,6 +16,11 @@ import {
   formatWeaponMasteryNames,
   refreshCharacterAutomation,
 } from './equipmentRules';
+import {
+  getEligibleAbilityScoreImprovementFeats,
+  getFeatAbilityChoiceOptions as getSharedFeatAbilityChoiceOptions,
+  type RuleCharacterSnapshot,
+} from '../packages/rules-core/src/index';
 
 type AutoBuilderClass = {
   key: string;
@@ -690,18 +695,6 @@ const parseEntityRef = (key: string): { name: string; source?: string } => {
   };
 };
 
-const ARMOR_PROFICIENCY_ALIASES: Record<string, string[]> = {
-  light: ['armor:light', 'armor:轻甲'],
-  medium: ['armor:medium', 'armor:中甲'],
-  heavy: ['armor:heavy', 'armor:重甲'],
-  shield: ['armor:shield', 'armor:盾牌'],
-};
-
-const WEAPON_PROFICIENCY_ALIASES: Record<string, string[]> = {
-  simple: ['weapon:simple', 'weapon:简易'],
-  martial: ['weapon:martial', 'weapon:军用'],
-};
-
 const getClassProficiencyValue = (entry: ClassProficiencyEntry): string | null => {
   if (typeof entry === 'string') return entry;
   return typeof entry.proficiency === 'string' ? entry.proficiency : null;
@@ -1306,26 +1299,29 @@ const getOfficialFeatOptions = (
   level: number,
   predicate: (feat: AutoBuilderFeat) => boolean,
 ): AutoBuilderFeat[] => {
-  const priority = FEAT_SOURCE_PRIORITY[ruleSystem];
-  const byName = new Map<string, AutoBuilderFeat>();
-  content.feats
-    .filter(feat => OFFICIAL_FEAT_SOURCES.has(feat.source))
-    .filter(feat => ruleSystem === '5r' || feat.source !== 'XPHB')
-    .filter(predicate)
-    .filter(feat => isFeatPrerequisiteMet(feat, character, level))
-    .forEach(feat => {
-      const key = feat.englishName || feat.name;
-      const existing = byName.get(key);
-      const currentPriority = priority.indexOf(feat.source);
-      const existingPriority = existing ? priority.indexOf(existing.source) : Number.MAX_SAFE_INTEGER;
-      if (!existing || (currentPriority >= 0 && currentPriority < existingPriority)) {
-        byName.set(key, feat);
-      }
-    });
-
-  return Array.from(byName.values())
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+  return getEligibleAbilityScoreImprovementFeats(
+    content.feats.filter(predicate),
+    ruleSystem,
+    toRuleCharacterSnapshot(character),
+    level,
+    {
+      allowedSources: [...OFFICIAL_FEAT_SOURCES],
+      sourcePriority: FEAT_SOURCE_PRIORITY[ruleSystem],
+    },
+  );
 };
+
+const toRuleCharacterSnapshot = (character: CharacterData): RuleCharacterSnapshot => ({
+  abilities: character.abilities,
+  race: character.race,
+  subrace: character.subrace,
+  background: character.background,
+  proficiencies: [...character.proficiencies],
+  knownFeats: character.featureEntries
+    .filter(feature => feature.sourceId.startsWith('auto-feat-'))
+    .map(feature => ({ name: feature.name, source: feature.sourceName })),
+  hasSpellcasting: character.spellcastingProfiles.length > 0,
+});
 
 export const getRaceFeatChoiceOptions = (
   content: AutoBuilderContent,
@@ -1604,105 +1600,6 @@ export const getClassExpertiseChoiceOptions = (
   }];
 };
 
-const isAbilityPrerequisiteMet = (
-  character: CharacterData,
-  entries: unknown,
-): boolean => {
-  if (!Array.isArray(entries)) return true;
-  return entries.some(entry => {
-    if (!entry || typeof entry !== 'object') return false;
-    return Object.entries(entry as Record<string, unknown>).every(([ability, minimum]) => {
-      const abilityName = ABILITY_MAP[ability];
-      return Boolean(abilityName && typeof minimum === 'number' && character.abilities[abilityName] >= minimum);
-    });
-  });
-};
-
-const hasTaggedProficiency = (
-  character: CharacterData,
-  prefix: 'armor' | 'weapon',
-  value: string,
-): boolean => {
-  const normalized = normalizeKey(value).toLowerCase();
-  const aliases = prefix === 'armor'
-    ? ARMOR_PROFICIENCY_ALIASES[normalized] || [`armor:${normalized}`]
-    : WEAPON_PROFICIENCY_ALIASES[normalized] || [`weapon:${normalized}`];
-  return aliases.some(key => character.proficiencies.has(key));
-};
-
-const isProficiencyPrerequisiteMet = (
-  character: CharacterData,
-  entries: unknown,
-): boolean => {
-  if (!Array.isArray(entries)) return true;
-  return entries.every(entry => {
-    if (!entry || typeof entry !== 'object') return false;
-    return Object.entries(entry as Record<string, unknown>).every(([kind, value]) => {
-      if ((kind === 'armor' || kind === 'weapon') && typeof value === 'string') {
-        return hasTaggedProficiency(character, kind, value);
-      }
-      return false;
-    });
-  });
-};
-
-const namesMatch = (current: string, expected: unknown): boolean => {
-  if (!current) return false;
-  if (typeof expected === 'string') return current === expected;
-  if (!expected || typeof expected !== 'object') return false;
-  const entry = expected as { name?: string; ENG_name?: string };
-  return Boolean((entry.name && current.includes(entry.name)) || (entry.ENG_name && current.includes(entry.ENG_name)));
-};
-
-const isNamedPrerequisiteMet = (
-  current: string,
-  entries: unknown,
-): boolean => {
-  if (!Array.isArray(entries)) return true;
-  return entries.some(entry => namesMatch(current, entry));
-};
-
-const hasFeatPrerequisite = (
-  character: CharacterData,
-  entries: unknown,
-): boolean => {
-  if (!Array.isArray(entries)) return true;
-  const knownFeatNames = character.featureEntries
-    .filter(feature => feature.sourceId.startsWith('auto-feat-'))
-    .map(feature => `${feature.name} ${feature.sourceName}`);
-  return entries.every(entry => {
-    const refName = normalizeEntityRef(String(entry));
-    return knownFeatNames.some(name => name.includes(refName));
-  });
-};
-
-const isSingleFeatPrerequisiteMet = (
-  prerequisite: Record<string, unknown>,
-  character: CharacterData,
-  level: number,
-): boolean => {
-  for (const [key, value] of Object.entries(prerequisite)) {
-    if (key === 'level') {
-      if (typeof value !== 'number' || level < value) return false;
-    } else if (key === 'ability') {
-      if (!isAbilityPrerequisiteMet(character, value)) return false;
-    } else if (key === 'spellcasting' || key === 'spellcasting2020') {
-      if (!character.spellcastingProfiles.length) return false;
-    } else if (key === 'proficiency') {
-      if (!isProficiencyPrerequisiteMet(character, value)) return false;
-    } else if (key === 'race') {
-      if (!isNamedPrerequisiteMet(`${character.race} ${character.subrace}`.trim(), value)) return false;
-    } else if (key === 'background') {
-      if (!isNamedPrerequisiteMet(character.background, value)) return false;
-    } else if (key === 'feat') {
-      if (!hasFeatPrerequisite(character, value)) return false;
-    } else {
-      return false;
-    }
-  }
-  return true;
-};
-
 const getPrerequisiteLevel = (value: unknown): number | null => {
   if (typeof value === 'number') return value;
   if (value && typeof value === 'object' && typeof (value as { level?: unknown }).level === 'number') {
@@ -1830,19 +1727,6 @@ export const getInvocationPrerequisiteSummary = (invocation: AutoBuilderInvocati
   return Array.from(parts).join(', ');
 };
 
-const isFeatPrerequisiteMet = (
-  feat: AutoBuilderFeat,
-  character: CharacterData,
-  level: number,
-): boolean => {
-  if (!feat.prerequisite?.length) return true;
-  return feat.prerequisite.some(prerequisite => (
-    Boolean(prerequisite)
-    && typeof prerequisite === 'object'
-    && isSingleFeatPrerequisiteMet(prerequisite as Record<string, unknown>, character, level)
-  ));
-};
-
 export const getAbilityScoreImprovementFeatOptions = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
@@ -1853,15 +1737,7 @@ export const getAbilityScoreImprovementFeatOptions = (
 };
 
 export const getFeatAbilityChoiceOptions = (feat: AutoBuilderFeat | undefined): AbilityName[] => {
-  for (const entry of feat?.ability || []) {
-    if (!('choose' in entry)) continue;
-    const from = (entry.choose as { from?: string[] }).from;
-    if (!from?.length) continue;
-    return from
-      .map(ability => ABILITY_MAP[ability])
-      .filter((ability): ability is AbilityName => Boolean(ability));
-  }
-  return [];
+  return getSharedFeatAbilityChoiceOptions(feat);
 };
 
 const parseSpellRef = (ref: string): { name: string; source?: string } | null => {
