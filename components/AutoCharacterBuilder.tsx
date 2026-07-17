@@ -1381,9 +1381,16 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-2xl bg-white border border-gray-300 rounded-lg shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auto-character-builder-title"
+        className="w-full max-w-2xl bg-white border border-gray-300 rounded-lg shadow-xl"
+      >
         <div className="flex items-center justify-between border-b border-gray-200 p-4">
-          <h2 className="font-serif text-xl font-bold text-gray-900">{isLevelUpMode ? t('auto.levelUpTitle') : t('auto.title')}</h2>
+          <h2 id="auto-character-builder-title" className="font-serif text-xl font-bold text-gray-900">
+            {isLevelUpMode ? t('auto.levelUpTitle') : t('auto.title')}
+          </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-red-500 text-xl leading-none" aria-label={t('auto.close')}>
             &times;
           </button>
@@ -1407,6 +1414,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-gray-500 uppercase font-bold">{t('auto.ruleSystem')}</label>
             <select
+              aria-label={t('auto.ruleSystem')}
               value={ruleSystem}
               onChange={event => setRuleSystem(event.target.value as RuleSystem)}
               className="bg-white border border-gray-300 rounded px-2 py-2 text-sm"
@@ -1434,6 +1442,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-gray-500 uppercase font-bold">{t('header.classLevel')}</label>
             <select
+              aria-label={t('header.classLevel')}
               value={selectedClass?.key || className}
               onChange={event => setClassName(event.target.value)}
               className="bg-white border border-gray-300 rounded px-2 py-2 text-sm"
@@ -1446,6 +1455,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
           {!isLevelUpMode && <div className="flex flex-col gap-1">
             <label className="text-[10px] text-gray-500 uppercase font-bold">{t('header.race')}</label>
             <select
+              aria-label={t('header.race')}
               value={selectedRace?.key || raceKey}
               onChange={event => setRaceKey(event.target.value)}
               className="bg-white border border-gray-300 rounded px-2 py-2 text-sm"
@@ -1460,6 +1470,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
           {!isLevelUpMode && <div className="flex flex-col gap-1">
             <label className="text-[10px] text-gray-500 uppercase font-bold">{t('header.background')}</label>
             <select
+              aria-label={t('header.background')}
               value={selectedBackground?.key || backgroundKey}
               onChange={event => setBackgroundKey(event.target.value)}
               className="bg-white border border-gray-300 rounded px-2 py-2 text-sm"
@@ -1475,6 +1486,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             <div className="flex flex-col gap-1 md:col-span-2">
               <label className="text-[10px] text-gray-500 uppercase font-bold">{t('header.subrace')}</label>
               <select
+                aria-label={t('header.subrace')}
                 value={selectedSubrace?.key || subraceKey}
                 onChange={event => setSubraceKey(event.target.value)}
                 className="bg-white border border-gray-300 rounded px-2 py-2 text-sm"
@@ -2002,6 +2014,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
               <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.subclassChoice')}</h3>
               <select
+                aria-label={t('auto.subclassChoice')}
                 value={selectedSubclass?.id || ''}
                 onChange={event => setSubclassId(event.target.value)}
                 className="bg-white border border-gray-300 rounded px-2 py-2 text-sm w-full"
