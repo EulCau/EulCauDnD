@@ -979,9 +979,12 @@ refactor(rules): share feat choice effects
 
 ##### R5.2b EulCauDnD 接入和旧分支清理
 
-- 状态: 未开始.
-- 将各 `getFeat*ChoiceOptions` façade 和车卡构筑操作改为消费统一 state/effects.
-- 删除已被共享 effects 替代的本地通用选择、固定熟练、感官和免疫投影, 并用完整专长行为审计证明输出等价.
+- 状态: 已完成.
+- 新增 `getAutoBuilderFeatChoiceGroups` 作为统一 state façade; 原分字段 UI façade 继续作为共享 parser 的兼容视图.
+- 初始构筑、起源专长、战斗风格专长和升级 ASI 专长都通过 `createSharedFeatOperations` 消费 canonical effects.
+- 删除本地属性、技能、武器、豁免、抗性、固定熟练、感官和免疫规则投影. 合成的感官/免疫/抗性 feature 仅保留为角色卡展示适配, 不再提供数值规则.
+- 2024 `Ability Score Improvement` 不再作为普通专长重复出现在专长候选中, 因为同一界面已有 `+2` 和 `+1/+1` 专用模式.
+- rules-core 50 项测试、Ao 全 workspace TypeScript 检查、生产构建、完整专长行为审计和角色数据审计通过.
 
 提交:
 

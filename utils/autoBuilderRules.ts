@@ -25,6 +25,8 @@ import {
   createRuleOriginAdvancementEffects,
   createRuleOriginFeatChoiceState,
   createRuleOriginFeatEffects,
+  createRuleFeatChoiceGroups,
+  createRuleFeatEffects,
   createRuleOriginResourceEffects,
   createRuleOriginSpellEffects,
   createRuleOriginSpellLevelUpChoiceState,
@@ -57,6 +59,7 @@ import {
   type RuleChoiceGroup,
   type RuleCharacterSnapshot,
   type RuleFeatCatalogEntry,
+  type RuleFeatChoiceGroups,
   type RuleFightingStyle,
   type RuleOptionalFeature,
   type RuleOrigin,
@@ -1289,7 +1292,13 @@ export const getAbilityScoreImprovementFeatOptions = (
   character: CharacterData,
   level: number,
 ): AutoBuilderFeat[] => {
-  return getOfficialFeatOptions(content, ruleSystem, character, level, () => true);
+  return getOfficialFeatOptions(
+    content,
+    ruleSystem,
+    character,
+    level,
+    feat => feat.key !== 'Ability Score Improvement',
+  );
 };
 
 export const getFeatAbilityChoiceOptions = (feat: AutoBuilderFeat | undefined): AbilityName[] => {
@@ -2950,58 +2959,6 @@ const createToolChoiceOperations = (
   ));
 };
 
-const createWeaponChoiceOperations = (
-  content: AutoBuilderContent,
-  choices?: AutoBuilderWeaponChoiceSelection,
-): AdjustmentOperation[] => {
-  return Object.values(choices || {}).flatMap(weaponIds => (
-    weaponIds.flatMap(weaponId => {
-      const weapon = content.weapons.find(item => item.id === weaponId);
-      return weapon ? [{ type: 'addProficiency', key: `weapon:${weapon.key.toLowerCase()}` } satisfies AdjustmentOperation] : [];
-    })
-  ));
-};
-
-const createSkillChoiceOperations = (
-  choices?: AutoBuilderSkillChoiceSelection,
-): AdjustmentOperation[] => {
-  return Object.values(choices || {}).flatMap(skills => (
-    skills.map(skill => ({ type: 'addProficiency', key: normalizeSkillName(skill) } satisfies AdjustmentOperation))
-  ));
-};
-
-const hasProficiencyAfterOperations = (
-  character: CharacterData,
-  operations: AdjustmentOperation[],
-  key: string,
-): boolean => {
-  let proficient = character.proficiencies.has(key);
-  for (const operation of operations) {
-    if (operation.type === 'addProficiency' && operation.key === key) proficient = true;
-    if (operation.type === 'removeProficiency' && operation.key === key) proficient = false;
-  }
-  return proficient;
-};
-
-const createFeatSkillChoiceOperations = (
-  feat: AutoBuilderFeat,
-  character: CharacterData,
-  choices?: AutoBuilderSkillChoiceSelection,
-  previousOperations: AdjustmentOperation[] = [],
-): AdjustmentOperation[] => {
-  if (feat.key !== 'Observant' || feat.source !== 'XPHB') return createSkillChoiceOperations(choices);
-  return Object.values(choices || {}).flatMap(skills => (
-    skills.map(skill => {
-      const normalized = normalizeSkillName(skill);
-      return {
-        type: 'addProficiency',
-        key: normalized,
-        expertise: hasProficiencyAfterOperations(character, previousOperations, normalized),
-      } satisfies AdjustmentOperation;
-    })
-  ));
-};
-
 const createExpertiseChoiceOperations = (
   choices?: AutoBuilderSkillChoiceSelection,
 ): AdjustmentOperation[] => {
@@ -3020,43 +2977,6 @@ const createLanguageChoiceOperations = (
   return Object.values(choices || {}).flatMap(languages => (
     languages.map(language => ({ type: 'addProficiency', key: `language:${normalizeKey(language)}` } satisfies AdjustmentOperation))
   ));
-};
-
-const createSavingThrowChoiceOperations = (
-  choices?: AutoBuilderSkillChoiceSelection,
-): AdjustmentOperation[] => {
-  return Object.values(choices || {}).flatMap(abilities => (
-    abilities.map(ability => ({ type: 'addProficiency', key: ability } satisfies AdjustmentOperation))
-  ));
-};
-
-const createFeatResistanceChoiceOperations = (
-  feat: AutoBuilderFeat,
-  ruleSystem: RuleSystem,
-  choices?: AutoBuilderTextChoiceSelection,
-): AdjustmentOperation[] => {
-  const selectedResistances = Array.from(new Set(Object.values(choices || {}).flat()));
-  if (!selectedResistances.length) return [];
-  const sourceId = `auto-feat-${feat.key}-${feat.source}-choice-resistances`;
-  return [
-    ...selectedResistances.map(resistance => ({
-      type: 'addTextEntry',
-      path: 'damageResistances',
-      value: resistance,
-    } satisfies AdjustmentOperation)),
-    {
-      type: 'addFeature',
-      feature: {
-        id: `${sourceId}-feature`,
-        sourceId,
-        sourceName: `${feat.name} ${feat.source}`,
-        name: '伤害抗性',
-        level: 1,
-        ruleSystem,
-        description: `你获得对 ${selectedResistances.join(', ')} 伤害的抗性.`,
-      } satisfies CharacterFeatureEntry,
-    } satisfies AdjustmentOperation,
-  ];
 };
 
 const getAbilityDeltaFromOperations = (
@@ -3537,85 +3457,6 @@ const createOriginStructuredFeatureOperations = (
   return operations;
 };
 
-const createFeatStructuredFeatureOperations = (
-  feat: AutoBuilderFeat,
-  ruleSystem: RuleSystem,
-): AdjustmentOperation[] => {
-  const operations: AdjustmentOperation[] = [];
-  const sourceId = `auto-feat-${feat.key}-${feat.source}`;
-  const sourceName = `${feat.name} ${feat.source}`;
-  if (feat.darkvision) {
-    addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${feat.darkvision} 尺`], {
-      sourceId: `${sourceId}-darkvision`,
-      sourceName,
-      name: '黑暗视觉',
-      ruleSystem,
-      description: `你拥有 ${feat.darkvision} 尺黑暗视觉.`,
-    });
-  }
-  if (feat.blindsight) {
-    addStructuredTextEntries(operations, 'senses', [`盲视 ${feat.blindsight} 尺`], {
-      sourceId: `${sourceId}-blindsight`,
-      sourceName,
-      name: '盲视',
-      ruleSystem,
-      description: `你拥有 ${feat.blindsight} 尺盲视.`,
-    });
-  }
-  if (feat.tremorsense) {
-    addStructuredTextEntries(operations, 'senses', [`震颤感知 ${feat.tremorsense} 尺`], {
-      sourceId: `${sourceId}-tremorsense`,
-      sourceName,
-      name: '震颤感知',
-      ruleSystem,
-      description: `你拥有 ${feat.tremorsense} 尺震颤感知.`,
-    });
-  }
-  if (feat.truesight) {
-    addStructuredTextEntries(operations, 'senses', [`真实视觉 ${feat.truesight} 尺`], {
-      sourceId: `${sourceId}-truesight`,
-      sourceName,
-      name: '真实视觉',
-      ruleSystem,
-      description: `你拥有 ${feat.truesight} 尺真实视觉.`,
-    });
-  }
-
-  const fixedResistances = getFixedTextEntries(feat.resist);
-  addStructuredTextEntries(operations, 'damageResistances', fixedResistances, {
-    sourceId: `${sourceId}-fixed-resistances`,
-    sourceName,
-    name: '伤害抗性',
-    ruleSystem,
-    description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
-  });
-  const fixedImmunities = getFixedTextEntries(feat.immune);
-  addStructuredTextEntries(operations, 'damageImmunities', fixedImmunities, {
-    sourceId: `${sourceId}-fixed-immunities`,
-    sourceName,
-    name: '伤害免疫',
-    ruleSystem,
-    description: `你获得对 ${fixedImmunities.join(', ')} 伤害的免疫.`,
-  });
-  const fixedVulnerabilities = getFixedTextEntries(feat.vulnerable);
-  addStructuredTextEntries(operations, 'damageVulnerabilities', fixedVulnerabilities, {
-    sourceId: `${sourceId}-fixed-vulnerabilities`,
-    sourceName,
-    name: '伤害易伤',
-    ruleSystem,
-    description: `你对 ${fixedVulnerabilities.join(', ')} 伤害具有易伤.`,
-  });
-  const fixedConditionImmunities = getFixedTextEntries(feat.conditionImmune);
-  addStructuredTextEntries(operations, 'conditionImmunities', fixedConditionImmunities, {
-    sourceId: `${sourceId}-fixed-condition-immunities`,
-    sourceName,
-    name: '状态免疫',
-    ruleSystem,
-    description: `你免疫 ${fixedConditionImmunities.join(', ')} 状态.`,
-  });
-  return operations;
-};
-
 const createSharedOriginResourceOperations = (
   entity: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'> & Partial<Pick<AutoBuilderOrigin, 'features'>>,
   kind: 'race' | 'background',
@@ -3636,6 +3477,50 @@ const createSharedOriginResourceOperations = (
     featureChoices,
     resourceNotes,
   }).flatMap(originEffectToAdjustmentOperations);
+};
+
+const createFeatEffectPresentationOperations = (
+  feat: AutoBuilderFeat,
+  ruleSystem: RuleSystem,
+): AdjustmentOperation[] => {
+  const sourceId = `auto-feat-${feat.key}-${feat.source}`;
+  const sourceName = `${feat.name} ${feat.source}`;
+  const operations: AdjustmentOperation[] = [];
+  const addFeature = (
+    suffix: string,
+    name: string,
+    description: string,
+  ) => operations.push({
+    type: 'addFeature',
+    feature: {
+      id: `${sourceId}-${suffix}-feature`,
+      sourceId: `${sourceId}-${suffix}`,
+      sourceName,
+      name,
+      level: 1,
+      ruleSystem,
+      description,
+    },
+  });
+  for (const [suffix, name, distance] of [
+    ['darkvision', '黑暗视觉', feat.darkvision],
+    ['blindsight', '盲视', feat.blindsight],
+    ['tremorsense', '震颤感知', feat.tremorsense],
+    ['truesight', '真实视觉', feat.truesight],
+  ] as const) {
+    if (distance) addFeature(suffix, name, `你拥有 ${distance} 尺${name}.`);
+  }
+  for (const [suffix, name, values, description] of [
+    ['fixed-resistances', '伤害抗性', getFixedTextEntries(feat.resist), '你获得伤害抗性'],
+    ['fixed-immunities', '伤害免疫', getFixedTextEntries(feat.immune), '你获得伤害免疫'],
+    ['fixed-vulnerabilities', '伤害易伤', getFixedTextEntries(feat.vulnerable), '你具有伤害易伤'],
+    ['fixed-condition-immunities', '状态免疫', getFixedTextEntries(feat.conditionImmune), '你获得状态免疫'],
+  ] as const) {
+    if (values.length > 0) {
+      addFeature(suffix, name, `${description}: ${values.join(', ')}.`);
+    }
+  }
+  return operations;
 };
 
 const createOriginOperations = (
@@ -3911,20 +3796,122 @@ const createChosenFeatOperations = (
 
   return [
     ...createFeatOperations([feat], ruleSystem, characterLevel),
-    ...createFeatFixedAbilityOperations(feat, abilitiesAfterPreviousOperations, choices.featAbility),
-    ...createFeatSkillChoiceOperations(feat, character, choices.featSkillChoices, previousOperations),
-    ...createToolChoiceOperations(choices.featToolChoices),
-    ...createWeaponChoiceOperations(content, choices.featWeaponChoices),
-    ...createFeatResistanceChoiceOperations(feat, ruleSystem, choices.featResistanceChoices),
-    ...createExpertiseChoiceOperations(choices.featExpertiseChoices),
-    ...createLanguageChoiceOperations(choices.featLanguageChoices),
-    ...createSavingThrowChoiceOperations(choices.featSavingThrowChoices),
+    ...createSharedFeatOperations(
+      content,
+      ruleSystem,
+      feat,
+      {
+        ...character,
+        abilities: abilitiesAfterPreviousOperations,
+      },
+      choices,
+      previousOperations,
+    ),
     ...createFeatSpellOperations(content, ruleSystem, feat, choices, characterLevel),
     ...createFightingStyleFeatureOperations(content, { key: feat.key, name: feat.name, source: feat.source } as AutoBuilderClass, ruleSystem, choices.featFightingStyleFeatureId),
     ...createInvocationOperations(content, { invocationIds: choices.featInvocations || [] }, { ruleSystem, level: characterLevel }),
     ...createManeuverOperations(content, ruleSystem, choices.featManeuvers),
     ...createMetamagicOperations(content, ruleSystem, choices.featMetamagics),
   ];
+};
+
+export const getAutoBuilderFeatChoiceGroups = (
+  content: AutoBuilderContent,
+  ruleSystem: RuleSystem,
+  feat: AutoBuilderFeat,
+  character: CharacterData,
+  selectedSkillChoices?: AutoBuilderSkillChoiceSelection,
+): RuleFeatChoiceGroups => {
+  const result = createRuleFeatChoiceGroups(content, ruleSystem, feat, {
+    proficientSkills: [...character.proficiencies],
+    selectedSkills: Object.values(selectedSkillChoices ?? {}).flat(),
+  });
+  if (result.ok) return result.value;
+  const first = result.issues[0];
+  throw new Error(
+    `Unsupported feat choice shape at ${first?.path.join('.') || feat.key}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
+};
+
+const createSharedFeatOperations = (
+  content: AutoBuilderContent,
+  ruleSystem: RuleSystem,
+  feat: AutoBuilderFeat,
+  character: CharacterData,
+  choices?: AutoBuilderFeatChoice,
+  previousOperations: AdjustmentOperation[] = [],
+): AdjustmentOperation[] => {
+  const state = getAutoBuilderFeatChoiceGroups(
+    content,
+    ruleSystem,
+    feat,
+    character,
+    choices?.featSkillChoices,
+  );
+  const selections: Record<string, string[]> = {};
+  for (const choiceMap of [
+    choices?.featSkillChoices,
+    choices?.featToolChoices,
+    choices?.featWeaponChoices,
+    choices?.featResistanceChoices,
+    choices?.featExpertiseChoices,
+    choices?.featLanguageChoices,
+    choices?.featSavingThrowChoices,
+  ]) {
+    for (const [groupId, selected] of Object.entries(choiceMap ?? {})) {
+      selections[groupId] = [...selected];
+    }
+  }
+  const abilityGroup = state.ability[0];
+  if (abilityGroup && choices?.featAbility) {
+    selections[abilityGroup.id] = [choices.featAbility];
+  }
+  const proficiencies = new Set(character.proficiencies);
+  for (const operation of previousOperations) {
+    if (operation.type === 'addProficiency') proficiencies.add(operation.key);
+    if (operation.type === 'removeProficiency') proficiencies.delete(operation.key);
+  }
+  const result = createRuleFeatEffects(
+    content,
+    ruleSystem,
+    feat,
+    {
+      abilities: character.abilities,
+      proficiencies: [...proficiencies],
+    },
+    {
+      choices: selections,
+      allowIncompleteChoices: true,
+    },
+  );
+  if (result.ok) {
+    const operations = result.value.flatMap(originEffectToAdjustmentOperations);
+    const selectedResistances = Array.from(new Set(
+      state.resistance.flatMap(group => selections[group.id] ?? []),
+    ));
+    if (selectedResistances.length > 0) {
+      const sourceId = `auto-feat-${feat.key}-${feat.source}-choice-resistances`;
+      operations.push({
+        type: 'addFeature',
+        feature: {
+          id: `${sourceId}-feature`,
+          sourceId,
+          sourceName: `${feat.name} ${feat.source}`,
+          name: '伤害抗性',
+          level: 1,
+          ruleSystem,
+          description: `你获得对 ${selectedResistances.join(', ')} 伤害的抗性.`,
+        },
+      });
+    }
+    return operations;
+  }
+  const first = result.issues[0];
+  throw new Error(
+    `Invalid feat effects at ${first?.path.join('.') || feat.key}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
 };
 
 const createWeaponMasteryOperations = (
@@ -4485,15 +4472,8 @@ const createFeatOperations = (
     if (feat.key === 'Boon of Speed') {
       featOperations.push({ type: 'addNumber', path: 'speedBonus', value: 30 });
     }
-    featOperations.push(...createFeatStructuredFeatureOperations(feat, ruleSystem));
+    featOperations.push(...createFeatEffectPresentationOperations(feat, ruleSystem));
     featOperations.push(...getFeatResourceOperations(feat, ruleSystem, characterLevel));
-    const fixedSavingThrows = (feat.savingThrowProficiencies || []).flatMap(entry => (
-      Object.entries(entry).flatMap(([key, value]) => {
-        if (value !== true) return [];
-        const ability = normalizeAbilityName(key);
-        return ability ? [{ type: 'addProficiency', key: ability } satisfies AdjustmentOperation] : [];
-      })
-    ));
     return [
       ...feat.features.map((feature, index) => ({
         type: 'addFeature',
@@ -4507,12 +4487,6 @@ const createFeatOperations = (
           description: feature.description,
         } satisfies CharacterFeatureEntry,
       } satisfies AdjustmentOperation)),
-      ...createFixedProficiencyOperations(feat.skillProficiencies, ''),
-      ...createFixedProficiencyOperations(feat.toolProficiencies, 'tool'),
-      ...createFixedProficiencyOperations(feat.languageProficiencies, 'language'),
-      ...fixedSavingThrows,
-      ...createFixedProficiencyOperations(feat.weaponProficiencies, 'weapon'),
-      ...createFixedProficiencyOperations(feat.armorProficiencies, 'armor'),
       ...featOperations,
     ];
   });
@@ -4817,34 +4791,6 @@ const createExistingFeatLevelUpOperations = (
   return operations;
 };
 
-const createFeatFixedAbilityOperations = (
-  feat: AutoBuilderFeat,
-  abilities: CharacterData['abilities'],
-  selectedAbility?: AbilityName,
-): AdjustmentOperation[] => {
-  const operations: AdjustmentOperation[] = [];
-  for (const abilityEntry of feat.ability || []) {
-    if ('choose' in abilityEntry) {
-      if (!selectedAbility) continue;
-      const from = ((abilityEntry.choose as { from?: string[] }).from || [])
-        .map(ability => ABILITY_MAP[ability])
-        .filter((ability): ability is AbilityName => Boolean(ability));
-      if (!from.includes(selectedAbility)) continue;
-      const max = typeof (abilityEntry as { max?: unknown }).max === 'number' ? (abilityEntry as { max: number }).max : 20;
-      const delta = Math.min(1, Math.max(0, max - abilities[selectedAbility]));
-      if (delta > 0) operations.push({ type: 'addNumber', path: `abilities.${selectedAbility}`, value: delta });
-      continue;
-    }
-    for (const [ability, value] of Object.entries(abilityEntry)) {
-      const abilityName = ABILITY_MAP[ability];
-      if (!abilityName || typeof value !== 'number') continue;
-      const delta = Math.min(value, Math.max(0, 20 - abilities[abilityName]));
-      if (delta > 0) operations.push({ type: 'addNumber', path: `abilities.${abilityName}`, value: delta });
-    }
-  }
-  return operations;
-};
-
 const createAbilityScoreImprovementOperations = (
   content: AutoBuilderContent,
   character: CharacterData,
@@ -4870,14 +4816,7 @@ const createAbilityScoreImprovementOperations = (
     const feat = content.feats.find(item => item.key === choice.featId || `${item.key}|${item.source}` === choice.featId);
     return feat ? [
       ...createFeatOperations([feat], ruleSystem, characterLevel),
-      ...createFeatFixedAbilityOperations(feat, character.abilities, choice.featAbility),
-      ...createFeatSkillChoiceOperations(feat, character, choice.featSkillChoices),
-      ...createToolChoiceOperations(choice.featToolChoices),
-      ...createWeaponChoiceOperations(content, choice.featWeaponChoices),
-      ...createFeatResistanceChoiceOperations(feat, ruleSystem, choice.featResistanceChoices),
-      ...createExpertiseChoiceOperations(choice.featExpertiseChoices),
-      ...createLanguageChoiceOperations(choice.featLanguageChoices),
-      ...createSavingThrowChoiceOperations(choice.featSavingThrowChoices),
+      ...createSharedFeatOperations(content, ruleSystem, feat, character, choice),
       ...createFeatSpellOperations(content, ruleSystem, feat, choice, characterLevel),
       ...createFightingStyleFeatureOperations(content, { key: feat.key, name: feat.name, source: feat.source } as AutoBuilderClass, ruleSystem, choice.featFightingStyleFeatureId),
       ...createInvocationOperations(content, { invocationIds: choice.featInvocations || [] }, { ruleSystem, level: characterLevel }),
@@ -5080,6 +5019,12 @@ export const buildLevelOneCharacter = (
       ? createLanguageChoiceOperations(options.backgroundLanguageChoices)
       : []),
     ...createFeatOperations(backgroundFeats, options.ruleSystem, 1),
+    ...backgroundFeats.flatMap(feat => createSharedFeatOperations(
+      content,
+      options.ruleSystem,
+      feat,
+      character,
+    )),
     ...createChosenFeatOperations(
       content,
       character,

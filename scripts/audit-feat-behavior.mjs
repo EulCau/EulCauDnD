@@ -12,6 +12,7 @@ const entrySource = `
 import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
   buildLevelUpCharacter,
+  getAbilityScoreImprovementFeatOptions,
   getFeatExpertiseChoiceOptions,
   getFeatLanguageChoiceOptions,
   getFeatManeuverChoiceState,
@@ -123,6 +124,11 @@ const drowHighMagic = getFeat('Drow High Magic', 'XGE');
 const feyTeleportation = getFeat('Fey Teleportation', 'XGE');
 const infernalConstitution = getFeat('Infernal Constitution', 'XGE');
 const xphbMageSlayer = getFeat('Mage Slayer', 'XPHB');
+assert(
+  !getAbilityScoreImprovementFeatOptions(content, '5r', makeLevelThreeWizard(), 4)
+    .some(feat => feat.key === 'Ability Score Improvement'),
+  'the dedicated ASI modes should not also expose Ability Score Improvement as a feat',
+);
 const lightlyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, wizard, {
   ruleSystem: '5r',
   spellChoices: { cantrips: [], leveled: [] },
