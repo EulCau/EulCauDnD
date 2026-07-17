@@ -872,7 +872,18 @@ refactor(rules): share origin feat grants
 
 ####### R4.3c-3b 起源法术升级刷新
 
-- 状态: 待完成.
+- 状态: 已完成.
+- 新增 `createRuleOriginSpellLevelUpChoiceState`, 以旧/新角色等级计算固定法术和选择数量差分, 全量枚举 77 个含 `additionalSpells` 的起源实体.
+- 新增分支推断和 `createRuleOriginSpellLevelUpEffects`: 已有 profile 根据原法术推断分支并沿用施法属性; 无法唯一推断时要求用户选择, 不静默采用第一项.
+- 等级门槛首次出现法术且没有旧 profile 时, 升级界面要求选择分支/施法属性并创建 profile; 已有 profile 使用 `spell.add` 追加且不覆盖原法术.
+- EulCauDnD 升级界面显示每个已应用种族、亚种族或背景的新起源法术选择, 并把选择纳入升级完成度校验.
+- 完整构筑审计覆盖 XPHB High Elf 在 3/5 级沿既有分支解锁法术, 以及 MPMM Aarakocra 在 3 级首次创建 WIS 法术 profile.
+
+提交:
+
+```text
+refactor(rules): share origin spell advancement
+```
 
 R4.3c 最终清理提交:
 

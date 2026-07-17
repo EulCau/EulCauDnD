@@ -13,6 +13,7 @@ import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
   buildLevelOneCharacter,
   buildLevelUpCharacter,
+  getExistingOriginSpellLevelUpChoiceStates,
   getOriginSpellChoiceState,
   getOriginWeaponChoiceOptions,
   getRaceFeatureChoiceOptions,
@@ -917,6 +918,89 @@ assert(
   highElfSpellProfile?.spells.length === 1 && highElfSpellProfile.spells.some(spell => spell.id === highElfCantrip.id && spell.prepared),
   \`XPHB High Elf origin spell profile should add only selected cantrip, got \${highElfSpellProfile?.spells.map(spell => spell.name).join(', ')}\`,
 );
+let leveledHighElf = buildLevelUpCharacter(highElfWithCantrip, content, fighter, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const highElfLevelThreeStates = getExistingOriginSpellLevelUpChoiceStates(
+  content,
+  leveledHighElf,
+  '5r',
+  2,
+  3,
+);
+assert(
+  highElfLevelThreeStates.length === 1
+    && highElfLevelThreeStates[0].defaultBlockId === highElfSpellBlock.id,
+  'XPHB High Elf level-up should infer the existing High Elf spell branch',
+);
+leveledHighElf = buildLevelUpCharacter(leveledHighElf, content, fighter, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  existingOriginSpellChoices: {},
+});
+const levelThreeHighElfProfile = leveledHighElf.spellcastingProfiles.find(
+  profile => profile.id === 'auto-race-Elf-XPHB-spells',
+);
+assert(
+  levelThreeHighElfProfile?.spells.some(spell => spell.name === '侦测魔法'),
+  \`XPHB High Elf should add Detect Magic at level 3, got \${levelThreeHighElfProfile?.spells.map(spell => spell.name).join(', ')}\`,
+);
+leveledHighElf = buildLevelUpCharacter(leveledHighElf, content, fighter, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+leveledHighElf = buildLevelUpCharacter(leveledHighElf, content, fighter, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  existingOriginSpellChoices: {},
+});
+const levelFiveHighElfProfile = leveledHighElf.spellcastingProfiles.find(
+  profile => profile.id === 'auto-race-Elf-XPHB-spells',
+);
+assert(
+  levelFiveHighElfProfile?.spells.some(spell => spell.name === '迷踪步'),
+  \`XPHB High Elf should add Misty Step at level 5, got \${levelFiveHighElfProfile?.spells.map(spell => spell.name).join(', ')}\`,
+);
+let leveledAarakocraSpells = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: aarakocra,
+});
+leveledAarakocraSpells = buildLevelUpCharacter(leveledAarakocraSpells, content, fighter, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+});
+const aarakocraLevelThreeStates = getExistingOriginSpellLevelUpChoiceStates(
+  content,
+  leveledAarakocraSpells,
+  '5r',
+  2,
+  3,
+);
+const aarakocraSpellUpgrade = aarakocraLevelThreeStates[0];
+assert(
+  aarakocraSpellUpgrade?.state.blocks.length === 1
+    && aarakocraSpellUpgrade.state.blocks[0].abilityOptions.includes('WIS'),
+  'MPMM Aarakocra should require a spellcasting ability when Gust of Wind first unlocks',
+);
+leveledAarakocraSpells = buildLevelUpCharacter(leveledAarakocraSpells, content, fighter, {
+  ruleSystem: '5r',
+  spellChoices: { cantrips: [], leveled: [] },
+  existingOriginSpellChoices: {
+    [aarakocraSpellUpgrade.id]: {
+      originSpellBlockId: aarakocraSpellUpgrade.state.blocks[0].id,
+      originSpellAbility: 'WIS',
+    },
+  },
+});
+const aarakocraSpellProfile = leveledAarakocraSpells.spellcastingProfiles.find(
+  profile => profile.id === 'auto-race-Aarakocra-MPMM-spells',
+);
+assert(
+  aarakocraSpellProfile?.ability === 'WIS'
+    && aarakocraSpellProfile.spells.some(spell => spell.name === '造风术'),
+  \`MPMM Aarakocra should create a WIS Gust of Wind profile at level 3, got \${aarakocraSpellProfile?.spells.map(spell => spell.name).join(', ')}\`,
+);
 
 const xphbTieflingSpellState = getOriginSpellChoiceState(content, xphbTiefling, '5r', 1);
 assert(xphbTieflingSpellState?.blocks.length === 3, \`XPHB Tiefling should expose three legacy spell blocks, got \${xphbTieflingSpellState?.blocks.length}\`);
@@ -1337,6 +1421,8 @@ export default {
     'Hexblood Eerie Token adds source-specific long-rest resource',
     'VRGR Hexblood Hex Magic adds reversible racial spell profile after ability selection',
     'XPHB Elf origin spells support branch, ability, and cantrip choices',
+    'XPHB Elf origin spells refresh the inferred branch at levels 3 and 5',
+    'MPMM Aarakocra creates its origin spell profile when level 3 first unlocks it',
     'XPHB Tiefling origin spells apply only the selected legacy branch',
     'Deep Gnome Svirfneblin Camouflage refreshes proficiency-based uses',
     'Hadozee Dodge refreshes proficiency-based uses',

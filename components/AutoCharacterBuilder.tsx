@@ -50,6 +50,7 @@ import {
   getFightingStyleFeatureChoiceOptions,
   getFightingStyleFeatChoiceOptions,
   getExistingFeatSpellLevelUpChoiceState,
+  getExistingOriginSpellLevelUpChoiceStates,
   getInvocationChoiceState,
   getInvocationPrerequisiteSummary,
   getManeuverChoiceState,
@@ -124,6 +125,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const [magicalSecretReplaceId, setMagicalSecretReplaceId] = useState<string | null>(null);
   const [magicalSecretReplaceAddId, setMagicalSecretReplaceAddId] = useState<string | null>(null);
   const [existingFeatChoices, setExistingFeatChoices] = useState<Record<string, AutoBuilderFeatChoice>>({});
+  const [existingOriginSpellChoices, setExistingOriginSpellChoices] = useState<Record<string, AutoBuilderRaceChoice>>({});
   const isLevelUpMode = data.automation.active;
 
   useEffect(() => {
@@ -309,6 +311,15 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const existingFeatChoice = existingFeatChoiceKey
     ? existingFeatChoices[existingFeatChoiceKey] || { featId: existingFeatChoiceKey }
     : {};
+  const existingOriginSpellChoiceStates = content && isLevelUpMode
+    ? getExistingOriginSpellLevelUpChoiceStates(
+        content,
+        data,
+        ruleSystem,
+        currentCharacterLevel,
+        targetCharacterLevel,
+      )
+    : [];
   const abilityScoreImprovementFeatFightingStyleChoiceState = content
     ? getFeatFightingStyleChoiceState(content, selectedAbilityScoreImprovementFeat, data)
     : null;
@@ -1172,6 +1183,13 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       (!existingFeatSpellChoiceState.state.blocks.length || isFeatSpellChoiceComplete(existingFeatSpellChoiceState.state, existingFeatChoice))
       && (!existingFeatChoice.featSpellReplaceRemoveId || Boolean(existingFeatChoice.featSpellReplaceAddId))
     );
+  const isExistingOriginSpellChoiceComplete = existingOriginSpellChoiceStates.every((entry) => {
+    const stored = existingOriginSpellChoices[entry.id] || {};
+    return isOriginSpellChoiceComplete(entry.state, {
+      ...stored,
+      originSpellBlockId: stored.originSpellBlockId || entry.defaultBlockId,
+    });
+  });
   const isClassExpertiseChoiceComplete = classExpertiseChoiceOptions.length === 0
     || areChoiceGroupsComplete(classExpertiseChoiceOptions, classFeatureChoices.expertise);
   const currentWeaponMasteryIds = new Set(weaponMasteryChoiceState?.options.map(weapon => weapon.id) || []);
@@ -1255,6 +1273,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 		        toolChoices: classToolChoices,
 		        abilityScoreImprovementChoice: needsAbilityScoreImprovementChoice ? validAbilityScoreImprovementChoice : undefined,
 		        existingFeatChoices: existingFeatSpellChoiceState ? [existingFeatChoice] : undefined,
+		        existingOriginSpellChoices,
 		        classFeatureChoices: validClassFeatureChoices,
 		        subclass: needsSubclassChoice ? selectedSubclass : undefined,
 		        replaceSpell: spellReplace,
@@ -2580,6 +2599,29 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             })),
           ) : null}
 
+          {existingOriginSpellChoiceStates.map((entry) => {
+            const stored = existingOriginSpellChoices[entry.id] || {};
+            const choice = {
+              ...stored,
+              originSpellBlockId: stored.originSpellBlockId || entry.defaultBlockId,
+            };
+            return (
+              <React.Fragment key={entry.id}>
+                {renderOriginSpellChoiceGroup(
+                  entry.state,
+                  choice,
+                  updater => setExistingOriginSpellChoices(previous => ({
+                    ...previous,
+                    [entry.id]: {
+                      ...choice,
+                      ...updater(choice),
+                    },
+                  })),
+                )}
+              </React.Fragment>
+            );
+          })}
+
           {existingFeatSpellChoiceState && renderFeatSpellReplacementChoice(
             existingFeatSpellChoiceState.replacement,
             existingFeatChoice,
@@ -2757,7 +2799,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </button>
             <button
               onClick={applyBuild}
-              disabled={!content || !selectedClass || (!isLevelUpMode && (!selectedRace || !selectedBackground)) || !isSkillSelectionComplete || !isSpellSelectionComplete || !isInvocationSelectionComplete || !isMetamagicChoiceComplete || !isManeuverChoiceComplete || !isBackgroundAbilityComplete || !isOriginFeatChoiceComplete || !isRaceChoiceComplete || !isBackgroundToolChoiceComplete || !isBackgroundLanguageChoiceComplete || !isClassToolChoiceComplete || !isClassFeatureChoiceComplete || !isExistingFeatChoiceComplete || !isClassExpertiseChoiceComplete || !isWeaponMasteryChoiceComplete || !isAbilityScoreImprovementComplete || !isSubclassSelectionComplete || !isMagicalSecretComplete}
+              disabled={!content || !selectedClass || (!isLevelUpMode && (!selectedRace || !selectedBackground)) || !isSkillSelectionComplete || !isSpellSelectionComplete || !isInvocationSelectionComplete || !isMetamagicChoiceComplete || !isManeuverChoiceComplete || !isBackgroundAbilityComplete || !isOriginFeatChoiceComplete || !isRaceChoiceComplete || !isBackgroundToolChoiceComplete || !isBackgroundLanguageChoiceComplete || !isClassToolChoiceComplete || !isClassFeatureChoiceComplete || !isExistingFeatChoiceComplete || !isExistingOriginSpellChoiceComplete || !isClassExpertiseChoiceComplete || !isWeaponMasteryChoiceComplete || !isAbilityScoreImprovementComplete || !isSubclassSelectionComplete || !isMagicalSecretComplete}
               className="px-3 py-2 text-xs font-bold uppercase bg-dnd-red text-white rounded hover:bg-red-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {isLevelUpMode ? t('auto.applyLevelUp') : t('auto.applyLevelOne')}

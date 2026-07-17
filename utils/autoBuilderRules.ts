@@ -27,6 +27,8 @@ import {
   createRuleOriginFeatEffects,
   createRuleOriginResourceEffects,
   createRuleOriginSpellEffects,
+  createRuleOriginSpellLevelUpChoiceState,
+  createRuleOriginSpellLevelUpEffects,
   findRuleClassOption,
   findRuleOriginOption,
   getRuleBackgroundOptions,
@@ -34,6 +36,7 @@ import {
   getRuleRaceOptions,
   getRuleSubclassOptions,
   getRuleSubraceOptions,
+  inferRuleOriginSpellLevelUpBlock,
   getEligibleAbilityScoreImprovementFeats,
   parseRuleAbilityChoiceGroups,
   parseRuleClassSkillChoiceGroups,
@@ -210,6 +213,15 @@ export type AutoBuilderExistingFeatChoiceState = {
   feat: AutoBuilderFeat;
   state: { blocks: AutoBuilderFeatSpellBlockChoice[] };
   replacement?: AutoBuilderFeatSpellReplacementState;
+};
+
+export type AutoBuilderExistingOriginSpellChoiceState = {
+  id: string;
+  origin: AutoBuilderOrigin;
+  kind: 'race' | 'background';
+  state: { blocks: AutoBuilderFeatSpellBlockChoice[] };
+  profileId: string;
+  defaultBlockId?: string;
 };
 
 export type AutoBuilderRaceChoice = {
@@ -1545,6 +1557,69 @@ export const getOriginSpellChoiceState = (
     `Unsupported origin spell shape at ${first?.path.join('.') || origin.key}: `
     + `${first?.detail?.reason || first?.code || 'unknown'}`,
   );
+};
+
+export const getExistingOriginSpellLevelUpChoiceStates = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+): AutoBuilderExistingOriginSpellChoiceState[] => {
+  if (newCharacterLevel <= oldCharacterLevel) return [];
+  const candidates: Array<{ origin: AutoBuilderOrigin; kind: 'race' | 'background' }> = [
+    ...content.races.map(origin => ({ origin, kind: 'race' as const })),
+    ...content.subraces.map(origin => ({ origin, kind: 'race' as const })),
+    ...content.backgrounds.map(origin => ({ origin, kind: 'background' as const })),
+  ];
+  return candidates.flatMap(({ origin, kind }) => {
+    if (!origin.additionalSpells?.length) return [];
+    const sourceId = `auto-${kind}-${origin.key}-${origin.source}`;
+    const applied = character.appliedAdjustments.some(adjustment => adjustment.sourceId === sourceId)
+      || character.featureEntries.some(feature => feature.sourceId === sourceId);
+    if (!applied) return [];
+    const result = createRuleOriginSpellLevelUpChoiceState(
+      content,
+      ruleSystem,
+      origin,
+      oldCharacterLevel,
+      newCharacterLevel,
+    );
+    if (!result.ok) {
+      const first = result.issues[0];
+      throw new Error(
+        `Unsupported origin spell level-up at ${first?.path.join('.') || origin.key}: `
+        + `${first?.detail?.reason || first?.code || 'unknown'}`,
+      );
+    }
+    if (!result.value) return [];
+    const profileId = getOriginSpellProfileId(origin, kind);
+    const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+    const inferred = existingProfile
+      ? inferRuleOriginSpellLevelUpBlock(
+          result.value,
+          existingProfile.spells.map(({ id }) => id),
+        )
+      : result.value.blocks.length === 1
+        ? result.value.blocks[0]
+        : undefined;
+    return [{
+      id: `${kind}:${origin.key}|${origin.source}`,
+      origin,
+      kind,
+      state: {
+        blocks: result.value.blocks.map(block => existingProfile
+          ? {
+              ...block,
+              ability: existingProfile.ability,
+              abilityOptions: [],
+            }
+          : block),
+      },
+      profileId,
+      ...(inferred === undefined ? {} : { defaultBlockId: inferred.id }),
+    }];
+  });
 };
 
 const getFeatSpellProfileId = (feat: AutoBuilderFeat): string => (
@@ -3140,6 +3215,94 @@ const createOriginSpellOperations = (
         spells,
       },
     }];
+  });
+};
+
+const createExistingOriginSpellLevelUpOperations = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+  choices?: Record<string, AutoBuilderRaceChoice>,
+): AdjustmentOperation[] => {
+  return getExistingOriginSpellLevelUpChoiceStates(
+    content,
+    character,
+    ruleSystem,
+    oldCharacterLevel,
+    newCharacterLevel,
+  ).flatMap((entry): AdjustmentOperation[] => {
+    const choice = choices?.[entry.id] ?? {};
+    const existingProfile = character.spellcastingProfiles.find(
+      profile => profile.id === entry.profileId,
+    );
+    const result = createRuleOriginSpellLevelUpEffects(
+      content,
+      ruleSystem,
+      entry.origin,
+      entry.kind,
+      oldCharacterLevel,
+      newCharacterLevel,
+      existingProfile
+        ? {
+            id: existingProfile.id,
+            ability: existingProfile.ability,
+            preparationMode: existingProfile.preparationMode,
+            spells: existingProfile.spells.map(spell => ({
+              id: spell.id,
+              key: spell.englishName || spell.name,
+              source: spell.source,
+            })),
+            slots: {},
+          }
+        : undefined,
+      {
+        blockId: choice.originSpellBlockId || entry.defaultBlockId,
+        ability: choice.originSpellAbility,
+        choices: choice.originSpellChoices,
+      },
+    );
+    if (!result.ok) {
+      if (result.issues.every(({ code }) => code === 'choice_required')) return [];
+      const first = result.issues[0];
+      throw new Error(
+        `Invalid origin spell level-up choice at ${first?.path.join('.') || entry.origin.key}: `
+        + `${first?.detail?.reason || first?.code || 'unknown'}`,
+      );
+    }
+    return result.value.flatMap((effect): AdjustmentOperation[] => {
+      if (effect.type === 'spell.add') {
+        const spell = content.spells.find(({ id }) => id === effect.spell.id);
+        if (!spell) throw new Error(`Origin spell is missing from catalog: ${effect.spell.id}`);
+        return [{
+          type: 'addSpell',
+          profileId: effect.profileId,
+          spell: toCharacterSpell(spell, true),
+        }];
+      }
+      if (effect.type === 'spell.profile.upsert') {
+        const spells = effect.profile.spells.map((ref) => {
+          const spell = content.spells.find(({ id }) => id === ref.id);
+          if (!spell) throw new Error(`Origin spell is missing from catalog: ${ref.id}`);
+          return toCharacterSpell(spell, true);
+        });
+        return [{
+          type: 'upsertSpellcastingProfile',
+          profile: {
+            id: effect.profile.id,
+            className: `${entry.origin.name} 法术`,
+            ability: effect.profile.ability,
+            preparationMode: 'knownSelection',
+            saveDCOverride: '',
+            attackBonusOverride: '',
+            slots: createEmptySpellSlots(),
+            spells,
+          },
+        }];
+      }
+      throw new Error(`Unsupported origin spell level-up effect adapter: ${effect.type}`);
+    });
   });
 };
 
@@ -5642,6 +5805,7 @@ export const buildLevelUpCharacter = (
 	    toolChoices?: AutoBuilderToolChoiceSelection;
 	    abilityScoreImprovementChoice?: AutoBuilderAbilityScoreImprovementChoice;
 	    existingFeatChoices?: AutoBuilderFeatChoice[];
+	    existingOriginSpellChoices?: Record<string, AutoBuilderRaceChoice>;
 	    classFeatureChoices?: AutoBuilderClassFeatureChoice;
 	    subclass?: AutoBuilderSubclass;
 	    invocationChoices?: AutoBuilderInvocationChoice;
@@ -5750,6 +5914,14 @@ export const buildLevelUpCharacter = (
     oldTotalLevel,
     newTotalLevel,
   );
+  const existingOriginSpellLevelUpOperations = createExistingOriginSpellLevelUpOperations(
+    content,
+    character,
+    options.ruleSystem,
+    oldTotalLevel,
+    newTotalLevel,
+    options.existingOriginSpellChoices,
+  );
   const classResourceOperations = createClassResourceOperations(
     cls,
     options.ruleSystem,
@@ -5813,9 +5985,10 @@ export const buildLevelUpCharacter = (
 	        ...classExpertiseChoiceOperations,
 	        ...classWeaponMasteryOperations,
 	        ...abilityScoreImprovementOperations,
-	        ...existingFeatLevelUpOperations,
-	        ...existingFeatSpellChoiceOperations,
-	        ...existingOriginLevelUpOperations,
+    ...existingFeatLevelUpOperations,
+    ...existingFeatSpellChoiceOperations,
+    ...existingOriginLevelUpOperations,
+    ...existingOriginSpellLevelUpOperations,
 	        ...classResourceOperations,
 	        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),
 	        ...createSubclassFeatureOperations(selectedSubclass, options.ruleSystem, newLevel),

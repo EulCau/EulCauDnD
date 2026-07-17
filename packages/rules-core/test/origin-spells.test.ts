@@ -4,6 +4,9 @@ import { test } from 'node:test';
 import {
   createRuleAdditionalSpellChoiceState,
   createRuleOriginSpellEffects,
+  createRuleOriginSpellLevelUpChoiceState,
+  createRuleOriginSpellLevelUpEffects,
+  inferRuleOriginSpellLevelUpBlock,
   parseRuleCatalog,
   type RuleCatalog,
   type RuleOrigin,
@@ -36,6 +39,33 @@ test('parses every catalog origin additionalSpells shape at milestone levels', a
     }
   }
   assert.equal(parsedOwners, 77);
+});
+
+test('builds every catalog origin spell level-up delta', async () => {
+  const catalog = await loadCatalog();
+  const origins = [
+    ...catalog.races,
+    ...catalog.subraces,
+    ...catalog.backgrounds,
+  ].filter((entry) => entry.additionalSpells?.length);
+  for (const origin of origins) {
+    for (const [oldLevel, newLevel] of [[1, 3], [3, 5], [5, 20]] as const) {
+      const result = createRuleOriginSpellLevelUpChoiceState(
+        catalog,
+        origin.ruleSystem,
+        origin,
+        oldLevel,
+        newLevel,
+      );
+      assert.equal(
+        result.ok,
+        true,
+        `${origin.key}|${origin.source} ${oldLevel}->${newLevel}: ${
+          'issues' in result ? JSON.stringify(result.issues.slice(0, 2)) : ''
+        }`,
+      );
+    }
+  }
 });
 
 test('builds level-gated branch and filtered spell choices', async () => {
@@ -131,6 +161,106 @@ test('fails closed on unknown block keys and spell filters', async () => {
       known: { _: [{ choose: 'level=0|unknown=value' }] },
     }],
   }).ok, false);
+});
+
+test('builds level-up deltas and infers an existing origin spell branch', async () => {
+  const catalog = await loadCatalog();
+  const elf = origin(catalog, 'Elf', 'XPHB');
+  const initial = value(createRuleAdditionalSpellChoiceState(
+    catalog,
+    '5r',
+    owner(elf),
+    1,
+  ));
+  const highElf = initial?.blocks.find(({ label }) => label === '高等精灵');
+  assert.ok(highElf);
+  const cantrip = highElf.choices[0]?.options[0];
+  assert.ok(cantrip);
+
+  const delta = createRuleOriginSpellLevelUpChoiceState(catalog, '5r', elf, 1, 3);
+  assert.equal(delta.ok, true);
+  if (!delta.ok || !delta.value) return;
+  assert.equal(delta.value.blocks.length, 3);
+  assert.equal(
+    inferRuleOriginSpellLevelUpBlock(delta.value, [cantrip.id])?.label,
+    '高等精灵',
+  );
+  assert.equal(
+    inferRuleOriginSpellLevelUpBlock(delta.value, [])?.label,
+    undefined,
+  );
+  assert.deepEqual(
+    delta.value.blocks.find(({ label }) => label === '高等精灵')
+      ?.fixedSpells.map(({ name }) => name),
+    ['侦测魔法'],
+  );
+});
+
+test('adds unlocked spells to an existing profile and creates a late profile', async () => {
+  const catalog = await loadCatalog();
+  const elf = origin(catalog, 'Elf', 'XPHB');
+  const initial = value(createRuleAdditionalSpellChoiceState(
+    catalog,
+    '5r',
+    owner(elf),
+    1,
+  ));
+  const highElf = initial?.blocks.find(({ label }) => label === '高等精灵');
+  const cantrip = highElf?.choices[0]?.options[0];
+  assert.ok(highElf && cantrip);
+  const profile = {
+    id: 'auto-race-Elf-XPHB-spells',
+    ability: 'INT' as const,
+    preparationMode: 'knownSelection' as const,
+    spells: [{ id: cantrip.id, key: cantrip.key || cantrip.name, source: cantrip.source }],
+    slots: {},
+  };
+  const upgraded = createRuleOriginSpellLevelUpEffects(
+    catalog,
+    '5r',
+    elf,
+    'race',
+    1,
+    3,
+    profile,
+  );
+  assert.equal(upgraded.ok, true);
+  assert.equal(upgraded.ok && upgraded.value[0]?.type, 'spell.add');
+
+  const aarakocra = origin(catalog, 'Aarakocra', 'MPMM');
+  const lateState = createRuleOriginSpellLevelUpChoiceState(
+    catalog,
+    '5e',
+    aarakocra,
+    1,
+    3,
+  );
+  assert.equal(lateState.ok, true);
+  const lateBlock = lateState.ok ? lateState.value?.blocks[0] : undefined;
+  assert.ok(lateBlock);
+  const missingAbility = createRuleOriginSpellLevelUpEffects(
+    catalog,
+    '5e',
+    aarakocra,
+    'race',
+    1,
+    3,
+    undefined,
+    { blockId: lateBlock.id },
+  );
+  assert.equal(missingAbility.ok, false);
+  const created = createRuleOriginSpellLevelUpEffects(
+    catalog,
+    '5e',
+    aarakocra,
+    'race',
+    1,
+    3,
+    undefined,
+    { blockId: lateBlock.id, ability: 'WIS' },
+  );
+  assert.equal(created.ok, true);
+  assert.equal(created.ok && created.value[0]?.type, 'spell.profile.upsert');
 });
 
 async function loadCatalog(): Promise<RuleCatalog> {
