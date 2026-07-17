@@ -27,6 +27,8 @@ import {
   createRuleFightingStyleAdvancementState,
   createRuleFightingStyleCantripChoiceState,
   createRuleFightingStyleCantripEffects,
+  createRuleInvocationAdvancementEffects,
+  createRuleInvocationAdvancementState,
   createRuleOriginBaseEffects,
   createRuleOriginAdvancementEffects,
   createRuleOriginFeatChoiceState,
@@ -143,11 +145,6 @@ export type AutoBuilderSpellChoice = {
 
 export type AutoBuilderInvocationChoice = {
   invocationIds: string[];
-};
-
-type AutoBuilderFeatureOperationOptions = {
-  ruleSystem: RuleSystem;
-  level: number;
 };
 
 export type AutoBuilderToolChoiceSelection = Record<string, string[]>;
@@ -304,11 +301,6 @@ const XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS = [
 const OFFICIAL_SPELL_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
   '5e': ['PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
   '5r': ['XPHB', 'PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
-};
-
-const OFFICIAL_INVOCATION_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
-  '5e': ['PHB', 'XGE', 'TCE'],
-  '5r': ['XPHB', 'PHB', 'XGE', 'TCE'],
 };
 
 const OFFICIAL_METAMAGIC_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
@@ -1212,96 +1204,6 @@ const getPrerequisiteLevel = (value: unknown): number | null => {
   return null;
 };
 
-const parseOptionalFeatureRef = (ref: string): string => normalizeEntityRef(ref).toLowerCase();
-
-const getKnownInvocationRefs = (
-  character: CharacterData,
-  selectedIds: string[] = [],
-): Set<string> => {
-  const refs = new Set<string>();
-  for (const feature of character.featureEntries) {
-    if (!feature.sourceId.startsWith('auto-invocation-')) continue;
-    refs.add(feature.name.toLowerCase());
-  }
-  for (const id of selectedIds) {
-    refs.add(parseOptionalFeatureRef(id));
-  }
-  return refs;
-};
-
-const getKnownSpellMetadata = (
-  content: AutoBuilderContent,
-  character: CharacterData,
-  selectedSpellIds: string[] = [],
-): AutoBuilderSpell[] => {
-  const knownIds = new Set(character.spellcastingProfiles.flatMap(profile => profile.spells.map(spell => spell.id)));
-  selectedSpellIds.forEach(id => knownIds.add(id));
-  const knownNames = new Set(character.spellcastingProfiles.flatMap(profile => profile.spells.map(spell => spell.name)));
-  return content.spells.filter(spell => knownIds.has(spell.id) || knownNames.has(spell.name));
-};
-
-const getSpellPrerequisiteFilters = (choose: string): { level?: number; classKey?: string; spellAttack?: Set<string> } => {
-  const filters: { level?: number; classKey?: string; spellAttack?: Set<string> } = {};
-  for (const part of choose.split('|')) {
-    const [key, value] = part.split('=');
-    if (key === 'level') filters.level = Number(value);
-    if (key === 'class') filters.classKey = value;
-    if (key === 'spell attack') {
-      filters.spellAttack = new Set(value.split(';').map(item => item.trim().toUpperCase()).filter(Boolean));
-    }
-  }
-  return filters;
-};
-
-const isSpellPrerequisiteMet = (
-  content: AutoBuilderContent,
-  character: CharacterData,
-  value: unknown,
-  selectedSpellIds: string[] = [],
-): boolean => {
-  if (!Array.isArray(value)) return true;
-  const knownSpells = getKnownSpellMetadata(content, character, selectedSpellIds);
-  return value.every(entry => {
-    if (!entry || typeof entry !== 'object') return false;
-    const prerequisite = entry as { choose?: string; entry?: string; entrySummary?: string };
-    const filters = getSpellPrerequisiteFilters(prerequisite.choose || '');
-    const requiresDamage = `${prerequisite.entry || ''} ${prerequisite.entrySummary || ''}`.includes('伤害');
-    return knownSpells.some(spell => (
-      (filters.level === undefined || spell.level === filters.level)
-      && (!filters.classKey || spell.classKeys.includes(filters.classKey))
-      && (!requiresDamage || Boolean(spell.damageInflict?.length))
-      && (!filters.spellAttack || spell.spellAttack?.some(attack => filters.spellAttack?.has(attack.toUpperCase())))
-    ));
-  });
-};
-
-const isInvocationPrerequisiteMet = (
-  content: AutoBuilderContent,
-  invocation: AutoBuilderInvocation,
-  character: CharacterData,
-  level: number,
-  selectedIds: string[] = [],
-  selectedSpellIds: string[] = [],
-): boolean => {
-  if (!invocation.prerequisite?.length) return true;
-  const knownInvocations = getKnownInvocationRefs(character, selectedIds);
-  return invocation.prerequisite.some(prerequisite => {
-    if (!prerequisite || typeof prerequisite !== 'object') return false;
-    return Object.entries(prerequisite as Record<string, unknown>).every(([key, value]) => {
-      if (key === 'level') {
-        const required = getPrerequisiteLevel(value);
-        return required === null || level >= required;
-      }
-      if (key === 'optionalfeature' && Array.isArray(value)) {
-        return value.every(ref => typeof ref === 'string' && knownInvocations.has(parseOptionalFeatureRef(ref)));
-      }
-      if (key === 'spell') return isSpellPrerequisiteMet(content, character, value, selectedSpellIds);
-      if (key === 'pact') return knownInvocations.has(String(value).toLowerCase());
-      return false;
-    });
-  });
-};
-
 export const getInvocationPrerequisiteSummary = (invocation: AutoBuilderInvocation): string => {
   if (!invocation.prerequisite?.length) return '';
   const parts = new Set<string>();
@@ -1777,10 +1679,6 @@ export const getLevelOneSpellChoiceState = (
   subclass?: AutoBuilderSubclass,
 ) => getSpellChoiceState(content, cls, 1, [], subclass);
 
-const getInvocationLimit = (cls: AutoBuilderClass, level: number): number => (
-  cls.invocationProgression?.[Math.max(0, level - 1)] || 0
-);
-
 const getMetamagicLimit = (cls: AutoBuilderClass, level: number): number => (
   cls.metamagicProgression?.[Math.max(0, level - 1)] || 0
 );
@@ -1789,8 +1687,13 @@ const getManeuverLimit = (subclass: AutoBuilderSubclass | undefined, level: numb
   subclass?.maneuverProgression?.[Math.max(0, level - 1)] || 0
 );
 
-const getExistingInvocationCount = (character: CharacterData): number => (
-  character.featureEntries.filter(feature => feature.sourceId.startsWith('auto-invocation-')).length
+const getExistingInvocationIds = (character: CharacterData): string[] => (
+  character.featureEntries
+    .filter(feature => feature.sourceId.startsWith('auto-invocation-'))
+    .flatMap(feature => {
+      const parsed = parseRuleEntitySourceId('invocation', feature.sourceId);
+      return parsed ? [parsed.id] : [];
+    })
 );
 
 const getWarlockLevel = (content: AutoBuilderContent, character: CharacterData): number => {
@@ -1849,42 +1752,6 @@ const getExistingManeuverCount = (character: CharacterData): number => (
   character.featureEntries.filter(feature => feature.sourceId.startsWith('auto-maneuver-')).length
 );
 
-const getAvailableInvocationOptions = (
-  content: AutoBuilderContent,
-  ruleSystem: RuleSystem,
-  character: CharacterData,
-  prerequisiteLevel: number,
-  selectedIds: string[] = [],
-  selectedSpellIds: string[] = [],
-  requireWarlockForPrerequisites = false,
-): AutoBuilderInvocation[] => {
-  const sourcePriority = OFFICIAL_INVOCATION_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(sourcePriority);
-  const knownInvocations = getKnownInvocationRefs(character);
-  const warlockLevel = requireWarlockForPrerequisites ? getWarlockLevel(content, character) : 0;
-  const byKey = new Map<string, AutoBuilderInvocation>();
-  content.invocations
-    .filter(invocation => allowedSources.has(invocation.source))
-    .filter(invocation => !knownInvocations.has(invocation.name.toLowerCase()))
-    .filter(invocation => !requireWarlockForPrerequisites || !invocation.prerequisite?.length || warlockLevel > 0)
-    .filter(invocation => isInvocationPrerequisiteMet(
-      content,
-      invocation,
-      character,
-      requireWarlockForPrerequisites && invocation.prerequisite?.length ? warlockLevel : prerequisiteLevel,
-      selectedIds,
-      selectedSpellIds,
-    ))
-    .forEach(invocation => {
-      const key = invocation.englishName || invocation.name;
-      const existing = byKey.get(key);
-      if (!existing || sourcePriority.indexOf(invocation.source) < sourcePriority.indexOf(existing.source)) {
-        byKey.set(key, invocation);
-      }
-    });
-  return Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-};
-
 export const getInvocationChoiceState = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass | undefined,
@@ -1901,10 +1768,19 @@ export const getInvocationChoiceState = (
     return { isInvocationClass: false, needed: 0, options: [] };
   }
   const ruleSystem: RuleSystem = cls.source === 'XPHB' ? '5r' : '5e';
+  const result = createRuleInvocationAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    Math.max(0, level - 1),
+    level,
+    getExistingInvocationIds(character),
+    getSpecializedFeatContext(content, character, selectedIds, selectedSpellIds),
+  );
+  if (!result.ok) throwRuleResultError(result, cls.key);
   return {
     isInvocationClass: true,
-    needed: Math.max(0, getInvocationLimit(cls, level) - getExistingInvocationCount(character)),
-    options: getAvailableInvocationOptions(content, ruleSystem, character, level, selectedIds, selectedSpellIds),
+    needed: result.value.group?.min ?? 0,
+    options: result.value.group?.options ?? [],
   };
 };
 
@@ -2717,25 +2593,47 @@ const createSubclassFeatureOperations = (
 
 const createInvocationOperations = (
   content: AutoBuilderContent,
+  cls: AutoBuilderClass,
+  character: CharacterData,
   choice: AutoBuilderInvocationChoice | undefined,
-  options: AutoBuilderFeatureOperationOptions,
+  ruleSystem: RuleSystem,
+  oldClassLevel: number,
+  newClassLevel: number,
+  selectedSpellIds: string[],
 ): AdjustmentOperation[] => {
   const ids = choice?.invocationIds || [];
-  return ids
-    .map(id => content.invocations.find(invocation => invocation.id === id))
-    .filter((invocation): invocation is AutoBuilderInvocation => Boolean(invocation))
-    .map((invocation, index) => ({
+  if (!cls.invocationProgression?.length) return [];
+  const state = createRuleInvocationAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    oldClassLevel,
+    newClassLevel,
+    getExistingInvocationIds(character),
+    getSpecializedFeatContext(content, character, ids, selectedSpellIds),
+  );
+  if (!state.ok) throwRuleResultError(state, cls.key);
+  const effects = createRuleInvocationAdvancementEffects(
+    state.value,
+    state.value.group ? ids : [],
+  );
+  if (!effects.ok) throwRuleResultError(effects, cls.key);
+  return effects.value.flatMap((effect, index): AdjustmentOperation[] => {
+    if (effect.type !== 'feature.add') return originEffectToAdjustmentOperations(effect);
+    const invocation = content.invocations.find(({ id }) => id === effect.feature.id);
+    if (!invocation) throw new Error(`Missing invocation ${effect.feature.id}`);
+    return [{
       type: 'addFeature',
       feature: {
-        id: `auto-invocation-${invocation.key}-${invocation.source}-${options.level}-${index + 1}`,
-        sourceId: `auto-invocation-${invocation.key}-${invocation.source}`,
+        id: `${effect.sourceId}-${newClassLevel}-${index + 1}`,
+        sourceId: effect.sourceId,
         sourceName: `${invocation.name} ${invocation.source}`,
         name: invocation.name,
-        level: options.level,
-        ruleSystem: options.ruleSystem,
+        level: newClassLevel,
+        ruleSystem,
         description: invocation.description,
       } satisfies CharacterFeatureEntry,
-    }));
+    }];
+  });
 };
 
 const createEntityFeatureOperations = (
@@ -4584,7 +4482,16 @@ export const buildLevelOneCharacter = (
       0,
       1,
     ),
-    ...createInvocationOperations(content, options.invocationChoices, { ruleSystem: options.ruleSystem, level: 1 }),
+    ...createInvocationOperations(
+      content,
+      cls,
+      character,
+      options.invocationChoices,
+      options.ruleSystem,
+      0,
+      1,
+      [...options.spellChoices.cantrips, ...options.spellChoices.leveled],
+    ),
     ...createProficiencyOperations(cls),
     ...createToolChoiceOperations(options.classToolChoices),
     ...skillOperations,
@@ -4961,7 +4868,16 @@ export const buildLevelUpCharacter = (
             newLevel,
             existingClass?.subclass || undefined,
           ),
-	        ...createInvocationOperations(content, options.invocationChoices, { ruleSystem: options.ruleSystem, level: newLevel }),
+	        ...createInvocationOperations(
+            content,
+            cls,
+            character,
+            options.invocationChoices,
+            options.ruleSystem,
+            currentLevel,
+            newLevel,
+            [...options.spellChoices.cantrips, ...options.spellChoices.leveled],
+          ),
 	        ...magicalSecretOperations,
 	      ],
 	    },

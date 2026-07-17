@@ -41,7 +41,7 @@ export function createRuleSpecializedFeatChoiceState(
     policy,
     known,
   ));
-  addGroup(groups, feat, 'invocation', feat.invocationCount, invocations(
+  addGroup(groups, feat, 'invocation', feat.invocationCount, getRuleInvocationOptions(
     catalog,
     policy,
     known,
@@ -122,7 +122,7 @@ function fightingStyles(
   );
 }
 
-function invocations(
+export function getRuleInvocationOptions(
   catalog: RuleCatalog,
   policy: RuleAuthorizationPolicy,
   known: ReadonlySet<string>,

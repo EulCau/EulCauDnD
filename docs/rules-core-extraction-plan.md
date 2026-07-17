@@ -1122,8 +1122,13 @@ refactor(rules): share common class choices
 
 #### R6.3 祈唤 progression
 
+- 状态: 已完成.
 - 将 R5.4 祈唤候选和先决条件扩展为职业 progression, 支持已有、同次新增和已知法术上下文.
 - 共享严格 effects, 删除本地 `getAvailableInvocationOptions`、progression limit 和 operations.
+- `createRuleInvocationAdvancementState` 以旧/新 Warlock 等级、已有祈唤、同次选择和已知法术计算目标数量及授权候选.
+- 职业祈唤与 Eldritch Adept 共用 `getRuleInvocationOptions` 先决条件 evaluator, 覆盖等级、optional feature、pact 和结构化 spell filter, 不再维护第二套判断.
+- `createRuleInvocationAdvancementEffects` 严格验证数量、重复和候选身份并输出 canonical `feature.add`; EulCauDnD adapter 只补充描述和显示元数据.
+- 共享包 76 项测试、EulCauDnD 生产构建、专长行为和来源优先级审计通过.
 
 提交:
 
@@ -1244,11 +1249,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作是 R6.3 祈唤 progression:
+下一项工作是 R6.4 战技和超魔 progression:
 
-1. 将 R5.4 祈唤候选和先决条件扩展为职业等级 progression.
-2. 明确已有祈唤、同次新增祈唤、魔契和已知法术上下文, 统一增量 count.
-3. 输出严格 `feature.add` effects, 删除本地 invocation limit、候选和 operations.
-4. 增加 PHB/XPHB Warlock 初始、升级、替换和先决条件回归.
+1. 将 R5.4 战技和超魔候选扩展为职业/子职等级 progression.
+2. 统一来源优先级、已有选择排除、稳定 group ID 和增量 count.
+3. 输出严格 `feature.add` effects, 删除本地 limit、候选去重和 operations.
+4. 增加 PHB/XPHB Battle Master 和 Sorcerer 初始、升级与非法选择回归.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.
