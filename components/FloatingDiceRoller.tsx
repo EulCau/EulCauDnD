@@ -27,6 +27,7 @@ export const FloatingDiceRoller: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<{ pointerId: number; dx: number; dy: number; moved: boolean } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const historyViewportRef = useRef<HTMLDivElement | null>(null);
 
   const size = useMemo(() => (
     isOpen
@@ -51,6 +52,16 @@ export const FloatingDiceRoller: React.FC = () => {
       window.setTimeout(() => inputRef.current?.focus(), 120);
     }
   }, [isOpen]);
+
+  const newestHistoryId = state.history[0]?.id;
+  useEffect(() => {
+    if (!isOpen || newestHistoryId === undefined) return;
+    const animationFrame = window.requestAnimationFrame(() => {
+      const viewport = historyViewportRef.current;
+      if (viewport !== null) viewport.scrollTop = viewport.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [isOpen, newestHistoryId]);
 
   const resetPosition = () => {
     setPosition(getInitialPosition(size.width, size.height));
@@ -176,7 +187,7 @@ export const FloatingDiceRoller: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3">
+          <div ref={historyViewportRef} className="flex-1 overflow-y-auto p-3">
             {state.history.length === 0 ? (
               <div className="text-sm text-gray-400">输入 /help 查看骰子语法。</div>
             ) : (
