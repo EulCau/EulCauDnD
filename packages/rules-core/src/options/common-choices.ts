@@ -222,6 +222,8 @@ export function parseRuleAbilityChoiceGroups(
     }
     for (const [key, raw] of Object.entries(entry)) {
       if (key !== 'choose') {
+        if (key === 'hidden' && typeof raw === 'boolean') continue;
+        if (key === 'max' && finiteNumber(raw)) continue;
         if (!finiteNumber(raw)) issues.push(issue([sourceId, index, key], 'fixed_value_invalid'));
         continue;
       }

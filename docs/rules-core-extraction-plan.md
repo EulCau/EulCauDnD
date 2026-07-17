@@ -960,10 +960,33 @@ refactor(rules): share feat eligibility
 - 迁移属性、技能、工具、武器、语言、豁免、专精、抗性、护甲、感官和免疫字段.
 - 所有提交使用共享 group ID、严格数量校验和结构化 effects.
 
+R5.2 拆分为两个可独立回归的提交边界:
+
+##### R5.2a 共享 choice/effect API
+
+- 状态: 已完成.
+- `createRuleFeatChoiceGroups` 聚合属性、技能、工具、武器、语言、豁免、专精和抗性 group, 保留现有稳定 group ID.
+- 专精候选同时考虑角色既有熟练、专长固定熟练和本次先选技能; 所有 group 继续使用共享严格数量、重复项和 option membership 校验.
+- `createRuleFeatEffects` 输出属性、熟练、专精、抗性、护甲、感官和免疫 canonical effects, 属性加值遵守 catalog `amount`、`max` 和默认 20 上限.
+- 2024 Observant 在角色已熟练所选技能时投影为专精, 保留既有规则行为.
+- 完整 catalog 测试确认 276 个专长的通用 choice 字段均可解析; 单元测试覆盖选择投影、固定护甲、感官、抗性和免疫.
+
 提交:
 
 ```text
 refactor(rules): share feat choice effects
+```
+
+##### R5.2b EulCauDnD 接入和旧分支清理
+
+- 状态: 未开始.
+- 将各 `getFeat*ChoiceOptions` façade 和车卡构筑操作改为消费统一 state/effects.
+- 删除已被共享 effects 替代的本地通用选择、固定熟练、感官和免疫投影, 并用完整专长行为审计证明输出等价.
+
+提交:
+
+```text
+refactor(rules): adopt shared feat effects
 ```
 
 #### R5.3 专长法术和等级刷新
