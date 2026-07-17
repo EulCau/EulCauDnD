@@ -21,6 +21,12 @@ import {
   createRuleOriginChoiceGroups,
   createDefaultRuleAuthorizationPolicy,
   createRuleAdditionalSpellChoiceState,
+  createRuleExpertiseAdvancementEffects,
+  createRuleExpertiseAdvancementState,
+  createRuleFightingStyleAdvancementEffects,
+  createRuleFightingStyleAdvancementState,
+  createRuleFightingStyleCantripChoiceState,
+  createRuleFightingStyleCantripEffects,
   createRuleOriginBaseEffects,
   createRuleOriginAdvancementEffects,
   createRuleOriginFeatChoiceState,
@@ -37,6 +43,8 @@ import {
   createRuleSpecializedFeatEffects,
   createRuleSubclassAdvancementEffects,
   createRuleSubclassAdvancementState,
+  createRuleWeaponMasteryAdvancementEffects,
+  createRuleWeaponMasteryAdvancementState,
   createRuleOriginResourceEffects,
   createRuleOriginSpellEffects,
   createRuleOriginSpellLevelUpChoiceState,
@@ -1007,43 +1015,11 @@ const hasClassFeatureAtLevel = (
   && (feature.englishName === englishName || feature.name === name)
 )));
 
-const getItemTypeCode = (item: { type?: string }): string => item.type?.split('|')[0] || '';
-const getWeaponPropertyCode = (property: NonNullable<AutoBuilderWeapon['property']>[number]): string => (
-  (typeof property === 'string' ? property : property.uid || '').split('|')[0]
-);
-
-const hasWeaponPropertyCode = (weapon: AutoBuilderWeapon, code: string): boolean => (
-  weapon.property || []
-).some(property => getWeaponPropertyCode(property) === code);
-
-const getWeaponMasteryLimit = (cls: AutoBuilderClass | undefined, level: number): number => {
-  if (!cls || cls.source !== 'XPHB') return 0;
-  const tableValue = cls.weaponMasteryProgression?.[level - 1];
-  if (typeof tableValue === 'number' && tableValue > 0) return tableValue;
-  if (!hasClassFeatureAtLevel(cls, level, 'Weapon Mastery', '武器精通')) return 0;
-  if (cls.key === 'Fighter' || cls.name === '战士') return 3;
-  if (['Barbarian', 'Paladin', 'Ranger', 'Rogue'].includes(cls.key || '')) return 2;
-  if (['野蛮人', '圣武士', '游侠', '游荡者'].includes(cls.name)) return 2;
-  return 0;
-};
-
 const getExistingWeaponMasteryIds = (character: CharacterData): Set<string> => (
   new Set(character.featureEntries
     .filter(feature => feature.sourceId.startsWith('auto-weapon-mastery-'))
     .map(feature => feature.sourceId.replace(/^auto-weapon-mastery-/, '')))
 );
-
-const canClassMasterWeapon = (cls: AutoBuilderClass, weapon: AutoBuilderWeapon): boolean => {
-  if (!weapon.mastery?.length) return false;
-  if (!['simple', 'martial'].includes(weapon.weaponCategory || '')) return false;
-  const isMelee = getItemTypeCode(weapon) === 'M';
-  if (cls.key === 'Barbarian' || cls.name === '野蛮人') return isMelee;
-  if (cls.key === 'Rogue' || cls.name === '游荡者') {
-    return weapon.weaponCategory === 'simple'
-      || (weapon.weaponCategory === 'martial' && (hasWeaponPropertyCode(weapon, 'F') || hasWeaponPropertyCode(weapon, 'L')));
-  }
-  return true;
-};
 
 export const getWeaponMasteryChoiceState = (
   content: AutoBuilderContent,
@@ -1051,17 +1027,18 @@ export const getWeaponMasteryChoiceState = (
   character: CharacterData,
   level: number,
 ): { needed: number; options: AutoBuilderWeapon[] } | null => {
-  if (!cls || cls.source !== 'XPHB') return null;
-  const limit = getWeaponMasteryLimit(cls, level);
-  if (!limit) return null;
-  const knownIds = getExistingWeaponMasteryIds(character);
-  const options = content.weapons
-    .filter(weapon => weapon.source === 'XPHB')
-    .filter(weapon => !knownIds.has(weapon.id))
-    .filter(weapon => canClassMasterWeapon(cls, weapon))
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-  const needed = Math.max(0, limit - knownIds.size);
-  return needed > 0 ? { needed, options } : null;
+  if (!cls) return null;
+  const result = createRuleWeaponMasteryAdvancementState(
+    getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e'),
+    cls,
+    Math.max(0, level - 1),
+    level,
+    [...getExistingWeaponMasteryIds(character)],
+  );
+  if (!result.ok) throwRuleResultError(result, cls.key);
+  return result.value.group
+    ? { needed: result.value.group.min, options: result.value.group.options }
+    : null;
 };
 
 export const getFightingStyleFeatChoiceOptions = (
@@ -1071,24 +1048,26 @@ export const getFightingStyleFeatChoiceOptions = (
   cls: AutoBuilderClass | undefined,
   level: number,
 ): { from: AutoBuilderFeat[]; count: number } | null => {
-  if (!cls || ruleSystem !== '5r' || !hasClassFeatureAtLevel(cls, level, 'Fighting Style', '战斗风格')) return null;
-  const categories = new Set(['FS']);
-  if (cls.key === 'Paladin' || cls.name === '圣武士') categories.add('FS:P');
-  if (cls.key === 'Ranger' || cls.name === '游侠') categories.add('FS:R');
-  const knownStyleIds = new Set(character.featureEntries
+  if (!cls || ruleSystem !== '5r') return null;
+  const knownStyleIds = character.featureEntries
     .filter(feature => feature.sourceId.startsWith('auto-feat-'))
-    .map(feature => feature.sourceId.replace(/^auto-feat-/, '')));
-  const byName = new Map<string, AutoBuilderFeat>();
-  content.feats
-    .filter(feat => feat.source === 'XPHB')
-    .filter(feat => categories.has(feat.category || ''))
-    .filter(feat => !knownStyleIds.has(`${feat.key}-${feat.source}`))
-    .forEach(feat => {
-      const key = feat.englishName || feat.name;
-      if (!byName.has(key)) byName.set(key, feat);
+    .flatMap(feature => {
+      const parsed = parseRuleEntitySourceId('feat', feature.sourceId);
+      return parsed ? [parsed.id] : [];
     });
-  const from = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-  return from.length ? { from, count: 1 } : null;
+  const result = createRuleFightingStyleAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    Math.max(0, level - 1),
+    level,
+    knownStyleIds,
+  );
+  if (!result.ok) throwRuleResultError(result, cls.key);
+  if (result.value.mode !== 'feat' || !result.value.group) return null;
+  return {
+    from: result.value.group.options as AutoBuilderFeat[],
+    count: result.value.group.min,
+  };
 };
 
 export const getFightingStyleFeatureChoiceOptions = (
@@ -1098,45 +1077,43 @@ export const getFightingStyleFeatureChoiceOptions = (
   cls: AutoBuilderClass | undefined,
   level: number,
 ): { from: AutoBuilderFightingStyle[]; count: number } | null => {
-  if (!cls || ruleSystem !== '5e' || !hasClassFeatureAtLevel(cls, level, 'Fighting Style', '战斗风格')) return null;
-  const featureTypes = new Set<string>();
-  if (cls.key === 'Fighter' || cls.name === '战士') featureTypes.add('FS:F');
-  if (cls.key === 'Paladin' || cls.name === '圣武士') featureTypes.add('FS:P');
-  if (cls.key === 'Ranger' || cls.name === '游侠') featureTypes.add('FS:R');
-  if (!featureTypes.size) return null;
-
-  const knownNames = new Set(character.featureEntries.map(feature => feature.name));
-  const byName = new Map<string, AutoBuilderFightingStyle>();
-  content.fightingStyles
-    .filter(style => style.featureTypes.some(type => featureTypes.has(type)))
-    .filter(style => !knownNames.has(style.name))
-    .forEach(style => {
-      const key = style.englishName || style.name;
-      const existing = byName.get(key);
-      const priority = style.source === 'PHB' ? 0 : 1;
-      const existingPriority = existing?.source === 'PHB' ? 0 : 1;
-      if (!existing || priority < existingPriority) byName.set(key, style);
-    });
-
-  const from = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-  return from.length ? { from, count: 1 } : null;
+  if (!cls || ruleSystem !== '5e') return null;
+  const knownIds = content.fightingStyles
+    .filter(style => character.featureEntries.some(feature => (
+      feature.sourceId === `auto-fighting-style-${style.id}`
+      || feature.name === style.name
+    )))
+    .map(({ id }) => id);
+  const result = createRuleFightingStyleAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    Math.max(0, level - 1),
+    level,
+    knownIds,
+  );
+  if (!result.ok) throwRuleResultError(result, cls.key);
+  if (result.value.mode !== 'feature' || !result.value.group) return null;
+  return {
+    from: result.value.group.options as AutoBuilderFightingStyle[],
+    count: result.value.group.min,
+  };
 };
 
 export const getFightingStyleCantripChoiceState = (
   content: AutoBuilderContent,
   feat: Pick<AutoBuilderFeat, 'key' | 'name' | 'englishName'> | Pick<AutoBuilderFightingStyle, 'key' | 'name' | 'englishName'> | undefined,
+  ruleSystem: RuleSystem,
 ): { from: AutoBuilderSpell[]; count: number } | null => {
-  const key = feat?.key || feat?.englishName || feat?.name;
-  const classKey = key === 'Blessed Warrior' || feat?.name === '受祝福的勇士'
-    ? 'Cleric'
-    : key === 'Druidic Warrior' || feat?.name === '德鲁伊教战士'
-      ? 'Druid'
-      : '';
-  if (!classKey) return null;
-  const from = content.spells
-    .filter(spell => spell.source === 'XPHB' && spell.level === 0 && spell.classKeys?.includes(classKey))
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-  return from.length ? { from, count: 2 } : null;
+  if (!feat) return null;
+  const result = createRuleFightingStyleCantripChoiceState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    feat as AutoBuilderFeat | AutoBuilderFightingStyle,
+  );
+  if (!result.ok) throwRuleResultError(result, feat.key);
+  return result.value.group ? {
+    from: result.value.group.options,
+    count: result.value.group.min,
+  } : null;
 };
 
 const getFixedSkillProficiencies = (proficiencies: ProficiencyRecord[] | undefined): string[] => {
@@ -1177,12 +1154,13 @@ export const getClassFixedToolProficiencies = (cls: AutoBuilderClass | undefined
 );
 
 export const getClassExpertiseChoiceOptions = (
+  content: AutoBuilderContent,
   cls: AutoBuilderClass | undefined,
   character: CharacterData,
   level: number,
   additionalProficiencies: string[] = [],
 ): Array<{ id: string; label: string; from: string[]; count: number }> => {
-  if (!hasClassFeatureAtLevel(cls, level, 'Expertise', '专精')) return [];
+  if (!cls) return [];
   const existingExpertises = new Set(Array.from(character.expertises));
   const proficientTools = uniqueStrings([
     ...Array.from(character.proficiencies).filter(proficiency => proficiency.startsWith('tool:')),
@@ -1198,12 +1176,33 @@ export const getClassExpertiseChoiceOptions = (
   ])
     .filter(skill => !existingExpertises.has(skill))
     .sort((a, b) => a.localeCompare(b));
-  return requireRuleChoiceGroups(parseRuleExpertiseChoiceGroups(
-    [{ anyProficientSkill: 2 }],
-    `class-${cls?.key || 'unknown'}-${cls?.source || 'unknown'}-${level}`,
+  const result = createRuleExpertiseAdvancementState(
+    getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e'),
+    cls,
+    Math.max(0, level - 1),
+    level,
     from,
-  ));
+    [...existingExpertises],
+  );
+  if (!result.ok) throwRuleResultError(result, cls.key);
+  return result.value.group ? [{
+    id: result.value.group.id,
+    label: '专精',
+    from: result.value.group.options.map(({ id }) => id),
+    count: result.value.group.min,
+  }] : [];
 };
+
+function throwRuleResultError(
+  result: Extract<RuleResult<unknown>, { ok: false }>,
+  fallback: string,
+): never {
+  const first = result.issues[0];
+  throw new Error(
+    `Invalid class choice at ${first?.path.join('.') || fallback}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
+}
 
 const getPrerequisiteLevel = (value: unknown): number | null => {
   if (typeof value === 'number') return value;
@@ -2606,9 +2605,27 @@ const addClassFeatureSpellsToSpellcasting = (
   choices?: AutoBuilderClassFeatureChoice,
 ): { profiles: SpellcastingProfile[]; legacy: CharacterData['spellcasting'] } => {
   const selectedIds = choices?.fightingStyleCantrips || [];
-  if (!selectedIds.length) return spellcasting;
-  const selectedSpells = selectedIds
-    .map(id => content.spells.find(spell => spell.id === id))
+  const selectedStyle = content.feats.find((feat) => (
+    feat.id === choices?.fightingStyle?.featId
+    || feat.key === choices?.fightingStyle?.featId
+    || `${feat.key}|${feat.source}` === choices?.fightingStyle?.featId
+  )) ?? content.fightingStyles.find(({ id }) => id === choices?.fightingStyleFeatureId);
+  if (!selectedStyle) return spellcasting;
+  const ruleSystem: RuleSystem = selectedStyle.source === 'XPHB' ? '5r' : '5e';
+  const state = createRuleFightingStyleCantripChoiceState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    selectedStyle,
+  );
+  if (!state.ok) throwRuleResultError(state, selectedStyle.key);
+  const effects = createRuleFightingStyleCantripEffects(
+    state.value,
+    classId,
+    state.value.group ? selectedIds : [],
+  );
+  if (!effects.ok) throwRuleResultError(effects, selectedStyle.key);
+  const selectedSpells = effects.value
+    .filter((effect) => effect.type === 'spell.add')
+    .map((effect) => content.spells.find((spell) => spell.id === effect.spell.id))
     .filter((spell): spell is AutoBuilderSpell => Boolean(spell))
     .map(spell => toCharacterSpell(spell, true));
   if (!selectedSpells.length) return spellcasting;
@@ -2816,15 +2833,32 @@ const createToolChoiceOperations = (
 };
 
 const createExpertiseChoiceOperations = (
+  content: AutoBuilderContent,
+  cls: AutoBuilderClass,
+  character: CharacterData,
+  oldClassLevel: number,
+  newClassLevel: number,
+  additionalProficiencies: string[],
   choices?: AutoBuilderSkillChoiceSelection,
 ): AdjustmentOperation[] => {
-  return Object.values(choices || {}).flatMap(skills => (
-    skills.map(skill => ({
-      type: 'addProficiency',
-      key: skill.startsWith('tool:') ? `tool:${normalizeKey(skill.slice(5))}` : normalizeSkillName(skill),
-      expertise: true,
-    } satisfies AdjustmentOperation))
-  ));
+  const state = createRuleExpertiseAdvancementState(
+    getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e'),
+    cls,
+    oldClassLevel,
+    newClassLevel,
+    uniqueStrings([
+      ...character.proficiencies,
+      ...additionalProficiencies,
+    ]),
+    [...character.expertises],
+  );
+  if (!state.ok) throwRuleResultError(state, cls.key);
+  const selectedIds = state.value.group
+    ? choices?.[state.value.group.id] ?? []
+    : [];
+  const effects = createRuleExpertiseAdvancementEffects(state.value, selectedIds);
+  if (!effects.ok) throwRuleResultError(effects, cls.key);
+  return effects.value.flatMap(originEffectToAdjustmentOperations);
 };
 
 const createLanguageChoiceOperations = (
@@ -3821,13 +3855,29 @@ const createSharedFeatOperations = (
 const createWeaponMasteryOperations = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass,
+  character: CharacterData,
   ruleSystem: RuleSystem,
+  oldClassLevel: number,
+  newClassLevel: number,
   weaponIds: string[] | undefined,
 ): AdjustmentOperation[] => {
-  if (!weaponIds?.length) return [];
-  return weaponIds.flatMap((weaponId): AdjustmentOperation[] => {
-    const weapon = content.weapons.find(item => item.id === weaponId);
-    if (!weapon) return [];
+  const state = createRuleWeaponMasteryAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    oldClassLevel,
+    newClassLevel,
+    [...getExistingWeaponMasteryIds(character)],
+  );
+  if (!state.ok) throwRuleResultError(state, cls.key);
+  const effects = createRuleWeaponMasteryAdvancementEffects(
+    state.value,
+    state.value.group ? weaponIds ?? [] : [],
+  );
+  if (!effects.ok) throwRuleResultError(effects, cls.key);
+  return effects.value.flatMap((effect): AdjustmentOperation[] => {
+    if (effect.type !== 'feature.add') return originEffectToAdjustmentOperations(effect);
+    const weapon = content.weapons.find(item => item.id === effect.feature.id);
+    if (!weapon) throw new Error(`Missing weapon mastery option ${effect.feature.id}`);
     const mastery = formatWeaponMasteryNames(weapon);
     const masteryDescriptions = (weapon.mastery || [])
       .map(ref => {
@@ -3836,12 +3886,11 @@ const createWeaponMasteryOperations = (
         return definition?.description ? `${definition.name}: ${definition.description}` : '';
       })
       .filter(Boolean);
-    const sourceId = `auto-weapon-mastery-${weapon.id}`;
     return [{
       type: 'addFeature',
       feature: {
-        id: `${sourceId}-feature`,
-        sourceId,
+        id: `${effect.sourceId}-feature`,
+        sourceId: effect.sourceId,
         sourceName: `${cls.name} 武器精通`,
         name: `武器精通: ${weapon.name}`,
         level: 1,
@@ -3860,25 +3909,86 @@ const createWeaponMasteryOperations = (
 const createFightingStyleFeatureOperations = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass,
+  character: CharacterData,
   ruleSystem: RuleSystem,
+  oldClassLevel: number,
+  newClassLevel: number,
   styleId?: string,
 ): AdjustmentOperation[] => {
-  if (!styleId) return [];
-  const style = content.fightingStyles.find(item => item.id === styleId);
-  if (!style) return [];
-  const sourceId = `auto-fighting-style-${style.id}`;
-  return [{
+  const knownIds = content.fightingStyles
+    .filter(style => character.featureEntries.some(feature => (
+      feature.sourceId === `auto-fighting-style-${style.id}`
+      || feature.name === style.name
+    )))
+    .map(({ id }) => id);
+  const state = createRuleFightingStyleAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    oldClassLevel,
+    newClassLevel,
+    knownIds,
+  );
+  if (!state.ok) throwRuleResultError(state, cls.key);
+  if (state.value.mode === 'feat') return [];
+  const effects = createRuleFightingStyleAdvancementEffects(
+    state.value,
+    state.value.group && styleId ? [styleId] : [],
+  );
+  if (!effects.ok) throwRuleResultError(effects, cls.key);
+  return effects.value.flatMap((effect): AdjustmentOperation[] => {
+    if (effect.type !== 'feature.add') return originEffectToAdjustmentOperations(effect);
+    const style = content.fightingStyles.find(item => item.id === effect.feature.id);
+    if (!style) throw new Error(`Missing fighting style ${effect.feature.id}`);
+    return [{
     type: 'addFeature',
     feature: {
-      id: `${sourceId}-feature`,
-      sourceId,
+      id: `${effect.sourceId}-feature`,
+      sourceId: effect.sourceId,
       sourceName: `${cls.name} 战斗风格`,
       name: style.name,
       level: 1,
       ruleSystem,
       description: style.description,
     } satisfies CharacterFeatureEntry,
-  }];
+    }];
+  });
+};
+
+const validateFightingStyleFeatChoice = (
+  content: AutoBuilderContent,
+  cls: AutoBuilderClass,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  oldClassLevel: number,
+  newClassLevel: number,
+  choice?: AutoBuilderFeatChoice,
+): void => {
+  if (ruleSystem !== '5r') return;
+  const knownIds = character.featureEntries
+    .filter(feature => feature.sourceId.startsWith('auto-feat-'))
+    .flatMap(feature => {
+      const parsed = parseRuleEntitySourceId('feat', feature.sourceId);
+      return parsed ? [parsed.id] : [];
+    });
+  const state = createRuleFightingStyleAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    oldClassLevel,
+    newClassLevel,
+    knownIds,
+  );
+  if (!state.ok) throwRuleResultError(state, cls.key);
+  if (state.value.mode !== 'feat') return;
+  const selected = state.value.group?.options.find((feat) => (
+    feat.id === choice?.featId
+    || feat.key === choice?.featId
+    || `${feat.key}|${feat.source}` === choice?.featId
+  ));
+  const effects = createRuleFightingStyleAdvancementEffects(
+    state.value,
+    state.value.group && selected ? [selected.id] : [],
+  );
+  if (!effects.ok) throwRuleResultError(effects, cls.key);
 };
 
 const createMetamagicOperations = (
@@ -4301,6 +4411,15 @@ export const buildLevelOneCharacter = (
     invocationChoices?: AutoBuilderInvocationChoice;
   },
 ): CharacterData => {
+  validateFightingStyleFeatChoice(
+    content,
+    cls,
+    character,
+    options.ruleSystem,
+    0,
+    1,
+    options.classFeatureChoices?.fightingStyle,
+  );
   const mainClassId = 'auto-class-main';
   const classes = [{ id: mainClassId, name: cls.key, level: 1, subclass: options.subclass?.name || '', source: cls.source }];
   const spellcastingProfile = createSpellcastingProfile(content, cls, options.spellChoices, 1, options.subclass, mainClassId);
@@ -4423,11 +4542,39 @@ export const buildLevelOneCharacter = (
         : undefined,
     ),
     ...createChosenFeatOperations(content, character, options.ruleSystem, options.classFeatureChoices?.fightingStyle, [], 1),
-    ...createFightingStyleFeatureOperations(content, cls, options.ruleSystem, options.classFeatureChoices?.fightingStyleFeatureId),
+    ...createFightingStyleFeatureOperations(
+      content,
+      cls,
+      character,
+      options.ruleSystem,
+      0,
+      1,
+      options.classFeatureChoices?.fightingStyleFeatureId,
+    ),
     ...createMetamagicOperations(content, options.ruleSystem, options.classFeatureChoices?.metamagics),
     ...createManeuverOperations(content, options.ruleSystem, options.classFeatureChoices?.maneuvers),
-    ...createExpertiseChoiceOperations(options.classFeatureChoices?.expertise),
-    ...createWeaponMasteryOperations(content, cls, options.ruleSystem, options.classFeatureChoices?.weaponMasteries),
+    ...createExpertiseChoiceOperations(
+      content,
+      cls,
+      character,
+      0,
+      1,
+      [
+        ...options.skillChoices,
+        ...getClassFixedToolProficiencies(cls),
+        ...Object.values(options.classToolChoices ?? {}).flat(),
+      ],
+      options.classFeatureChoices?.expertise,
+    ),
+    ...createWeaponMasteryOperations(
+      content,
+      cls,
+      character,
+      options.ruleSystem,
+      0,
+      1,
+      options.classFeatureChoices?.weaponMasteries,
+    ),
     ...createClassFeatureOperations(cls, options.ruleSystem),
     ...createSubclassFeatureOperations(
       content,
@@ -4601,6 +4748,15 @@ export const buildLevelUpCharacter = (
 ): CharacterData => {
   const currentLevel = getClassLevel(character, cls);
   const newLevel = currentLevel + 1;
+  validateFightingStyleFeatChoice(
+    content,
+    cls,
+    character,
+    options.ruleSystem,
+    currentLevel,
+    newLevel,
+    options.classFeatureChoices?.fightingStyle,
+  );
   const existingClass = character.classes.find(item => isCharacterClassForDefinition(item, cls));
   const isNewClass = !existingClass;
   const newClassId = existingClass?.id || `auto-class-${cls.key}-${Date.now()}`;
@@ -4655,7 +4811,10 @@ export const buildLevelUpCharacter = (
   const fightingStyleFeatureOperations = createFightingStyleFeatureOperations(
     content,
     cls,
+    character,
     options.ruleSystem,
+    currentLevel,
+    newLevel,
     options.classFeatureChoices?.fightingStyleFeatureId,
   );
   const metamagicOperations = createMetamagicOperations(
@@ -4668,11 +4827,26 @@ export const buildLevelUpCharacter = (
     options.ruleSystem,
     options.classFeatureChoices?.maneuvers,
   );
-  const classExpertiseChoiceOperations = createExpertiseChoiceOperations(options.classFeatureChoices?.expertise);
+  const classExpertiseChoiceOperations = createExpertiseChoiceOperations(
+    content,
+    cls,
+    character,
+    currentLevel,
+    newLevel,
+    [
+      ...(options.skillChoices ?? []),
+      ...getClassFixedToolProficiencies(cls, isNewClass),
+      ...Object.values(options.toolChoices ?? {}).flat(),
+    ],
+    options.classFeatureChoices?.expertise,
+  );
   const classWeaponMasteryOperations = createWeaponMasteryOperations(
     content,
     cls,
+    character,
     options.ruleSystem,
+    currentLevel,
+    newLevel,
     options.classFeatureChoices?.weaponMasteries,
   );
   const abilityScoreImprovementOperations = createAbilityScoreImprovementOperations(

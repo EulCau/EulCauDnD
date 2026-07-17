@@ -267,7 +267,13 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const fightingStyleFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedFightingStyleFeat);
   const fightingStyleFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedFightingStyleFeat, ruleSystem, targetCharacterLevel) : null;
-  const fightingStyleCantripChoiceState = content ? getFightingStyleCantripChoiceState(content, selectedFightingStyleFeat || selectedFightingStyleFeature) : null;
+  const fightingStyleCantripChoiceState = content
+    ? getFightingStyleCantripChoiceState(
+        content,
+        selectedFightingStyleFeat || selectedFightingStyleFeature,
+        ruleSystem,
+      )
+    : null;
   const pendingProficiencies = [
     ...skillChoices,
     ...(raceChoices.skills || []),
@@ -286,7 +292,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     ...collectToolChoices(abilityScoreImprovementChoice.featToolChoices),
   ];
   const classExpertiseChoiceOptions = selectedClass
-    ? getClassExpertiseChoiceOptions(selectedClass, data, targetClassLevel, pendingProficiencies)
+    ? getClassExpertiseChoiceOptions(content!, selectedClass, data, targetClassLevel, pendingProficiencies)
     : [];
   const weaponMasteryChoiceState = content && selectedClass
     ? getWeaponMasteryChoiceState(content, selectedClass, data, targetClassLevel)

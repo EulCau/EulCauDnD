@@ -10,6 +10,7 @@ export * from './catalog/identity.js';
 export * from './catalog/model.js';
 export * from './catalog/parse.js';
 export * from './effects/apply.js';
+export * from './effects/class-common-choices.js';
 export * from './effects/feat.js';
 export * from './effects/feat-resources.js';
 export * from './effects/feat-spells.js';

@@ -41,6 +41,8 @@ export function createDefaultRuleAuthorizationPolicy(
     ?? (ruleSystem === '5r' ? ['XPHB', 'PHB', 'TCE'] : ['PHB', 'TCE']);
   const maneuverSources = configured?.maneuverSources
     ?? (ruleSystem === '5r' ? ['XPHB', 'PHB', 'TCE'] : ['PHB', 'TCE']);
+  const spellSources = configured?.spellSources
+    ?? (ruleSystem === '5r' ? ['XPHB', 'PHB'] : ['PHB']);
   const allowedSources: Partial<Record<RuleEntityKind, readonly string[]>> = {
     class: classSources,
     subclass: subclassSourcePriority[ruleSystem],
@@ -52,6 +54,9 @@ export function createDefaultRuleAuthorizationPolicy(
     'fighting-style': fightingStyleSources,
     metamagic: metamagicSources,
     maneuver: maneuverSources,
+    weapon: [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
+    'weapon-mastery': [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
+    spell: spellSources,
   };
   return {
     allowedSources,
@@ -66,6 +71,9 @@ export function createDefaultRuleAuthorizationPolicy(
       'fighting-style': fightingStyleSources,
       metamagic: metamagicSources,
       maneuver: maneuverSources,
+      weapon: [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
+      'weapon-mastery': [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
+      spell: spellSources,
     },
   };
 }

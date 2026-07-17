@@ -1105,8 +1105,14 @@ refactor(rules): share subclass advancement
 
 #### R6.2 专精、战斗风格和武器精通
 
+- 状态: 已完成.
 - 共享职业专精候选、2014 optional fighting style、2024 fighting style feat 和武器精通 progression.
 - Fighting Style cantrip 选择作为结构化依赖组, 不再通过本地名称决定职业法术池.
+- `class-common-choices` 以旧/新职业等级、已有选择和调用方授权策略生成稳定 choice group, 并严格拒绝伪造、重复、缺失和过量选择.
+- 专精 effects 统一输出带 `expertise` 的 `proficiency.add`; 2014 战斗风格、2024 战斗风格专长和武器精通分别输出 canonical `feature.add` 或 `feat.add`.
+- Blessed Warrior 和 Druidic Warrior 的两个戏法使用授权后的法术候选及 `spell.add` effects, EulCauDnD 不再自行按职业名过滤并直接接受 ID.
+- EulCauDnD 的 UI façade、初始构筑和升级 operations 已消费共享 state/effects; 武器类型和属性过滤、来源优先级、progression limit 及本地名称判断已从 adapter 移除.
+- 共享包 72 项测试、EulCauDnD 生产构建、专长行为、来源优先级和角色 catalog 审计通过.
 
 提交:
 
@@ -1238,11 +1244,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作是 R6.2 专精、战斗风格和武器精通:
+下一项工作是 R6.3 祈唤 progression:
 
-1. 定义专精、2014 optional fighting style、2024 fighting style feat 和武器精通的等级增量 state.
-2. 统一候选授权、已有选择排除、稳定 group ID 和严格 count 校验.
-3. 将 Fighting Style cantrip 依赖选择和 feature/proficiency effects 移入共享包.
-4. 接入 EulCauDnD, 删除相应本地 progression 和 operations, 并增加 2014/2024 回归.
+1. 将 R5.4 祈唤候选和先决条件扩展为职业等级 progression.
+2. 明确已有祈唤、同次新增祈唤、魔契和已知法术上下文, 统一增量 count.
+3. 输出严格 `feature.add` effects, 删除本地 invocation limit、候选和 operations.
+4. 增加 PHB/XPHB Warlock 初始、升级、替换和先决条件回归.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.
