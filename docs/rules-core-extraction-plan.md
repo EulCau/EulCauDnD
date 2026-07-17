@@ -1236,10 +1236,14 @@ R7 拆分为以下可独立回归的提交边界:
 
 #### R7.1 法术池和 progression choice state
 
-- 状态: 待开始.
+- 状态: 实现完成, 待补跑共享包运行时测试.
 - 共享职业/子职法术池、授权来源优先级、同名版本选择和最大可用环阶.
 - 共享 preparedAll、knownSelection、spellbook、戏法、累计目标和固定环阶 choice groups.
 - 先迁移 EulCauDnD 查询 façade, 保留 profile 写入逻辑不变.
+- `spellcasting-advancement` 已实现授权职业/子职校验、法术来源优先级、扩展法术、最大环阶、施法模式、累计 deficit 和固定环阶组.
+- EulCauDnD 的 `getClassSpellOptions`, `getSpellChoiceState`, `getSpellOptionsForClassLevel` 和 `getMaxSpellLevel` 已消费共享入口; XPHB Bard 10 级扩展池按计划暂留到 R7.4.
+- 新增 6 项表驱动测试并通过 TypeScript 严格编译. `audit:spell-behavior`, `audit:spell-levelup-behavior` 和生产构建通过.
+- 当前沙箱禁止 `tsx` 创建 `/tmp/tsx-1000/*.pipe`, 沙箱外运行又受执行额度限制, 因此共享包 86 项运行时测试需在可创建 IPC socket 的环境补跑后才能将本节标记为已完成.
 
 提交:
 
@@ -1379,9 +1383,8 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 下一项工作是 R7 法术规则迁移:
 
-1. 执行 R7.1, 先把职业/子职法术池、最大环阶和 progression choice state 迁入共享包.
-2. 为 16 个施法职业定义建立表驱动测试, 覆盖 preparedAll、knownSelection、spellbook、固定环阶和 pact progression.
-3. 将 EulCauDnD 查询 façade 切换到共享 state, 并保持 profile 写入行为不变.
-4. 回归两项法术行为审计、共享包测试和生产构建后独立提交.
+1. 在允许 `tsx` 创建 IPC socket 的环境补跑共享包 86 项测试.
+2. 若测试全部通过, 将 R7.1 标记为已完成并开始 R7.2 profile projection 和已知法术替换.
+3. 若测试失败, 只修复 R7.1 范围内的法术池、模式、progression 或测试夹具问题, 重新运行两项行为审计和生产构建.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.

@@ -22,6 +22,7 @@ export * from './effects/origin-advancement.js';
 export * from './effects/origin-combat-traits.js';
 export * from './effects/origin-spells.js';
 export * from './effects/subclass-advancement.js';
+export * from './effects/spellcasting-advancement.js';
 export * from './model/character.js';
 export * from './model/choice.js';
 export * from './model/context.js';

@@ -46,6 +46,7 @@ import {
   createRuleFeatSpellLevelUpEffects,
   createRuleSpecializedFeatChoiceState,
   createRuleSpecializedFeatEffects,
+  createRuleSpellcastingAdvancementState,
   createRuleSubclassAdvancementEffects,
   createRuleSubclassAdvancementState,
   createRuleWeaponMasteryAdvancementEffects,
@@ -60,6 +61,8 @@ import {
   getRuleClassOptions,
   getRuleFeatOptions,
   getRuleRaceOptions,
+  getRuleClassSpellOptions,
+  getRuleMaxSpellLevel,
   getRuleSubclassOptions,
   getRuleSubclassFeatureRef,
   getRuleSubraceOptions,
@@ -1430,66 +1433,38 @@ export const getClassSpellOptions = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass,
   maxSpellLevel: number,
-): AutoBuilderSpell[] => {
-  const ruleSystem: RuleSystem = cls.source === 'XPHB' ? '5r' : '5e';
-  const priority = OFFICIAL_SPELL_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(priority);
-  const byName = new Map<string, AutoBuilderSpell>();
-  content.spells
-    .filter(spell => allowedSources.has(spell.source) && spell.classKeys.includes(cls.key) && spell.level <= maxSpellLevel)
-    .forEach(spell => {
-      const key = spell.englishName || spell.name;
-      const existing = byName.get(key);
-      if (!existing || priority.indexOf(spell.source) < priority.indexOf(existing.source)) {
-        byName.set(key, spell);
-      }
-    });
-  return Array.from(byName.values())
-    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name, 'zh-Hans-CN'));
-};
+): AutoBuilderSpell[] => getRuleClassSpellOptions(
+  getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e'),
+  cls,
+  maxSpellLevel,
+);
 
-const getExpandedSpellOptions = (
-  content: AutoBuilderContent,
-  cls: AutoBuilderClass,
-  level: number,
-  subclass?: AutoBuilderSubclass,
-): AutoBuilderSpell[] => {
-  const refs = [
-    ...(cls.additionalPreparedSpells || []),
-    ...(subclass?.additionalPreparedSpells || []),
-  ].filter(ref => ref.mode === 'expanded' && ref.level <= level);
-  return refs
-    .map(ref => content.spells.find(spell => spell.name === ref.name && spell.source === ref.source))
-    .filter((spell): spell is AutoBuilderSpell => Boolean(spell));
-};
-
-const getSubclassSpellOptions = (
-  content: AutoBuilderContent,
-  subclass: AutoBuilderSubclass | undefined,
-  maxSpellLevel: number,
-): AutoBuilderSpell[] => {
-  if (!subclass) return [];
-  return content.spells
-    .filter(spell => spell.level <= maxSpellLevel && spell.subclassIds?.includes(subclass.id))
-    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name, 'zh-Hans-CN'));
-};
-
-const getSpellOptionsForClassLevel = (
+	const getSpellOptionsForClassLevel = (
 	  content: AutoBuilderContent,
 	  cls: AutoBuilderClass,
 	  level: number,
 	  subclass?: AutoBuilderSubclass,
 	): AutoBuilderSpell[] => {
-	  const maxSpellLevel = getMaxSpellLevel(cls, level);
-	  if (maxSpellLevel < 0) return [];
+	  const result = createRuleSpellcastingAdvancementState(
+	    getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e'),
+	    cls,
+	    0,
+	    level,
+	    [],
+	    subclass,
+	  );
+	  if (!result.ok) {
+	    const first = result.issues[0];
+	    throw new Error(`Invalid spellcasting advancement: ${first?.detail?.reason || first?.code || 'unknown'}`);
+	  }
+	  if (!result.value) return [];
 	  // XPHB Bard: at level 10+, Magical Secrets expands the spell pool to include Cleric/Druid/Wizard spells
 	  const magicalSecretExpansion = (cls.englishName === 'Bard' && cls.source === 'XPHB' && level >= 10)
-	    ? getMagicalSecretSpellOptions(content, cls, maxSpellLevel)
+	    ? getMagicalSecretSpellOptions(content, cls, result.value.maxSpellLevel)
 	    : [];
 	  return uniqueSpells([
-	    ...getClassSpellOptions(content, cls, maxSpellLevel),
-	    ...getSubclassSpellOptions(content, subclass, maxSpellLevel),
-	    ...getExpandedSpellOptions(content, cls, level, subclass),
+	    ...result.value.cantrips,
+	    ...result.value.leveled,
 	    ...magicalSecretExpansion,
 	  ]);
 	};
@@ -1531,11 +1506,11 @@ export const getMagicalSecretSpellOptions = (
 };
 
 const isPreparedAllClass = (cls: AutoBuilderClass): boolean => (
-	  cls.preparedSpellsChange === 'restLong'
-	  && !cls.spellsKnownProgressionFixed?.length
-	  && !cls.spellsKnownProgressionFixedByLevel
-	  && !cls.spellsKnownProgression?.length
-	);
+  cls.preparedSpellsChange === 'restLong'
+  && !cls.spellsKnownProgressionFixed?.length
+  && !cls.spellsKnownProgressionFixedByLevel
+  && !cls.spellsKnownProgression?.length
+);
 
 	/**
 	 * Known casters (Bard, Sorcerer, Warlock, Ranger) know a limited set of spells
@@ -1553,58 +1528,6 @@ const isPreparedAllClass = (cls: AutoBuilderClass): boolean => (
 	  );
 	};
 
-const getCumulativeFixedKnownSpellCount = (cls: AutoBuilderClass, level: number): number => {
-  if (!cls.spellsKnownProgressionFixedByLevel) return 0;
-  return Object.entries(cls.spellsKnownProgressionFixedByLevel)
-    .filter(([classLevel]) => Number(classLevel) <= level)
-    .reduce((total, [, spellLevels]) => (
-      total + Object.values(spellLevels).reduce((sum, count) => sum + (Number(count) || 0), 0)
-    ), 0);
-};
-
-const getFixedLeveledSpellChoiceGroups = (
-  content: AutoBuilderContent,
-  cls: AutoBuilderClass,
-  level: number,
-  existingSpells: Spell[],
-): AutoBuilderFixedSpellChoiceGroup[] => {
-  const spellLevels = cls.spellsKnownProgressionFixedByLevel?.[String(level)];
-  if (!spellLevels) return [];
-  const classOptions = getClassSpellOptions(content, cls, 9);
-  return Object.entries(spellLevels)
-    .map(([spellLevel, count]) => {
-      const numericSpellLevel = Number(spellLevel);
-      const numericCount = Number(count) || 0;
-      const options = classOptions.filter(spell => spell.level === numericSpellLevel);
-      const optionIds = new Set(options.map(spell => spell.id));
-      const selected = existingSpells.filter(spell => optionIds.has(spell.id)).length;
-      return {
-        classLevel: level,
-        spellLevel: numericSpellLevel,
-        count: numericCount,
-        selected,
-        options,
-      };
-    })
-    .filter(group => group.count > 0 && group.options.length);
-};
-
-export const getKnownSpellChoiceLimits = (cls: AutoBuilderClass, level: number): { cantrips: number; leveled: number } => {
-  const index = Math.max(0, level - 1);
-  const cantrips = cls.cantripProgression?.[index] || 0;
-  const fixedKnown = cls.spellsKnownProgressionFixed
-    ?.slice(0, level)
-    .reduce((total, count) => total + (Number(count) || 0), 0);
-  const cumulativeFixedKnown = getCumulativeFixedKnownSpellCount(cls, level);
-  const levelChangePrepared = cls.preparedSpellsChange === 'level'
-    ? cls.preparedSpellsProgression?.[index]
-    : 0;
-  let leveled = (fixedKnown || cls.spellsKnownProgression?.[index] || levelChangePrepared || 0) + cumulativeFixedKnown;
-  if (cls.key === 'Ranger' && cls.source === 'PHB' && level === 1) leveled = 0;
-
-  return { cantrips, leveled };
-};
-
 export const getSpellChoiceState = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass,
@@ -1620,8 +1543,19 @@ export const getSpellChoiceState = (
   leveled: AutoBuilderSpell[];
   fixedLeveledGroups: AutoBuilderFixedSpellChoiceGroup[];
 } => {
-  const maxSpellLevel = getMaxSpellLevel(cls, level);
-  if (maxSpellLevel < 0) {
+  const result = createRuleSpellcastingAdvancementState(
+    getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e'),
+    cls,
+    Math.max(0, level - 1),
+    level,
+    existingSpells.map(({ id }) => id),
+    subclass,
+  );
+  if (!result.ok) {
+    const first = result.issues[0];
+    throw new Error(`Invalid spellcasting advancement: ${first?.detail?.reason || first?.code || 'unknown'}`);
+  }
+  if (!result.value) {
     return {
       isSpellcaster: false,
       isPreparedAll: false,
@@ -1633,26 +1567,21 @@ export const getSpellChoiceState = (
     };
   }
 
-  const options = getSpellOptionsForClassLevel(content, cls, level, subclass);
-  const isPreparedAll = isPreparedAllClass(cls);
-  const limits = getKnownSpellChoiceLimits(cls, level);
-  const fixedLeveledGroups = getFixedLeveledSpellChoiceGroups(content, cls, level, existingSpells);
-  const fixedNeeded = fixedLeveledGroups.reduce((total, group) => total + Math.max(0, group.count - group.selected), 0);
-  const additionalPreparedIds = new Set(getAdditionalPreparedSpells(content, cls, level, subclass).map(spell => spell.id));
-  const existingCantrips = existingSpells.filter(spell => spell.level === 0).length;
-  const existingLeveled = existingSpells.filter(spell => spell.level > 0 && !additionalPreparedIds.has(spell.id)).length;
+  const state = result.value;
+  const magicalSecretExpansion = (
+    cls.key === 'Bard'
+    && cls.source === 'XPHB'
+    && level >= 10
+  ) ? getMagicalSecretSpellOptions(content, cls, state.maxSpellLevel) : [];
 
   return {
     isSpellcaster: true,
-    isPreparedAll,
-    limits,
-    needed: {
-      cantrips: Math.max(0, limits.cantrips - existingCantrips),
-      leveled: isPreparedAll ? 0 : Math.max(0, limits.leveled - existingLeveled - fixedNeeded),
-    },
-    cantrips: options.filter(spell => spell.level === 0),
-    leveled: options.filter(spell => spell.level > 0),
-    fixedLeveledGroups,
+    isPreparedAll: state.mode === 'preparedAll',
+    limits: state.limits,
+    needed: state.needed,
+    cantrips: state.cantrips,
+    leveled: uniqueSpells([...state.leveled, ...magicalSecretExpansion]),
+    fixedLeveledGroups: state.fixedLeveledGroups,
   };
 };
 
@@ -1922,32 +1851,7 @@ export const getFeatMetamagicChoiceState = (
 };
 
 export const getMaxSpellLevel = (cls: AutoBuilderClass, level: number): number => {
-  if (!cls.spellcastingAbility || !cls.casterProgression) return -1;
-  let fixedMaxLevel = -1;
-  for (const [classLevel, spellLevels] of Object.entries(cls.spellsKnownProgressionFixedByLevel || {})) {
-    if (Number(classLevel) > level) continue;
-    for (const [spellLevel, count] of Object.entries(spellLevels)) {
-      if (Number(count) > 0) fixedMaxLevel = Math.max(fixedMaxLevel, Number(spellLevel) || -1);
-    }
-  }
-  const spellSlots = cls.spellSlotProgression?.[level - 1];
-  if (spellSlots?.length) {
-    let highest = -1;
-    for (let index = spellSlots.length - 1; index >= 0; index -= 1) {
-      if (Number(spellSlots[index]) > 0) {
-        highest = index;
-        break;
-      }
-    }
-    if (highest >= 0) return Math.max(highest + 1, fixedMaxLevel);
-  }
-  const pactSlots = cls.pactSlotProgression?.[level - 1];
-  if (pactSlots?.level) return Math.max(pactSlots.level, fixedMaxLevel);
-  if (cls.casterProgression === 'pact') return level >= 1 ? 1 : -1;
-  if (cls.casterProgression === 'full') return level >= 1 ? Math.min(9, Math.max(1, Math.ceil(level / 2))) : -1;
-  if (cls.casterProgression === 'artificer') return level >= 1 ? Math.min(5, Math.max(1, Math.ceil(level / 4))) : -1;
-  if (cls.casterProgression === '1/2') return level >= 2 ? Math.min(5, Math.max(1, Math.floor((level + 3) / 4))) : -1;
-  return -1;
+  return getRuleMaxSpellLevel(cls, level);
 };
 
 const getSlotsForClassLevel = (cls: AutoBuilderClass, level: number): { [level: number]: SpellSlot } => {
