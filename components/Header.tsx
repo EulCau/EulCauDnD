@@ -14,6 +14,7 @@ interface HeaderProps {
   isTouchMode: boolean;
   onToggleTouchMode: () => void;
   onOpenAutoBuilder: () => void;
+  showApplicationActions?: boolean;
 }
 
 // Icons
@@ -44,7 +45,17 @@ const InputGroup = ({ label, value, onChange, placeholder = "" }: { label: strin
 );
 
 export const Header: React.FC<HeaderProps> = ({ 
-  data, onChange, onSave, onDownload, onUpload, onLogout, username, isTouchMode, onToggleTouchMode, onOpenAutoBuilder
+  data,
+  onChange,
+  onSave,
+  onDownload,
+  onUpload,
+  onLogout,
+  username,
+  isTouchMode,
+  onToggleTouchMode,
+  onOpenAutoBuilder,
+  showApplicationActions = true,
 }) => {
   const { t, language, setLanguage } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,10 +83,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm mb-6 relative">
-      <div className="absolute top-2 right-4 flex items-center gap-2">
+      {showApplicationActions && <div className="absolute top-2 right-4 flex items-center gap-2">
          <span className="text-xs text-gray-400 hidden sm:inline">{t('auth.welcome')}, <span className="font-bold text-gray-600">{username}</span></span>
          <button onClick={onLogout} className="text-xs text-red-400 hover:text-red-600 hover:underline">{t('auth.logout')}</button>
-      </div>
+      </div>}
 
       <div className="flex flex-col md:flex-row gap-6 mt-4">
         
@@ -93,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             
             {/* Actions & Language Switcher */}
-            <div className="flex flex-wrap gap-2 mt-2 items-center justify-between">
+            {showApplicationActions && <div className="flex flex-wrap gap-2 mt-2 items-center justify-between">
                  <div className="flex gap-1">
                      <button
                         onClick={onToggleTouchMode}
@@ -133,7 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <input type="file" hidden ref={fileInputRef} onChange={onUpload} accept=".json" />
                      </label>
                  </div>
-            </div>
+            </div>}
         </div>
 
         {/* Info Grid */}
