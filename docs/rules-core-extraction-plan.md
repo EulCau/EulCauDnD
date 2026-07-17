@@ -1172,8 +1172,99 @@ refactor(rules): share complete class choices
 
 ### R7. 法术规则
 
+- 状态: 进行中.
 - 迁移职业法术池, prepared/known/spellbook, 替换, Magical Secrets 和额外法术.
 - 迁移共享多职业法术位和契约法术位.
+
+盘点基线:
+
+| 模式 | PHB | XPHB | 当前 progression 来源 |
+|---|---|---|---|
+| knownSelection | Bard、Ranger、Sorcerer、Warlock | Bard、Sorcerer、Warlock 使用 level-change prepared progression | `spellsKnownProgression`, `preparedSpellsProgression`, `spellsKnownProgressionFixedByLevel` |
+| preparedAll | Cleric、Druid、Paladin | Cleric、Druid、Paladin、Ranger | `preparedSpellsChange = restLong`, 戏法仍按 `cantripProgression` 选择 |
+| spellbook | Wizard | Wizard | `spellsKnownProgressionFixed`, 法术书条目与每日准备状态分离 |
+| pact | Warlock | Warlock | `pactSlotProgression`, 不并入共享多职业法术位 |
+
+当前主要入口和风险:
+
+- `getClassSpellOptions`, `getSpellOptionsForClassLevel` 和 `getMagicalSecretSpellOptions` 在 adapter 内自行维护来源白名单、同名去重和职业/子职法术池. 服务端尚不能调用同一入口复核选择.
+- `getKnownSpellChoiceLimits` 和 `getSpellChoiceState` 通过多个 catalog 字段推断模式、累计目标和固定环阶组. React 组件另行判断替换和 Magical Secrets 完整性.
+- `createSpellcastingProfile` 和 `updateSpellcastingForLevel` 直接接受 ID. 无效新增、替换或 Magical Secrets ID 会被静默忽略, 不能作为权威服务端校验.
+- class/subclass `additionalPreparedSpells` 同时承载 expanded 和 prepared 两种语义, 必须在共享层按结构化 `mode`, 解锁等级和稳定 spell identity 处理.
+- 多职业法术位表、各 caster progression 的等级折算、pact slots 和 profile `slotSource` 仍在 adapter. 升级时还必须明确保留已消耗法术位的策略, 不得把投影刷新误当成长休.
+- 现有 catalog 包含 16 个施法职业定义: PHB/XPHB Bard、Cleric、Druid、Paladin、Ranger、Sorcerer、Warlock 和 Wizard. 行为基线由 `audit:spell-behavior` 和 `audit:spell-levelup-behavior` 覆盖.
+
+共享接口边界:
+
+```ts
+export interface RuleSpellcastingAdvancementState {
+  profileId: string;
+  class: RuleEntityRef;
+  mode: 'preparedAll' | 'knownSelection' | 'spellbook';
+  oldClassLevel: number;
+  newClassLevel: number;
+  maxSpellLevel: number;
+  groups: readonly RuleChoiceGroup<RuleSpellOption>[];
+  replacement?: RuleSpellReplacementState;
+  automaticSpells: readonly RuleSpellOption[];
+}
+
+export function createRuleSpellcastingAdvancementState(
+  context: RuleContext,
+  classRef: RuleEntityRef,
+  oldClassLevel: number,
+  newClassLevel: number,
+  existingProfile?: RuleSpellcastingProfile,
+  subclassRef?: RuleEntityRef,
+): RuleResult<RuleSpellcastingAdvancementState | null>;
+
+export function createRuleSpellcastingAdvancementEffects(
+  context: RuleContext,
+  state: RuleSpellcastingAdvancementState,
+  submissions: readonly RuleChoiceSubmission[],
+): RuleResult<readonly RuleEffect[]>;
+```
+
+- state 必须完整携带本次可选集合. effects 只接受 state 内 ID, 严格拒绝伪造、重复、缺失、过量、过期和非法替换.
+- 法术候选统一使用授权策略和来源优先级. `name`、`englishName` 和翻译正文仅供显示, 不能参与身份校验.
+- 初始构筑和升级使用同一 advancement API, 通过 `oldClassLevel = 0` 表示建卡. spellbook 的新增和 preparedAll 的每日准备是不同操作; R7 只处理建卡/升级取得的规则内容.
+- slots 使用独立纯函数计算. 非 pact 多职业共享 slots, pact profile 保持独立, profile effect 不复制或重置无关 profile.
+- 共享层只输出结构化 spell ref、profile 和 slot 数值. EulCauDnD adapter 继续负责施法时间、距离、成分和持续时间等展示字段.
+
+R7 拆分为以下可独立回归的提交边界:
+
+#### R7.1 法术池和 progression choice state
+
+- 状态: 待开始.
+- 共享职业/子职法术池、授权来源优先级、同名版本选择和最大可用环阶.
+- 共享 preparedAll、knownSelection、spellbook、戏法、累计目标和固定环阶 choice groups.
+- 先迁移 EulCauDnD 查询 façade, 保留 profile 写入逻辑不变.
+
+#### R7.2 profile projection 和已知法术替换
+
+- 状态: 待开始.
+- 共享初始 profile、升级新增、自动准备/扩展法术和 spellbook 投影.
+- 共享严格替换 state/effects, 并明确保留已有法术与 preparation 状态.
+- EulCauDnD 的 `createSpellcastingProfile` 和 `updateSpellcastingForLevel` 退化为展示 adapter.
+
+#### R7.3 多职业和 pact slots
+
+- 状态: 待开始.
+- 将 caster level 折算、共享多职业法术位表、单职业 slots 和 pact slots 迁移为纯函数.
+- 表驱动覆盖 full、artificer、1/2、1/3、pact、混合施法者和边界等级.
+- 升级刷新总量时保留合法 expended 值, 不隐式执行长休.
+
+#### R7.4 Magical Secrets
+
+- 状态: 待开始.
+- 共享 PHB Bard 10/14/18 级新增选择和 XPHB Bard 10 级扩展法术池.
+- 严格区分“新增两项 Magical Secrets”和“后续职业法术候选池扩展”, 拒绝重复与未授权职业法表.
+
+#### R7.5 清理和完整法术审计
+
+- 状态: 待开始.
+- 删除 adapter 中无调用的来源数组、模式推断、progression、slot 表、替换和 Magical Secrets 校验.
+- 增加独立共享 façade 行为审计, 回归法术、法术升级、专长法术、origin 法术、祈唤先决条件、多职业和生产构建.
 
 提交:
 
@@ -1263,9 +1354,9 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 下一项工作是 R7 法术规则迁移:
 
-1. 盘点职业法术 progression, prepared/known/spellbook, 替换、Magical Secrets、额外法术和多职业法术位的现有入口.
-2. 先定义共享 spellcasting advancement state/effects 和调用方授权边界, 保留显示正文在 adapter.
-3. 按可独立回归的提交边界拆分 R7, 再迁移 EulCauDnD 初始构筑和升级 façade.
-4. 用现有法术和法术升级审计建立迁移前行为基线, 为共享核心补充严格伪造、重复、来源和 progression 测试.
+1. 执行 R7.1, 先把职业/子职法术池、最大环阶和 progression choice state 迁入共享包.
+2. 为 16 个施法职业定义建立表驱动测试, 覆盖 preparedAll、knownSelection、spellbook、固定环阶和 pact progression.
+3. 将 EulCauDnD 查询 façade 切换到共享 state, 并保持 profile 写入行为不变.
+4. 回归两项法术行为审计、共享包测试和生产构建后独立提交.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.
