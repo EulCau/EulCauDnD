@@ -109,6 +109,32 @@ test('supports Rune Shaper proficiency growth and validated replacement', async 
     englishName === 'Comprehend Languages'
   )), true);
   assert.equal(block.choices[0]?.count, 1);
+  const incomplete = {
+    blockId: block.id,
+    ability: block.abilityOptions[0] ?? block.ability,
+    choices: {},
+  };
+  assert.equal(createRuleFeatSpellEffects(
+    catalog,
+    '5e',
+    feat,
+    8,
+    incomplete,
+  ).ok, false);
+  const fixedOnly = createRuleFeatSpellEffects(
+    catalog,
+    '5e',
+    feat,
+    8,
+    { ...incomplete, allowIncompleteChoices: true },
+  );
+  assert.equal(fixedOnly.ok, true);
+  assert.equal(
+    fixedOnly.ok
+      && fixedOnly.value[0]?.type === 'spell.profile.upsert'
+      && fixedOnly.value[0].profile.spells.length,
+    block.fixedSpells.length,
+  );
   const initialEffects = createRuleFeatSpellEffects(
     catalog,
     '5e',

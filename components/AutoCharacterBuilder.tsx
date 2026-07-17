@@ -50,6 +50,7 @@ import {
   getFightingStyleFeatureChoiceOptions,
   getFightingStyleFeatChoiceOptions,
   getExistingFeatSpellLevelUpChoiceState,
+  getExistingFeatSpellLevelUpChoiceStates,
   getExistingOriginSpellLevelUpChoiceStates,
   getInvocationChoiceState,
   getInvocationPrerequisiteSummary,
@@ -302,15 +303,13 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const abilityScoreImprovementFeatLanguageChoiceOptions = getFeatLanguageChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatSavingThrowChoiceOptions = getFeatSavingThrowChoiceOptions(selectedAbilityScoreImprovementFeat);
   const abilityScoreImprovementFeatSpellChoiceState = content ? getFeatSpellChoiceState(content, selectedAbilityScoreImprovementFeat, ruleSystem, targetCharacterLevel) : null;
-  const existingFeatSpellChoiceState = content && isLevelUpMode
-    ? getExistingFeatSpellLevelUpChoiceState(content, data, ruleSystem, currentCharacterLevel, targetCharacterLevel)
-    : null;
-  const existingFeatChoiceKey = existingFeatSpellChoiceState
-    ? `${existingFeatSpellChoiceState.feat.key}|${existingFeatSpellChoiceState.feat.source}`
-    : '';
-  const existingFeatChoice = existingFeatChoiceKey
-    ? existingFeatChoices[existingFeatChoiceKey] || { featId: existingFeatChoiceKey }
-    : {};
+  const existingFeatSpellChoiceStates = content && isLevelUpMode
+    ? getExistingFeatSpellLevelUpChoiceStates(content, data, ruleSystem, currentCharacterLevel, targetCharacterLevel)
+    : [];
+  const getExistingFeatChoice = (featKey: string, featSource: string): AutoBuilderFeatChoice => {
+    const featId = `${featKey}|${featSource}`;
+    return existingFeatChoices[featId] || { featId };
+  };
   const existingOriginSpellChoiceStates = content && isLevelUpMode
     ? getExistingOriginSpellLevelUpChoiceStates(
         content,
@@ -1178,11 +1177,13 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const isClassFeatureChoiceComplete = isFightingStyleFeatChoiceComplete
     && isFightingStyleFeatureChoiceComplete
     && isFightingStyleCantripChoiceComplete;
-  const isExistingFeatChoiceComplete = !existingFeatSpellChoiceState
-    || (
-      (!existingFeatSpellChoiceState.state.blocks.length || isFeatSpellChoiceComplete(existingFeatSpellChoiceState.state, existingFeatChoice))
-      && (!existingFeatChoice.featSpellReplaceRemoveId || Boolean(existingFeatChoice.featSpellReplaceAddId))
+  const isExistingFeatChoiceComplete = existingFeatSpellChoiceStates.every((entry) => {
+    const choice = getExistingFeatChoice(entry.feat.key, entry.feat.source);
+    return (
+      (!entry.state.blocks.length || isFeatSpellChoiceComplete(entry.state, choice))
+      && (!choice.featSpellReplaceRemoveId || Boolean(choice.featSpellReplaceAddId))
     );
+  });
   const isExistingOriginSpellChoiceComplete = existingOriginSpellChoiceStates.every((entry) => {
     const stored = existingOriginSpellChoices[entry.id] || {};
     return isOriginSpellChoiceComplete(entry.state, {
@@ -1272,7 +1273,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 		        skillChoices,
 		        toolChoices: classToolChoices,
 		        abilityScoreImprovementChoice: needsAbilityScoreImprovementChoice ? validAbilityScoreImprovementChoice : undefined,
-		        existingFeatChoices: existingFeatSpellChoiceState ? [existingFeatChoice] : undefined,
+		        existingFeatChoices: existingFeatSpellChoiceStates.length
+              ? existingFeatSpellChoiceStates.map(entry => getExistingFeatChoice(entry.feat.key, entry.feat.source))
+              : undefined,
 		        existingOriginSpellChoices,
 		        classFeatureChoices: validClassFeatureChoices,
 		        subclass: needsSubclassChoice ? selectedSubclass : undefined,
@@ -2586,18 +2589,27 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {existingFeatSpellChoiceState?.state.blocks.length ? renderFeatSpellChoiceGroup(
-            existingFeatSpellChoiceState.state,
-            existingFeatChoice,
-            updater => setExistingFeatChoices(prev => ({
-              ...prev,
-              [existingFeatChoiceKey]: {
-                ...existingFeatChoice,
-                ...updater(existingFeatChoice),
-                featId: existingFeatChoiceKey,
-              },
-            })),
-          ) : null}
+          {existingFeatSpellChoiceStates.map((entry) => {
+            if (!entry.state.blocks.length) return null;
+            const featId = `${entry.feat.key}|${entry.feat.source}`;
+            const choice = getExistingFeatChoice(entry.feat.key, entry.feat.source);
+            return (
+              <React.Fragment key={`feat-spells-${featId}`}>
+                {renderFeatSpellChoiceGroup(
+                  entry.state,
+                  choice,
+                  updater => setExistingFeatChoices(previous => ({
+                    ...previous,
+                    [featId]: {
+                      ...choice,
+                      ...updater(choice),
+                      featId,
+                    },
+                  })),
+                )}
+              </React.Fragment>
+            );
+          })}
 
           {existingOriginSpellChoiceStates.map((entry) => {
             const stored = existingOriginSpellChoices[entry.id] || {};
@@ -2622,18 +2634,27 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             );
           })}
 
-          {existingFeatSpellChoiceState && renderFeatSpellReplacementChoice(
-            existingFeatSpellChoiceState.replacement,
-            existingFeatChoice,
-            updater => setExistingFeatChoices(prev => ({
-              ...prev,
-              [existingFeatChoiceKey]: {
-                ...existingFeatChoice,
-                ...updater(existingFeatChoice),
-                featId: existingFeatChoiceKey,
-              },
-            })),
-          )}
+          {existingFeatSpellChoiceStates.map((entry) => {
+            if (!entry.replacement) return null;
+            const featId = `${entry.feat.key}|${entry.feat.source}`;
+            const choice = getExistingFeatChoice(entry.feat.key, entry.feat.source);
+            return (
+              <React.Fragment key={`feat-spell-replacement-${featId}`}>
+                {renderFeatSpellReplacementChoice(
+                  entry.replacement,
+                  choice,
+                  updater => setExistingFeatChoices(previous => ({
+                    ...previous,
+                    [featId]: {
+                      ...choice,
+                      ...updater(choice),
+                      featId,
+                    },
+                  })),
+                )}
+              </React.Fragment>
+            );
+          })}
 
           {spellChoiceState?.isSpellcaster && spellChoiceState.isPreparedAll && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">

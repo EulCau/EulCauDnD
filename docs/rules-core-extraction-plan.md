@@ -1016,9 +1016,12 @@ refactor(rules): share feat spell advancement
 
 ##### R5.3b EulCauDnD 接入和本地法术分支清理
 
-- 状态: 未开始.
-- 初次专长法术 façade、构筑 effects、既有专长升级和替换改用共享 API.
-- 删除本地 filter/parser、Rune Shaper 特判、增量 state 和 spell operations, 通过完整专长法术行为审计验证等价.
+- 状态: 已完成.
+- `getFeatSpellChoiceState`、初次构筑法术 effects、既有专长升级和替换均改用共享 API.
+- 删除本地法术引用解析、filter 解析、法术候选解析、施法属性解析、Rune Shaper 特判、等级增量 state 和 spell operations.
+- 既有专长升级 state 改为复数, 同一级有多个专长解锁法术时会分别显示、校验并提交; 保留原单数 façade 作为兼容入口.
+- 共享 effects 默认继续严格拒绝未完成选择; EulCauDnD 兼容层显式允许先投影固定法术, 保留 Rune Shaper 未选符文时仍添加 Comprehend Languages 的既有行为.
+- rules-core 54 项测试、TypeScript 检查、EulCauDnD 生产构建、完整专长行为审计、专长法术审计和角色数据审计通过.
 
 提交:
 
@@ -1149,11 +1152,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作严格从 R1 开始:
+下一项工作是 R5.4 专长专用选择:
 
-1. 拆出 catalog 和 canonical model.
-2. 为 parser, JSON round-trip, immutability 和稳定 entity ID 添加测试.
-3. 让 `autoBuilderRules.ts` 通过兼容导出使用新类型.
-4. 更新本文档 R1 状态并提交.
+1. 盘点 Fighting Style、Invocation、Maneuver 和 Metamagic 四类专长入口的候选、先决条件和既有本地特判.
+2. 在 rules-core 定义共享 choice state 和严格 selection validation.
+3. 让 EulCauDnD façade 和构筑 effects 消费共享结果, 再删除重复分支.
+4. 补充四类专用入口的成功、失败和来源授权测试, 更新本文档并提交.
 
-在 R1-R8 完成前, 不把 Ao 新增职业, 法术或复杂专长规则作为主线任务.
+在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.

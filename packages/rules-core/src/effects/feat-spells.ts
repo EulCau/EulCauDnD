@@ -24,6 +24,7 @@ export interface RuleFeatSpellSelections {
   choices?: Readonly<Record<string, readonly string[]>>;
   replaceRemoveId?: string;
   replaceAddId?: string;
+  allowIncompleteChoices?: boolean;
 }
 
 export interface RuleFeatSpellReplacementState {
@@ -100,11 +101,18 @@ export function createRuleFeatSpellEffects(
   const block = selectBlock(state.value.blocks, selections.blockId);
   if (!block.ok) return block;
   const validated = validateSpellChoices(block.value, selections.choices);
-  if (!validated.ok) return validated;
+  if (
+    !validated.ok
+    && (
+      !selections.allowIncompleteChoices
+      || validated.issues.some(({ code }) => code !== 'choice_required')
+    )
+  ) return validated;
+  const spells = selectedSpellRefs(block.value, selections.choices);
+  if (spells.length === 0 && selections.allowIncompleteChoices) return success([]);
+  if (spells.length === 0) return invalid(['featSpells'], 'feat_spell_selection_empty');
   const ability = resolveAbility(block.value, selections.ability, 'featSpells');
   if (!ability.ok) return ability;
-  const spells = selectedSpellRefs(block.value, selections.choices);
-  if (spells.length === 0) return invalid(['featSpells'], 'feat_spell_selection_empty');
   const profileId = featSpellProfileId(feat);
   return success([{
     type: 'spell.profile.upsert',

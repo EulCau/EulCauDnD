@@ -27,6 +27,10 @@ import {
   createRuleOriginFeatEffects,
   createRuleFeatChoiceGroups,
   createRuleFeatEffects,
+  createRuleFeatSpellChoiceState,
+  createRuleFeatSpellEffects,
+  createRuleFeatSpellLevelUpChoiceState,
+  createRuleFeatSpellLevelUpEffects,
   createRuleOriginResourceEffects,
   createRuleOriginSpellEffects,
   createRuleOriginSpellLevelUpChoiceState,
@@ -1309,219 +1313,25 @@ export const getFeatAbilityChoiceOptions = (feat: AutoBuilderFeat | undefined): 
   )).flatMap(({ from }) => from)) as AbilityName[];
 };
 
-const parseSpellRef = (ref: string): { name: string; source?: string } | null => {
-  const [rawName, rawSource] = ref.split('|');
-  const name = rawName.split('#')[0].trim();
-  const source = rawSource?.split('#')[0].toUpperCase();
-  return name ? { name, source } : null;
-};
-
-const getSpellSourcePriority = (ruleSystem: RuleSystem): string[] => (
-  OFFICIAL_SPELL_SOURCE_PRIORITY[ruleSystem]
-);
-
-const resolveSpellRef = (
-  content: AutoBuilderContent,
-  ref: string,
-  ruleSystem: RuleSystem,
-): AutoBuilderSpell | null => {
-  const parsed = parseSpellRef(ref);
-  if (!parsed) return null;
-  if (parsed.source) {
-    return content.spells.find(spell => spell.name === parsed.name && spell.source.toUpperCase() === parsed.source) || null;
-  }
-  const priority = getSpellSourcePriority(ruleSystem);
-  return priority
-    .map(source => content.spells.find(spell => spell.name === parsed.name && spell.source === source))
-    .find((spell): spell is AutoBuilderSpell => Boolean(spell)) || null;
-};
-
-const parseSpellChoiceFilters = (choose: string): {
-  level?: number;
-  className?: string;
-  schools?: Set<string>;
-} => {
-  const filters: { level?: number; className?: string; schools?: Set<string> } = {};
-  for (const part of choose.split('|')) {
-    const [rawKey, rawValue] = part.split('=');
-    const key = rawKey?.trim();
-    const value = rawValue?.trim();
-    if (!key || !value) continue;
-    if (key === 'level') filters.level = Number(value);
-    if (key === 'class') filters.className = value;
-    if (key === 'school') filters.schools = new Set(value.split(';').map(item => item.trim()).filter(Boolean));
-  }
-  return filters;
-};
-
-const getClassKeysForSpellFilter = (
-  content: AutoBuilderContent,
-  className?: string,
-): Set<string> | null => {
-  if (!className) return null;
-  const normalized = normalizeKey(className);
-  const keys = content.classes
-    .filter(cls => (
-      normalizeKey(cls.name) === normalized
-      || normalizeKey(cls.key) === normalized
-      || normalizeKey(cls.englishName) === normalized
-    ))
-    .map(cls => cls.key);
-  return keys.length ? new Set(keys) : null;
-};
-
-const getSpellOptionsForFeatFilter = (
-  content: AutoBuilderContent,
-  ruleSystem: RuleSystem,
-  choose: string,
-): AutoBuilderSpell[] => {
-  const filters = parseSpellChoiceFilters(choose);
-  const classKeys = getClassKeysForSpellFilter(content, filters.className);
-  const priority = getSpellSourcePriority(ruleSystem);
-  const byName = new Map<string, AutoBuilderSpell>();
-  content.spells
-    .filter(spell => priority.includes(spell.source))
-    .filter(spell => filters.level === undefined || spell.level === filters.level)
-    .filter(spell => !filters.schools || Boolean(spell.school && filters.schools.has(spell.school)))
-    .filter(spell => !classKeys || spell.classKeys.some(classKey => classKeys.has(classKey)))
-    .forEach(spell => {
-      const key = spell.englishName || spell.name;
-      const existing = byName.get(key);
-      if (!existing || priority.indexOf(spell.source) < priority.indexOf(existing.source)) {
-        byName.set(key, spell);
-      }
-    });
-  return Array.from(byName.values())
-    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name, 'zh-Hans-CN'));
-};
-
-const normalizeFeatSpellAbility = (ability: unknown): AbilityName | undefined => {
-  if (typeof ability !== 'string') return undefined;
-  if (ability === '继承') return undefined;
-  return normalizeAbilityName(ability) || undefined;
-};
-
-const getFeatSpellAbilityOptionsFromBlock = (block: Record<string, unknown>): AbilityName[] => {
-  const ability = block.ability;
-  if (!ability || typeof ability !== 'object' || !('choose' in ability)) return [];
-  const options = (ability as { choose?: unknown }).choose;
-  return Array.isArray(options)
-    ? options.map(option => normalizeAbilityName(String(option))).filter((option): option is AbilityName => Boolean(option))
-    : [];
-};
-
-const collectFeatSpellChoices = (
-  value: unknown,
-  content: AutoBuilderContent,
-  ruleSystem: RuleSystem,
-  sourceId: string,
-  characterLevel = Number.POSITIVE_INFINITY,
-): { fixedSpells: AutoBuilderSpell[]; choices: AutoBuilderFeatSpellChoiceGroup[] } => {
-  const fixedSpells: AutoBuilderSpell[] = [];
-  const choices: AutoBuilderFeatSpellChoiceGroup[] = [];
-  let choiceIndex = 0;
-  const visit = (entry: unknown, fallbackCount = 1) => {
-    if (typeof entry === 'string') {
-      const spell = resolveSpellRef(content, entry, ruleSystem);
-      if (spell) fixedSpells.push(spell);
-      return;
-    }
-    if (Array.isArray(entry)) {
-      entry.forEach(item => visit(item, fallbackCount));
-      return;
-    }
-    if (!entry || typeof entry !== 'object') return;
-    const record = entry as Record<string, unknown>;
-    const keys = Object.keys(record);
-    if (keys.length > 0 && keys.every(key => /^\d+$/.test(key))) {
-      keys
-        .filter(key => Number(key) <= characterLevel)
-        .forEach(key => visit(record[key], fallbackCount));
-      return;
-    }
-    if (typeof record.choose === 'string') {
-      const options = getSpellOptionsForFeatFilter(content, ruleSystem, record.choose);
-      if (options.length) {
-        choiceIndex += 1;
-        choices.push({
-          id: `${sourceId}-spell-choice-${choiceIndex}`,
-          label: record.choose,
-          count: typeof record.count === 'number' ? record.count : fallbackCount,
-          options,
-        });
-      }
-      return;
-    }
-    Object.values(record).forEach(item => visit(item, fallbackCount));
-  };
-  visit(value);
-  return { fixedSpells: uniqueSpells(fixedSpells), choices };
-};
-
-const createRuneShaperFeatSpellBlock = (
-  content: AutoBuilderContent,
-  feat: AutoBuilderFeat,
-  ruleSystem: RuleSystem,
-  characterLevel: number,
-): AutoBuilderFeatSpellBlockChoice | null => {
-  const block = feat.additionalSpells?.find(entry => entry && typeof entry === 'object') as Record<string, unknown> | undefined;
-  if (!block) return null;
-  const id = `feat-${feat.key}-${feat.source}-spell-block-0`;
-  const parsed = collectFeatSpellChoices(block, content, ruleSystem, id, characterLevel);
-  const fixedSpells = parsed.fixedSpells.filter(spell => (
-    spell.englishName === 'Comprehend Languages' || spell.name === '通晓语言'
-  ));
-  const fixedSpellIds = new Set(fixedSpells.map(spell => spell.id));
-  const runeSpellOptions = parsed.fixedSpells.filter(spell => !fixedSpellIds.has(spell.id));
-  const effectiveCharacterLevel = Number.isFinite(characterLevel) ? characterLevel : 1;
-  const runeCount = Math.max(1, Math.floor(calculateProficiencyBonus(Math.max(1, effectiveCharacterLevel)) / 2));
-  if (!fixedSpells.length && !runeSpellOptions.length) return null;
-  return {
-    id,
-    label: feat.name,
-    ability: normalizeFeatSpellAbility(block.ability),
-    abilityOptions: getFeatSpellAbilityOptionsFromBlock(block),
-    fixedSpells,
-    choices: runeSpellOptions.length
-      ? [{
-          id: `${id}-rune-spells`,
-          label: '符文法术',
-          count: runeCount,
-          options: uniqueSpells(runeSpellOptions),
-        }]
-      : [],
-  };
-};
-
 export const getFeatSpellChoiceState = (
   content: AutoBuilderContent,
   feat: AutoBuilderFeat | undefined,
   ruleSystem: RuleSystem,
   characterLevel = Number.POSITIVE_INFINITY,
 ): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
-  if (feat?.key === 'Rune Shaper' && feat.source === 'BGG') {
-    const block = createRuneShaperFeatSpellBlock(content, feat, ruleSystem, characterLevel);
-    return block ? { blocks: [block] } : null;
-  }
-  const blocks = (feat?.additionalSpells || [])
-    .map((entry, index): AutoBuilderFeatSpellBlockChoice | null => {
-      if (!entry || typeof entry !== 'object') return null;
-      const block = entry as Record<string, unknown>;
-      const id = `feat-${feat?.key || 'unknown'}-${feat?.source || 'unknown'}-spell-block-${index}`;
-      const label = String(block.name || block.ENG_name || `${feat?.name || 'Feat'} ${index + 1}`);
-      const parsed = collectFeatSpellChoices(block, content, ruleSystem, id, characterLevel);
-      if (!parsed.fixedSpells.length && !parsed.choices.length) return null;
-      return {
-        id,
-        label,
-        ability: normalizeFeatSpellAbility(block.ability),
-        abilityOptions: getFeatSpellAbilityOptionsFromBlock(block),
-        fixedSpells: parsed.fixedSpells,
-        choices: parsed.choices,
-      };
-    })
-    .filter((block): block is AutoBuilderFeatSpellBlockChoice => Boolean(block));
-  return blocks.length ? { blocks } : null;
+  if (!feat) return null;
+  const result = createRuleFeatSpellChoiceState(
+    content,
+    ruleSystem,
+    feat,
+    characterLevel,
+  );
+  if (result.ok) return result.value;
+  const first = result.issues[0];
+  throw new Error(
+    `Unsupported feat spell shape at ${first?.path.join('.') || feat.key}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
 };
 
 export const getOriginSpellChoiceState = (
@@ -1620,72 +1430,58 @@ const getFeatSpellProfileId = (feat: AutoBuilderFeat): string => (
   `auto-feat-${normalizeKey(feat.key)}-${feat.source}-spells`
 );
 
-const getRuneShaperSpellReplacementState = (
+export const getExistingFeatSpellLevelUpChoiceStates = (
   content: AutoBuilderContent,
-  feat: AutoBuilderFeat,
   character: CharacterData,
   ruleSystem: RuleSystem,
-  characterLevel: number,
-): AutoBuilderFeatSpellReplacementState | undefined => {
-  if (feat.key !== 'Rune Shaper' || feat.source !== 'BGG') return undefined;
-  const profileId = getFeatSpellProfileId(feat);
-  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
-  if (!existingProfile) return undefined;
-  const fullState = getFeatSpellChoiceState(content, feat, ruleSystem, characterLevel);
-  const block = fullState?.blocks[0];
-  const runeChoice = block?.choices[0];
-  if (!runeChoice?.options.length) return undefined;
-  const fixedSpellKeys = new Set((block.fixedSpells || []).map(spell => spell.englishName || spell.name));
-  const existingRuneSpells = existingProfile.spells
-    .filter(spell => !fixedSpellKeys.has(spell.englishName || spell.name))
-    .map(spell => ({
-      id: spell.id,
-      name: spell.name,
-      englishName: spell.englishName,
-      source: spell.source,
-    }));
-  if (!existingRuneSpells.length) return undefined;
-  const existingRuneKeys = new Set(existingRuneSpells.map(spell => spell.englishName || spell.name));
-  const addOptions = runeChoice.options
-    .filter(spell => !existingRuneKeys.has(spell.englishName || spell.name))
-    .map(spell => ({
-      id: spell.id,
-      name: spell.name,
-      englishName: spell.englishName,
-      source: spell.source,
-    }));
-  if (!addOptions.length) return undefined;
-  return {
-    profileId,
-    label: '替换已知符文',
-    removeOptions: existingRuneSpells,
-    addOptions,
-  };
-};
-
-const filterNewFeatSpellChoiceState = (
-  current: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
-  previous: { blocks: AutoBuilderFeatSpellBlockChoice[] } | null,
-): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
-  if (!current) return null;
-  const previousBlockById = new Map((previous?.blocks || []).map(block => [block.id, block]));
-  const blocks = current.blocks.flatMap(block => {
-    const previousBlock = previousBlockById.get(block.id);
-    const previousFixedIds = new Set(previousBlock?.fixedSpells.map(spell => spell.id) || []);
-    const previousChoiceById = new Map((previousBlock?.choices || []).map(choice => [choice.id, choice]));
-    const nextBlock = {
-      ...block,
-      fixedSpells: block.fixedSpells.filter(spell => !previousFixedIds.has(spell.id)),
-      choices: block.choices.flatMap(choice => {
-        const previousChoice = previousChoiceById.get(choice.id);
-        if (!previousChoice) return [choice];
-        const additionalCount = choice.count - previousChoice.count;
-        return additionalCount > 0 ? [{ ...choice, count: additionalCount }] : [];
-      }),
-    };
-    return nextBlock.fixedSpells.length || nextBlock.choices.length ? [nextBlock] : [];
+  oldCharacterLevel: number,
+  newCharacterLevel: number,
+): AutoBuilderExistingFeatChoiceState[] => {
+  if (newCharacterLevel <= oldCharacterLevel) return [];
+  return content.feats
+    .filter(({ additionalSpells }) => additionalSpells?.length)
+    .filter(feat => hasAppliedFeat(character, feat.key, feat.source))
+    .flatMap((feat): AutoBuilderExistingFeatChoiceState[] => {
+    const profileId = getFeatSpellProfileId(feat);
+    const existingProfile = character.spellcastingProfiles.find(profile => (
+      profile.id === profileId
+    ));
+    const result = createRuleFeatSpellLevelUpChoiceState(
+      content,
+      ruleSystem,
+      feat,
+      oldCharacterLevel,
+      newCharacterLevel,
+      existingProfile
+        ? {
+            id: existingProfile.id,
+            ability: existingProfile.ability,
+            preparationMode: existingProfile.preparationMode,
+            spells: existingProfile.spells.map(spell => ({
+              id: spell.id,
+              key: spell.englishName || spell.name,
+              source: spell.source,
+            })),
+            slots: {},
+          }
+        : undefined,
+    );
+    if (!result.ok) {
+      const first = result.issues[0];
+      throw new Error(
+        `Unsupported feat spell level-up at ${first?.path.join('.') || feat.key}: `
+        + `${first?.detail?.reason || first?.code || 'unknown'}`,
+      );
+    }
+    if (result.value) {
+      return [{
+        feat,
+        state: { blocks: result.value.blocks },
+        replacement: result.value.replacement,
+      }];
+    }
+    return [];
   });
-  return blocks.length ? { blocks } : null;
 };
 
 export const getExistingFeatSpellLevelUpChoiceState = (
@@ -1694,23 +1490,15 @@ export const getExistingFeatSpellLevelUpChoiceState = (
   ruleSystem: RuleSystem,
   oldCharacterLevel: number,
   newCharacterLevel: number,
-): AutoBuilderExistingFeatChoiceState | null => {
-  if (newCharacterLevel <= oldCharacterLevel) return null;
-  const upgradeFeats = [
-    content.feats.find(feat => feat.key === 'Ritual Caster' && feat.source === 'XPHB'),
-    content.feats.find(feat => feat.key === 'Rune Shaper' && feat.source === 'BGG'),
-  ].filter((feat): feat is AutoBuilderFeat => Boolean(feat));
-  for (const feat of upgradeFeats) {
-    if (!hasAppliedFeat(character, feat.key, feat.source)) continue;
-    const state = filterNewFeatSpellChoiceState(
-      getFeatSpellChoiceState(content, feat, ruleSystem, newCharacterLevel),
-      getFeatSpellChoiceState(content, feat, ruleSystem, oldCharacterLevel),
-    );
-    const replacement = getRuneShaperSpellReplacementState(content, feat, character, ruleSystem, newCharacterLevel);
-    if (state || replacement) return { feat, state: state || { blocks: [] }, replacement };
-  }
-  return null;
-};
+): AutoBuilderExistingFeatChoiceState | null => (
+  getExistingFeatSpellLevelUpChoiceStates(
+    content,
+    character,
+    ruleSystem,
+    oldCharacterLevel,
+    newCharacterLevel,
+  )[0] || null
+);
 
 export const getClassSpellOptions = (
   content: AutoBuilderContent,
@@ -3009,29 +2797,76 @@ const createFeatSpellOperations = (
   choices?: AutoBuilderFeatChoice,
   characterLevel = Number.POSITIVE_INFINITY,
 ): AdjustmentOperation[] => {
-  const state = getFeatSpellChoiceState(content, feat, ruleSystem, characterLevel);
-  if (!state) return [];
-  const block = state.blocks.find(item => item.id === choices?.featSpellBlockId) || (state.blocks.length === 1 ? state.blocks[0] : undefined);
-  if (!block) return [];
-  const selectedSpellIds = new Set(Object.values(choices?.featSpellChoices || {}).flat());
-  const selectedSpells = uniqueSpells([
-    ...block.fixedSpells,
-    ...block.choices.flatMap(group => group.options.filter(spell => selectedSpellIds.has(spell.id))),
-  ]);
-  if (!selectedSpells.length) return [];
-  const ability = choices?.featSpellAbility || choices?.featAbility || block.ability;
-  if (!ability && block.abilityOptions.length) return [];
-  const profile: SpellcastingProfile = {
-    id: getFeatSpellProfileId(feat),
-    className: `${feat.name} 法术`,
-    ability: ability || 'CHA',
-    preparationMode: 'knownSelection',
-    saveDCOverride: '',
-    attackBonusOverride: '',
-    slots: createEmptySpellSlots(),
-    spells: selectedSpells.map(spell => toCharacterSpell(spell, true)),
-  };
-  return [{ type: 'upsertSpellcastingProfile', profile }];
+  if (!feat.additionalSpells?.length) return [];
+  const result = createRuleFeatSpellEffects(
+    content,
+    ruleSystem,
+    feat,
+    Number.isFinite(characterLevel) ? characterLevel : 1,
+    {
+      blockId: choices?.featSpellBlockId,
+      ability: choices?.featSpellAbility || choices?.featAbility,
+      choices: choices?.featSpellChoices,
+      allowIncompleteChoices: true,
+    },
+  );
+  if (!result.ok) {
+    if (result.issues.every(({ code }) => code === 'choice_required')) return [];
+    const first = result.issues[0];
+    throw new Error(
+      `Invalid feat spell choice at ${first?.path.join('.') || feat.key}: `
+      + `${first?.detail?.reason || first?.code || 'unknown'}`,
+    );
+  }
+  return result.value.flatMap(effect => featSpellEffectToAdjustmentOperations(
+    effect,
+    content,
+    feat,
+  ));
+};
+
+const featSpellEffectToAdjustmentOperations = (
+  effect: RuleEffect,
+  content: AutoBuilderContent,
+  feat: AutoBuilderFeat,
+): AdjustmentOperation[] => {
+  if (effect.type === 'spell.add') {
+    const spell = content.spells.find(({ id }) => id === effect.spell.id);
+    if (!spell) throw new Error(`Feat spell is missing from catalog: ${effect.spell.id}`);
+    return [{
+      type: 'addSpell',
+      profileId: effect.profileId,
+      spell: toCharacterSpell(spell, true),
+    }];
+  }
+  if (effect.type === 'spell.remove') {
+    return [{
+      type: 'removeSpell',
+      profileId: effect.profileId,
+      spellId: effect.spellId,
+    }];
+  }
+  if (effect.type === 'spell.profile.upsert') {
+    const spells = effect.profile.spells.map((ref) => {
+      const spell = content.spells.find(({ id }) => id === ref.id);
+      if (!spell) throw new Error(`Feat spell is missing from catalog: ${ref.id}`);
+      return toCharacterSpell(spell, true);
+    });
+    return [{
+      type: 'upsertSpellcastingProfile',
+      profile: {
+        id: effect.profile.id,
+        className: `${feat.name} 法术`,
+        ability: effect.profile.ability,
+        preparationMode: 'knownSelection',
+        saveDCOverride: '',
+        attackBonusOverride: '',
+        slots: createEmptySpellSlots(),
+        spells,
+      },
+    }];
+  }
+  throw new Error(`Unsupported feat spell effect adapter: ${effect.type}`);
 };
 
 const getOriginSpellProfileId = (origin: AutoBuilderOrigin, kind: 'race' | 'background'): string => (
@@ -3196,62 +3031,59 @@ const createExistingFeatSpellChoiceOperations = (
   newCharacterLevel: number,
   choices?: AutoBuilderFeatChoice[],
 ): AdjustmentOperation[] => {
-  if (!choices?.length) return [];
-  const choiceByFeatId = new Map(choices.map(choice => [choice.featId, choice]));
-  const state = getExistingFeatSpellLevelUpChoiceState(content, character, ruleSystem, oldCharacterLevel, newCharacterLevel);
-  if (!state) return [];
-  const featId = `${state.feat.key}|${state.feat.source}`;
-  const choice = choiceByFeatId.get(featId) || choiceByFeatId.get(state.feat.key);
-  if (!choice) return [];
-  const block = state.state.blocks.find(item => item.id === choice.featSpellBlockId) || (state.state.blocks.length === 1 ? state.state.blocks[0] : undefined);
-  const profileId = getFeatSpellProfileId(state.feat);
-  const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
-  const replacementOperations: AdjustmentOperation[] = [];
-  if (state.replacement && choice.featSpellReplaceRemoveId && choice.featSpellReplaceAddId) {
-    const replacementSpell = content.spells.find(spell => spell.id === choice.featSpellReplaceAddId);
-    if (replacementSpell) {
-      replacementOperations.push({
-        type: 'removeSpell',
-        profileId: state.replacement.profileId,
-        spellId: choice.featSpellReplaceRemoveId,
-      });
-      replacementOperations.push({
-        type: 'addSpell',
-        profileId: state.replacement.profileId,
-        spell: toCharacterSpell(replacementSpell, true),
-      });
+  const choiceByFeatId = new Map((choices ?? []).map(choice => [choice.featId, choice]));
+  return getExistingFeatSpellLevelUpChoiceStates(
+    content,
+    character,
+    ruleSystem,
+    oldCharacterLevel,
+    newCharacterLevel,
+  ).flatMap((state) => {
+    const featId = `${state.feat.key}|${state.feat.source}`;
+    const choice = choiceByFeatId.get(featId) || choiceByFeatId.get(state.feat.key);
+    const profileId = getFeatSpellProfileId(state.feat);
+    const existingProfile = character.spellcastingProfiles.find(profile => profile.id === profileId);
+    const result = createRuleFeatSpellLevelUpEffects(
+      content,
+      ruleSystem,
+      state.feat,
+      oldCharacterLevel,
+      newCharacterLevel,
+      existingProfile
+        ? {
+            id: existingProfile.id,
+            ability: existingProfile.ability,
+            preparationMode: existingProfile.preparationMode,
+            spells: existingProfile.spells.map(spell => ({
+              id: spell.id,
+              key: spell.englishName || spell.name,
+              source: spell.source,
+            })),
+            slots: {},
+          }
+        : undefined,
+      {
+        blockId: choice?.featSpellBlockId,
+        ability: choice?.featSpellAbility || choice?.featAbility,
+        choices: choice?.featSpellChoices,
+        replaceRemoveId: choice?.featSpellReplaceRemoveId,
+        replaceAddId: choice?.featSpellReplaceAddId,
+      },
+    );
+    if (!result.ok) {
+      if (result.issues.every(({ code }) => code === 'choice_required')) return [];
+      const first = result.issues[0];
+      throw new Error(
+        `Invalid feat spell level-up at ${first?.path.join('.') || state.feat.key}: `
+        + `${first?.detail?.reason || first?.code || 'unknown'}`,
+      );
     }
-  }
-  if (!block) return replacementOperations;
-  const selectedSpellIds = new Set(Object.values(choice.featSpellChoices || {}).flat());
-  const selectedSpells = uniqueSpells([
-    ...block.fixedSpells,
-    ...block.choices.flatMap(group => group.options.filter(spell => selectedSpellIds.has(spell.id))),
-  ]);
-  if (!selectedSpells.length) return replacementOperations;
-  const ability = choice.featSpellAbility || existingProfile?.ability || choice.featAbility || block.ability;
-  if (!ability && block.abilityOptions.length) return replacementOperations;
-  if (existingProfile) {
-    return [
-      ...replacementOperations,
-      ...selectedSpells.map(spell => ({
-      type: 'addSpell',
-      profileId,
-      spell: toCharacterSpell(spell, true),
-      } satisfies AdjustmentOperation)),
-    ];
-  }
-  const profile: SpellcastingProfile = {
-    id: profileId,
-    className: `${state.feat.name} 法术`,
-    ability: ability || 'CHA',
-    preparationMode: 'knownSelection',
-    saveDCOverride: '',
-    attackBonusOverride: '',
-    slots: createEmptySpellSlots(),
-    spells: selectedSpells.map(spell => toCharacterSpell(spell, true)),
-  };
-  return [...replacementOperations, { type: 'upsertSpellcastingProfile', profile }];
+    return result.value.flatMap(effect => featSpellEffectToAdjustmentOperations(
+      effect,
+      content,
+      state.feat,
+    ));
+  });
 };
 
 const getClassHitDie = (
