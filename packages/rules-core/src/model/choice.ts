@@ -44,6 +44,12 @@ export interface RuleChoiceGroup<TOption = RuleOptionSummary> {
   dependsOn?: RuleChoiceDependency[];
 }
 
+export interface RuleStringChoiceGroup extends RuleChoiceGroup<RuleOptionSummary> {
+  label: string;
+  from: string[];
+  count: number;
+}
+
 export interface RuleChoiceSubmission {
   groupId: string;
   selectedIds: string[];

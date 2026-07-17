@@ -696,9 +696,21 @@ refactor(rules): share catalog option policies
 
 ### R3. 通用 choice group 和 validation
 
+状态: 已完成.
+
 - 迁移属性, 技能, 工具, 语言, 武器, 熟练, 专精, 抗性等通用 choice parser.
 - 把 React 完整性判断改为共享 validation.
 - 未知数据形态失败关闭.
+
+完成记录:
+
+- 新增 `RuleStringChoiceGroup`, 在 canonical `RuleChoiceGroup` 上提供原车卡迁移期需要的 `label`, `from` 和 `count` 兼容字段.
+- 新增属性, 职业技能, 通用技能, 工具, 语言, 武器, 豁免熟练, 专精和文本/抗性 choice parser.
+- parser 统一生成稳定 group ID, 精确 min/max, 去重 option 和结构化 option 身份; 武器过滤保留 5e/5r 来源优先级.
+- 新增共享 validation, 拒绝缺少必选项, 数量错误, 重复选择, 不在 options 中的选择和已失效 group.
+- `autoBuilderRules.ts` 的通用 parser 已改为共享包兼容 façade. React 的通用完整性判断调用共享 validation, 不再仅比较数组长度.
+- 未识别的 entry, 非数组 `from`, 非法 count, 无法满足的 group 和未知固定值均失败关闭.
+- 测试覆盖真实 catalog 中的属性, 技能, 工具, 语言, 武器, 豁免, 专精和抗性数据, 以及数量、重复项、越权 option、失效 group 和未知结构.
 
 提交:
 

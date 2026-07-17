@@ -15,6 +15,7 @@ import {
   AutoBuilderTextChoiceSelection,
   AutoBuilderToolChoiceSelection,
   AutoBuilderWeaponChoiceSelection,
+  areAutoBuilderChoiceGroupsComplete,
   buildLevelOneCharacter,
   buildLevelUpCharacter,
   getAutoBuilderClass,
@@ -778,9 +779,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     setAbilityScoreImprovementChoice(prev => ({ ...prev, ...patch }));
   };
 	  const areChoiceGroupsComplete = (
-	    choices: Array<{ id: string; from?: string[]; count: number }>,
+	    choices: Array<{ id: string; from?: string[]; count: number; options?: Array<{ id: string }> }>,
 	    values: Record<string, string[]> | undefined,
-	  ): boolean => choices.every(choice => (values?.[choice.id] || []).length === Math.min(choice.count, choice.from ? choice.from.length : choice.count));
+	  ): boolean => areAutoBuilderChoiceGroupsComplete(choices, values);
 
   const getSelectedFeatSpellBlock = (
     state: ReturnType<typeof getFeatSpellChoiceState>,
@@ -1125,15 +1126,15 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	        && isFeatSpellChoiceComplete(raceFeatSpellChoiceState, raceChoices)
       ))
       && isOriginSpellChoiceComplete(raceOriginSpellChoiceState, raceChoices)
-      && raceToolChoiceOptions.every(choice => (raceChoices.toolChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
-      && raceWeaponChoiceOptions.every(choice => (raceChoices.weaponChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
-      && raceLanguageChoiceOptions.every(choice => (raceChoices.languageChoices?.[choice.id] || []).length === Math.min(choice.count, choice.from.length))
+      && areChoiceGroupsComplete(raceToolChoiceOptions, raceChoices.toolChoices)
+      && areChoiceGroupsComplete(raceWeaponChoiceOptions, raceChoices.weaponChoices)
+      && areChoiceGroupsComplete(raceLanguageChoiceOptions, raceChoices.languageChoices)
     );
 	  const isBackgroundToolChoiceComplete = isLevelUpMode
-	    || backgroundToolChoiceOptions.every(choice => (backgroundToolChoices[choice.id] || []).length === Math.min(choice.count, choice.from.length));
+	    || areChoiceGroupsComplete(backgroundToolChoiceOptions, backgroundToolChoices);
 	  const isBackgroundLanguageChoiceComplete = isLevelUpMode
-	    || backgroundLanguageChoiceOptions.every(choice => (backgroundLanguageChoices[choice.id] || []).length === Math.min(choice.count, choice.from.length));
-  const isClassToolChoiceComplete = classToolChoiceOptions.every(choice => (classToolChoices[choice.id] || []).length === Math.min(choice.count, choice.from.length));
+	    || areChoiceGroupsComplete(backgroundLanguageChoiceOptions, backgroundLanguageChoices);
+  const isClassToolChoiceComplete = areChoiceGroupsComplete(classToolChoiceOptions, classToolChoices);
   const isFightingStyleFeatChoiceComplete = !fightingStyleChoiceState
     || (
       Boolean(classFeatureChoices.fightingStyle?.featId)

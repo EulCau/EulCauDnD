@@ -17,6 +17,7 @@ import {
   refreshCharacterAutomation,
 } from './equipmentRules';
 import {
+  areRuleChoiceSelectionsComplete,
   createDefaultRuleAuthorizationPolicy,
   findRuleClassOption,
   findRuleOriginOption,
@@ -26,19 +27,30 @@ import {
   getRuleSubclassOptions,
   getRuleSubraceOptions,
   getEligibleAbilityScoreImprovementFeats,
-  getFeatAbilityChoiceOptions as getSharedFeatAbilityChoiceOptions,
+  parseRuleAbilityChoiceGroups,
+  parseRuleClassSkillChoiceGroups,
   parseRuleCatalog,
+  parseRuleExpertiseChoiceGroups,
+  parseRuleLanguageChoiceGroups,
+  parseRuleSavingThrowChoiceGroups,
+  parseRuleSkillChoiceGroups,
+  parseRuleTextChoiceGroups,
+  parseRuleToolChoiceGroups,
+  parseRuleWeaponChoiceGroups,
   type RuleArmor,
   type RuleCatalog,
   type RuleClass,
   type RuleClassProficiencyEntry,
+  type RuleChoiceGroup,
   type RuleCharacterSnapshot,
   type RuleFeatCatalogEntry,
   type RuleFightingStyle,
   type RuleOptionalFeature,
   type RuleOrigin,
   type RuleProficiencyRecord,
+  type RuleResult,
   type RuleSpell,
+  type RuleStringChoiceGroup,
   type RuleSubclass,
   type RuleWeapon,
   type RuleWeaponMastery,
@@ -354,68 +366,6 @@ const CHINESE_SKILL_MAP: Record<string, string> = {
   求生: 'Survival',
 };
 
-const ARTISAN_TOOLS = [
-  "alchemist's supplies",
-  "brewer's supplies",
-  "calligrapher's supplies",
-  "carpenter's tools",
-  "cartographer's tools",
-  "cobbler's tools",
-  "cook's utensils",
-  "glassblower's tools",
-  "jeweler's tools",
-  "leatherworker's tools",
-  "mason's tools",
-  "painter's supplies",
-  "potter's tools",
-  "smith's tools",
-  "tinker's tools",
-  "weaver's tools",
-  "woodcarver's tools",
-];
-
-const MUSICAL_INSTRUMENTS = [
-  'bagpipes',
-  'drum',
-  'dulcimer',
-  'flute',
-  'lute',
-  'lyre',
-  'horn',
-  'pan flute',
-  'shawm',
-  'viol',
-];
-
-const GAMING_SETS = [
-  'dice set',
-  'dragonchess set',
-  'playing card set',
-  'three-dragon ante set',
-];
-
-const STANDARD_LANGUAGES = [
-  'common',
-  'dwarvish',
-  'elvish',
-  'giant',
-  'gnomish',
-  'goblin',
-  'halfling',
-  'orc',
-];
-
-const EXOTIC_LANGUAGES = [
-  'abyssal',
-  'celestial',
-  'draconic',
-  'deep speech',
-  'infernal',
-  'primordial',
-  'sylvan',
-  'undercommon',
-];
-
 const SIZE_LABELS: Record<string, string> = {
   S: '小型',
   M: '中型',
@@ -548,15 +498,40 @@ export const getBackgroundFeats = (
     .filter((feat): feat is AutoBuilderFeat => Boolean(feat));
 };
 
-const expandToolChoiceKey = (key: string): string[] => {
-	  const normalized = normalizeKey(key).toLowerCase();
-	  if (normalized === 'anyartisanstool') return ARTISAN_TOOLS;
-	  if (normalized === 'anymusicalinstrument') return MUSICAL_INSTRUMENTS;
-	  if (normalized === 'anygamingset') return GAMING_SETS;
-	  return [normalizeKey(key)];
-	};
-
 const uniqueStrings = (values: string[]): string[] => Array.from(new Set(values));
+
+function requireRuleChoiceGroups(
+  result: RuleResult<RuleStringChoiceGroup[]>,
+): RuleStringChoiceGroup[] {
+  if (result.ok) return result.value;
+  const first = result.issues[0];
+  throw new Error(
+    `Unsupported rule choice shape at ${first?.path.join('.') || 'unknown'}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
+}
+
+export const areAutoBuilderChoiceGroupsComplete = (
+  choices: readonly (
+    RuleChoiceGroup
+    | { id: string; count: number; from?: readonly string[]; options?: readonly { id: string }[] }
+  )[],
+  values: Readonly<Record<string, readonly string[]>> | undefined,
+): boolean => {
+  const groups: RuleChoiceGroup[] = choices.map((choice) => {
+    if ('min' in choice && 'max' in choice && 'kind' in choice) return choice;
+    const optionIds = choice.from ?? choice.options?.map(({ id }) => id) ?? [];
+    return {
+      id: choice.id,
+      kind: 'proficiency',
+      required: true,
+      min: choice.count,
+      max: choice.count,
+      options: optionIds.map((id) => ({ id, name: id })),
+    };
+  });
+  return areRuleChoiceSelectionsComplete(groups, values);
+};
 
 const normalizeSkillName = (skill: string): string => {
   const normalized = normalizeKey(skill);
@@ -566,66 +541,16 @@ const normalizeSkillName = (skill: string): string => {
 const getSkillChoiceGroupsFromProficiencies = (
   proficiencies: ProficiencyRecord[] | undefined,
   sourceId: string,
-): Array<{ id: string; label: string; from: string[]; count: number }> => {
-  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
-  (proficiencies || []).forEach((entry, entryIndex) => {
-    Object.entries(entry).forEach(([key, value]) => {
-      if (key === 'choose') {
-        const choose = value as { from?: string[]; count?: number };
-        if (!choose.from?.length) return;
-        choices.push({
-          id: `${sourceId}-skill-${entryIndex}-choose`,
-          label: 'choose',
-          from: uniqueStrings(choose.from.map(normalizeSkillName)),
-          count: choose.count || 1,
-        });
-        return;
-      }
-
-      if (key === 'any' && typeof value === 'number') {
-        choices.push({
-          id: `${sourceId}-skill-${entryIndex}-any`,
-          label: key,
-          from: ALL_SKILLS,
-          count: value,
-        });
-      }
-    });
-  });
-  return choices.filter(choice => choice.from.length > 0 && choice.count > 0);
-};
+): RuleStringChoiceGroup[] => requireRuleChoiceGroups(
+  parseRuleSkillChoiceGroups(proficiencies, sourceId),
+);
 
 const getToolChoiceOptionsFromProficiencies = (
   proficiencies: ProficiencyRecord[] | undefined,
   sourceId: string,
-): Array<{ id: string; label: string; from: string[]; count: number }> => {
-  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
-  (proficiencies || []).forEach((entry, entryIndex) => {
-    Object.entries(entry).forEach(([key, value]) => {
-      if (key === 'choose') {
-        const choose = value as { from?: string[]; count?: number };
-        if (!choose.from?.length) return;
-        choices.push({
-          id: `${sourceId}-tool-${entryIndex}-choose`,
-          label: 'choose',
-          from: uniqueStrings(choose.from.flatMap(expandToolChoiceKey)),
-          count: choose.count || 1,
-        });
-        return;
-      }
-
-      if (typeof value === 'number') {
-        choices.push({
-          id: `${sourceId}-tool-${entryIndex}-${normalizeKey(key)}`,
-          label: key,
-          from: expandToolChoiceKey(key),
-          count: value,
-        });
-      }
-    });
-  });
-  return choices.filter(choice => choice.from.length > 0 && choice.count > 0);
-};
+): RuleStringChoiceGroup[] => requireRuleChoiceGroups(
+  parseRuleToolChoiceGroups(proficiencies, sourceId),
+);
 
 export const getOriginToolChoiceOptions = (
   origin: AutoBuilderOrigin | undefined,
@@ -660,66 +585,14 @@ export const getFeatToolChoiceOptions = (
   feat ? getToolChoiceOptionsFromProficiencies(feat.toolProficiencies, `feat-${feat.key}-${feat.source}`) : []
 );
 
-const isMundaneWeaponFilter = (filter: string): boolean => (
-  filter.includes('平凡') || filter.includes('寻常') || filter.toLowerCase().includes('mundane')
-);
-
-const getWeaponIdsFromFilter = (
-  content: AutoBuilderContent,
-  filter: string,
-  ruleSystem: RuleSystem,
-): string[] => {
-  const lowerFilter = filter.toLowerCase();
-  const wantsMartial = filter.includes('军用') || lowerFilter.includes('martial');
-  const wantsSimple = filter.includes('简易') || lowerFilter.includes('simple');
-  const preferredSource = RULE_SOURCE[ruleSystem];
-  const sourceRank = (weapon: AutoBuilderWeapon): number => (
-    weapon.source === preferredSource ? 0 : weapon.source === 'PHB' ? 1 : 2
-  );
-  return [...content.weapons]
-    .filter(weapon => {
-      if (wantsMartial && weapon.weaponCategory !== 'martial') return false;
-      if (wantsSimple && weapon.weaponCategory !== 'simple') return false;
-      if (isMundaneWeaponFilter(filter) && weapon.bonusWeapon) return false;
-      return true;
-    })
-    .sort((a, b) => sourceRank(a) - sourceRank(b) || a.name.localeCompare(b.name, 'zh-Hans-CN'))
-    .filter((weapon, index, weapons) => (
-      weapons.findIndex(candidate => candidate.key === weapon.key) === index
-    ))
-    .map(weapon => weapon.id);
-};
-
 const getWeaponChoiceOptionsFromProficiencies = (
   content: AutoBuilderContent,
   proficiencies: ProficiencyRecord[] | undefined,
   sourceId: string,
   ruleSystem: RuleSystem,
-): Array<{ id: string; label: string; from: string[]; count: number }> => {
-  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
-  (proficiencies || []).forEach((entry, entryIndex) => {
-    const choose = entry.choose as { from?: string[]; fromFilter?: string; count?: number } | undefined;
-    if (!choose) return;
-    const from = choose.from?.length
-      ? choose.from
-          .map(ref => {
-            const parsed = parseEntityRef(ref);
-            return content.weapons.find(weapon => (
-              (!parsed.source || weapon.source === parsed.source)
-              && (weapon.key === parsed.name || weapon.name === parsed.name || weapon.englishName === parsed.name)
-            ))?.id;
-          })
-          .filter((id): id is string => Boolean(id))
-      : (choose.fromFilter ? getWeaponIdsFromFilter(content, choose.fromFilter, ruleSystem) : []);
-    choices.push({
-      id: `${sourceId}-weapon-${entryIndex}-choose`,
-      label: 'choose',
-      from: uniqueStrings(from),
-      count: choose.count || 1,
-    });
-  });
-  return choices.filter(choice => choice.from.length > 0 && choice.count > 0);
-};
+): RuleStringChoiceGroup[] => requireRuleChoiceGroups(
+  parseRuleWeaponChoiceGroups(content, proficiencies, sourceId, ruleSystem),
+);
 
 export const getOriginWeaponChoiceOptions = (
   content: AutoBuilderContent,
@@ -752,33 +625,12 @@ const normalizeAbilityName = (ability: string): AbilityName | null => (
 
 export const getFeatSavingThrowChoiceOptions = (
   feat: AutoBuilderFeat | undefined,
-): Array<{ id: string; label: string; from: string[]; count: number }> => {
-  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
-  feat?.savingThrowProficiencies?.forEach((entry, index) => {
-    Object.entries(entry).forEach(([key, value]) => {
-      const choose = key === 'choose'
-        ? value as { from?: string[]; count?: number }
-        : (
-            value && typeof value === 'object' && 'choose' in value
-              ? (value.choose as { from?: string[]; count?: number })
-              : null
-          );
-      if (!choose) return;
-      const from = (choose.from || [])
-        .map(normalizeAbilityName)
-        .filter((ability): ability is AbilityName => Boolean(ability));
-      if (from.length) {
-        choices.push({
-          id: `feat-${feat.key}-${feat.source}-save-${index}-${key}`,
-          label: key,
-          from,
-          count: choose.count || 1,
-        });
-      }
-    });
-  });
-  return choices;
-};
+): RuleStringChoiceGroup[] => feat
+  ? requireRuleChoiceGroups(parseRuleSavingThrowChoiceGroups(
+      feat.savingThrowProficiencies,
+      `feat-${feat.key}-${feat.source}-save`,
+    ))
+  : [];
 
 const getSelectedSkillChoices = (choices?: AutoBuilderSkillChoiceSelection): string[] => (
   Object.values(choices || {}).flatMap(skills => skills.map(normalizeSkillName))
@@ -798,7 +650,7 @@ export const getFeatExpertiseChoiceOptions = (
   feat: AutoBuilderFeat | undefined,
   character: CharacterData,
   selectedSkillChoices?: AutoBuilderSkillChoiceSelection,
-): Array<{ id: string; label: string; from: string[]; count: number }> => {
+): RuleStringChoiceGroup[] => {
   if (!feat?.expertise?.length) return [];
   const proficientSkills = uniqueStrings([
     ...Array.from(character.proficiencies).filter(skill => ALL_SKILLS.includes(skill)),
@@ -806,61 +658,19 @@ export const getFeatExpertiseChoiceOptions = (
     ...getSelectedSkillChoices(selectedSkillChoices),
   ]).sort((a, b) => a.localeCompare(b));
 
-  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
-  feat.expertise.forEach((entry, index) => {
-    Object.entries(entry).forEach(([key, value]) => {
-      if (key === 'anyProficientSkill' && typeof value === 'number') {
-        choices.push({
-          id: `feat-${feat.key}-${feat.source}-expertise-${index}-anyProficientSkill`,
-          label: key,
-          from: proficientSkills,
-          count: value,
-        });
-      }
-    });
-  });
-  return choices.filter(choice => choice.from.length > 0 && choice.count > 0);
-};
-
-const expandLanguageChoiceKey = (key: string): string[] => {
-  const normalized = normalizeKey(key);
-  if (normalized === 'anystandard') return STANDARD_LANGUAGES;
-  if (normalized === 'anyexotic') return EXOTIC_LANGUAGES;
-  if (normalized === 'anylanguage' || normalized === 'any') return [...STANDARD_LANGUAGES, ...EXOTIC_LANGUAGES];
-  return [normalized];
+  return requireRuleChoiceGroups(parseRuleExpertiseChoiceGroups(
+    feat.expertise,
+    `feat-${feat.key}-${feat.source}`,
+    proficientSkills,
+  ));
 };
 
 const getLanguageChoiceOptionsFromProficiencies = (
   proficiencies: ProficiencyRecord[] | undefined,
   sourceId: string,
-): Array<{ id: string; label: string; from: string[]; count: number }> => {
-  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
-  (proficiencies || []).forEach((entry, entryIndex) => {
-    Object.entries(entry).forEach(([key, value]) => {
-      if (key === 'choose') {
-        const choose = value as { from?: string[]; count?: number };
-        if (!choose.from?.length) return;
-        choices.push({
-          id: `${sourceId}-language-${entryIndex}-choose`,
-          label: 'choose',
-          from: uniqueStrings(choose.from.flatMap(expandLanguageChoiceKey)),
-          count: choose.count || 1,
-        });
-        return;
-      }
-
-      if (typeof value === 'number') {
-        choices.push({
-          id: `${sourceId}-language-${entryIndex}-${normalizeKey(key)}`,
-          label: key,
-          from: expandLanguageChoiceKey(key),
-          count: value,
-        });
-      }
-    });
-  });
-  return choices.filter(choice => choice.from.length > 0 && choice.count > 0);
-};
+): RuleStringChoiceGroup[] => requireRuleChoiceGroups(
+  parseRuleLanguageChoiceGroups(proficiencies, sourceId),
+);
 
 export const getOriginLanguageChoiceOptions = (
   origin: AutoBuilderOrigin | undefined,
@@ -876,12 +686,14 @@ export const getRaceResistanceOptions = (
   subrace?: AutoBuilderOrigin,
 ): string[] => {
   const options = [race, subrace].flatMap(origin => (
-    (origin?.resist || []).flatMap(entry => {
-      if (typeof entry === 'string') return [];
-      if (!entry || typeof entry !== 'object' || !('choose' in entry)) return [];
-      const from = (entry.choose as { from?: unknown[] }).from;
-      return Array.isArray(from) ? from.filter((value): value is string => typeof value === 'string') : [];
-    })
+    origin
+      ? requireRuleChoiceGroups(parseRuleTextChoiceGroups(
+          origin.resist,
+          `origin-${origin.key}-${origin.source}-resistance`,
+          'resistance',
+          '伤害抗性',
+        )).flatMap(({ from }) => from)
+      : []
   ));
   return Array.from(new Set(options));
 };
@@ -890,23 +702,9 @@ const getTextChoiceOptionsFromEntries = (
   entries: unknown[] | undefined,
   sourceId: string,
   label: string,
-): Array<{ id: string; label: string; from: string[]; count: number }> => {
-  const choices: Array<{ id: string; label: string; from: string[]; count: number }> = [];
-  (entries || []).forEach((entry, entryIndex) => {
-    if (!entry || typeof entry !== 'object' || !('choose' in entry)) return;
-    const choose = entry.choose as { from?: unknown[]; count?: number } | undefined;
-    const from = choose?.from?.filter((value): value is string => typeof value === 'string') || [];
-    const count = Math.max(1, Math.min(Number(choose?.count) || 1, from.length));
-    if (!from.length) return;
-    choices.push({
-      id: `${sourceId}-${entryIndex}`,
-      label,
-      from,
-      count,
-    });
-  });
-  return choices;
-};
+): RuleStringChoiceGroup[] => requireRuleChoiceGroups(
+  parseRuleTextChoiceGroups(entries, sourceId, 'resistance', label),
+);
 
 export const getFeatResistanceChoiceOptions = (
   feat: AutoBuilderFeat | undefined,
@@ -931,14 +729,15 @@ export const getRaceAbilityChoiceOptions = (
 ): { from: AbilityName[]; count: number } | null => {
   for (const origin of [race, subrace]) {
     for (const entry of origin?.ability || []) {
-      if (!('choose' in entry)) continue;
-      const choose = entry.choose as { from?: string[]; count?: number };
-      if (!choose.from?.length || !choose.count) continue;
+      const groups = requireRuleChoiceGroups(parseRuleAbilityChoiceGroups(
+        [entry],
+        `origin-${origin?.key || 'unknown'}-${origin?.source || 'unknown'}`,
+      ));
+      const group = groups[0];
+      if (!group) continue;
       return {
-        from: choose.from
-          .map(ability => ABILITY_MAP[ability])
-          .filter((ability): ability is AbilityName => Boolean(ability)),
-        count: choose.count,
+        from: group.from as AbilityName[],
+        count: group.count,
       };
     }
   }
@@ -951,16 +750,11 @@ export const getRaceSkillChoiceOptions = (
 ): { from: string[]; count: number } | null => {
   for (const origin of [race, subrace]) {
     for (const entry of origin?.skillProficiencies || []) {
-      if (typeof entry.any === 'number') {
-        return { from: ALL_SKILLS, count: entry.any };
-      }
-      if (!('choose' in entry)) continue;
-      const choose = entry.choose as { from?: string[]; count?: number };
-      if (!choose.from?.length) continue;
-      return {
-        from: choose.from.map(normalizeSkillName),
-        count: choose.count || 1,
-      };
+      const group = requireRuleChoiceGroups(parseRuleSkillChoiceGroups(
+        [entry],
+        `origin-${origin?.key || 'unknown'}-${origin?.source || 'unknown'}`,
+      ))[0];
+      if (group) return { from: group.from, count: group.count };
     }
   }
   return null;
@@ -1290,12 +1084,11 @@ export const getClassExpertiseChoiceOptions = (
   ])
     .filter(skill => !existingExpertises.has(skill))
     .sort((a, b) => a.localeCompare(b));
-  return [{
-    id: `class-${cls?.key || 'unknown'}-${cls?.source || 'unknown'}-${level}-expertise`,
-    label: 'Expertise',
+  return requireRuleChoiceGroups(parseRuleExpertiseChoiceGroups(
+    [{ anyProficientSkill: 2 }],
+    `class-${cls?.key || 'unknown'}-${cls?.source || 'unknown'}-${level}`,
     from,
-    count: 2,
-  }];
+  ));
 };
 
 const getPrerequisiteLevel = (value: unknown): number | null => {
@@ -1435,7 +1228,11 @@ export const getAbilityScoreImprovementFeatOptions = (
 };
 
 export const getFeatAbilityChoiceOptions = (feat: AutoBuilderFeat | undefined): AbilityName[] => {
-  return getSharedFeatAbilityChoiceOptions(feat);
+  if (!feat) return [];
+  return uniqueStrings(requireRuleChoiceGroups(parseRuleAbilityChoiceGroups(
+    feat.ability,
+    `feat-${feat.key}-${feat.source}`,
+  )).flatMap(({ from }) => from)) as AbilityName[];
 };
 
 const parseSpellRef = (ref: string): { name: string; source?: string } | null => {
@@ -5230,23 +5027,26 @@ const createProficiencyOperations = (cls: AutoBuilderClass): AdjustmentOperation
 
 const getSkillChoiceOptionsFromProficiencies = (
   proficiencies?: { skills?: Array<{ choose?: { from?: string[]; count?: number } }> },
+  sourceId = 'class-unknown',
 ): { from: string[]; count: number } | null => {
-  const skills = proficiencies?.skills;
-  if (!Array.isArray(skills)) return null;
-  const choose = skills.find((entry: any) => entry.choose)?.choose;
-  if (!choose?.from?.length || !choose.count) return null;
-  return {
-    count: choose.count,
-    from: choose.from.map((skill: string) => SKILL_MAP[skill] || skill),
-  };
+  const group = requireRuleChoiceGroups(
+    parseRuleClassSkillChoiceGroups(proficiencies, sourceId),
+  )[0];
+  return group ? { count: group.count, from: group.from } : null;
 };
 
 export const getSkillChoiceOptions = (cls: AutoBuilderClass): { from: string[]; count: number } | null => (
-  getSkillChoiceOptionsFromProficiencies(cls.startingProficiencies)
+  getSkillChoiceOptionsFromProficiencies(
+    cls.startingProficiencies,
+    `class-${cls.key}-${cls.source}`,
+  )
 );
 
 export const getMulticlassSkillChoiceOptions = (cls: AutoBuilderClass): { from: string[]; count: number } | null => (
-  getSkillChoiceOptionsFromProficiencies(cls.multiclassProficiencies)
+  getSkillChoiceOptionsFromProficiencies(
+    cls.multiclassProficiencies,
+    `multiclass-${cls.key}-${cls.source}`,
+  )
 );
 
 const createMulticlassProficiencyOperations = (
