@@ -821,6 +821,30 @@ refactor(rules): share origin spell rules
 - 迁移起源专长、固定 AC、天生攻击、Dwarf HP、Verdan 体型、Harengon 先攻和起源法术升级刷新.
 - 删除已经由共享资源、法术和基础 effects 取代的旧分支, 完成 R4 全量审计.
 
+实施拆分:
+
+###### R4.3c-1 数值和体型升级刷新
+
+- 状态: 已完成.
+- 新增 `createRuleOriginAdvancementEffects`, 统一投影 Warforged AC、XPHB Dwarf HP、Verdan 体型和 Harengon 先攻.
+- canonical combat model 新增可选数值 modifiers, `combat.number.add` effect 支持不可变应用和 EulCauDnD adapter 转换.
+- 初始建卡和已有角色升级均调用共享规则, 并删除对应的本地数值和等级阈值分支.
+- 测试覆盖初始数值、跨熟练加值阈值、Verdan 5 级体型变化、effect 应用和输入不可变性.
+
+提交:
+
+```text
+refactor(rules): share origin numeric advancement
+```
+
+###### R4.3c-2 固定 AC 和天生攻击
+
+- 状态: 待完成.
+
+###### R4.3c-3 起源专长和起源法术升级刷新
+
+- 状态: 待完成.
+
 提交:
 
 ```text

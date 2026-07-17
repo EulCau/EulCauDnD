@@ -30,6 +30,12 @@ export type RuleEffect =
       sourceId: string;
     }
   | {
+      type: 'combat.number.add';
+      field: 'armorBonus' | 'hpMaxBonus' | 'initiativeBonus';
+      value: number;
+      sourceId: string;
+    }
+  | {
       type: 'combat.text.add';
       field:
         | 'senses'

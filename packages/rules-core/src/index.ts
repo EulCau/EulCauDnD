@@ -6,6 +6,7 @@ export * from './catalog/parse.js';
 export * from './effects/apply.js';
 export * from './effects/origin.js';
 export * from './effects/origin-resources.js';
+export * from './effects/origin-advancement.js';
 export * from './effects/origin-spells.js';
 export * from './model/character.js';
 export * from './model/choice.js';

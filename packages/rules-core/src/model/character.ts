@@ -69,6 +69,11 @@ export interface RuleCombatSnapshot {
   damageImmunities: string[];
   damageVulnerabilities: string[];
   conditionImmunities: string[];
+  modifiers?: {
+    armorBonus: number;
+    hpMaxBonus: number;
+    initiativeBonus: number;
+  };
 }
 
 export interface RuleChoiceRecord {
@@ -320,6 +325,17 @@ function validateCombat(
       validateTextArray(value[key], ['combat', key], issues);
     }
   }
+  if (
+    value.modifiers !== undefined
+    && (
+      !isRecord(value.modifiers)
+      || !finiteNumber(value.modifiers.armorBonus)
+      || !finiteNumber(value.modifiers.hpMaxBonus)
+      || !finiteNumber(value.modifiers.initiativeBonus)
+    )
+  ) {
+    issues.push({ path: ['combat', 'modifiers'], reason: 'combat_modifiers_invalid' });
+  }
 }
 
 function validateTextArray(
@@ -370,6 +386,10 @@ function nonNegativeInteger(value: unknown): boolean {
 
 function nonNegativeNumber(value: unknown): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function finiteNumber(value: unknown): boolean {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
 function integerBetween(value: unknown, min: number, max: number): boolean {

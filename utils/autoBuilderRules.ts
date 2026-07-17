@@ -22,6 +22,7 @@ import {
   createDefaultRuleAuthorizationPolicy,
   createRuleAdditionalSpellChoiceState,
   createRuleOriginBaseEffects,
+  createRuleOriginAdvancementEffects,
   createRuleOriginResourceEffects,
   createRuleOriginSpellEffects,
   findRuleClassOption,
@@ -3318,12 +3319,6 @@ const createOriginStructuredFeatureOperations = (
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [];
   const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
-  if (kind === 'race' && entity.key === 'Warforged') {
-    operations.push({ type: 'addNumber', path: 'armorBonus', value: 1 });
-  }
-  if (kind === 'race' && entity.key === 'Dwarf' && entity.source === 'XPHB') {
-    operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: Math.max(1, characterLevel) });
-  }
   if (entity.darkvision) {
     addStructuredTextEntries(operations, 'senses', [`黑暗视觉 ${entity.darkvision} 尺`], {
       sourceId: `${sourceId}-darkvision`,
@@ -4056,18 +4051,12 @@ const createOriginOperations = (
     ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel, false),
     ...createSharedOriginResourceOperations(entity, kind, ruleSystem, characterLevel, featureChoices),
     ...baseEffects.flatMap(originEffectToAdjustmentOperations),
+    ...(kind === 'race'
+      ? createRuleOriginAdvancementEffects(entity, 0, characterLevel)
+        .flatMap(originEffectToAdjustmentOperations)
+      : []),
     ...createOriginSpellOperations(content, entity, kind, ruleSystem, characterLevel, originSpellChoices),
   ];
-
-  if (kind === 'race' && entity.key === 'Verdan' && entity.source === 'AI') {
-    operations.push({ type: 'setStringField', field: 'bodyType', value: '小型' });
-  }
-  if (
-    kind === 'race'
-    && (entity.features || []).some(feature => feature.englishName === 'Hare-Trigger' || feature.name === '野兔敏锐')
-  ) {
-    operations.push({ type: 'addNumber', path: 'initiativeBonus', value: calculateProficiencyBonus(Math.max(1, characterLevel)) });
-  }
 
   return operations;
 };
@@ -4187,6 +4176,8 @@ export const originEffectToAdjustmentOperations = (
       return effect.field === 'speed'
         ? [{ type: 'set', path: 'speed', value: String(effect.value) }]
         : [{ type: 'setStringField', field: 'bodyType', value: formatSize(String(effect.value)) }];
+    case 'combat.number.add':
+      return [{ type: 'addNumber', path: effect.field, value: effect.value }];
     case 'combat.text.add':
       return [{ type: 'addTextEntry', path: effect.field, value: effect.value }];
     case 'resource.upsert': {
@@ -4928,11 +4919,18 @@ const createExistingOriginLevelUpOperations = (
       resourceNotes,
     ));
   };
-  if (hasAppliedRace(character, 'Dwarf', 'XPHB')) {
-    operations.push({ type: 'addNumber', path: 'hpMaxBonus', value: levelDelta });
-  }
-  if (oldCharacterLevel < 5 && newCharacterLevel >= 5 && hasAppliedRace(character, 'Verdan', 'AI')) {
-    operations.push({ type: 'setStringField', field: 'bodyType', value: '中型' });
+  for (const [key, source] of [
+    ['Dwarf', 'XPHB'],
+    ['Verdan', 'AI'],
+    ['Harengon', 'MPMM'],
+    ['Harengon', 'WBtW'],
+  ] as const) {
+    if (!hasAppliedRace(character, key, source)) continue;
+    operations.push(...createRuleOriginAdvancementEffects(
+      { key, source },
+      oldCharacterLevel,
+      newCharacterLevel,
+    ).flatMap(originEffectToAdjustmentOperations));
   }
   refreshOriginResources('Dwarf', '矮人', 'XPHB', [{ name: '石中精妙', englishName: 'Stonecunning', description: '' }]);
   refreshOriginResources('Orc', '兽人', 'XPHB', []);
@@ -4984,14 +4982,6 @@ const createExistingOriginLevelUpOperations = (
     { name: '吐息武器', englishName: 'Breath Weapon', description: '' },
     { name: '金属吐息武器', englishName: 'Metallic Breath Weapon', description: '' },
   ]);
-  if (hasAppliedRace(character, 'Harengon', 'MPMM') || hasAppliedRace(character, 'Harengon', 'WBtW')) {
-    const oldBonus = calculateProficiencyBonus(Math.max(1, oldCharacterLevel));
-    const newBonus = calculateProficiencyBonus(Math.max(1, newCharacterLevel));
-    const bonusDelta = newBonus - oldBonus;
-    if (bonusDelta > 0) {
-      operations.push({ type: 'addNumber', path: 'initiativeBonus', value: bonusDelta });
-    }
-  }
   return operations;
 };
 

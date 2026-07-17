@@ -81,6 +81,20 @@ export function applyRuleEffects(
           next.combat.size = effect.value;
         }
         return;
+      case 'combat.number.add': {
+        if (!Number.isFinite(effect.value)) {
+          issues.push(invalidEffect(index, 'combat_modifier_invalid'));
+          return;
+        }
+        const modifiers = next.combat.modifiers ?? {
+          armorBonus: 0,
+          hpMaxBonus: 0,
+          initiativeBonus: 0,
+        };
+        modifiers[effect.field] += effect.value;
+        next.combat.modifiers = modifiers;
+        return;
+      }
       case 'combat.text.add':
         addUnique(next.combat[effect.field], effect.value);
         return;
