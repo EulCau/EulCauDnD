@@ -17,6 +17,11 @@ const subclassSourcePriority: Readonly<Record<RuleSystem, readonly string[]>> = 
   '5r': ['XPHB', 'PHB', 'DMG', 'SCAG', 'XGE', 'TCE', 'FTD', 'BGG', 'DSotDQ', 'EGW', 'FRHoF', 'PSA', 'PSK', 'RHW', 'VRGR'],
 };
 
+const featSourcePriority: Readonly<Record<RuleSystem, readonly string[]>> = {
+  '5e': ['PHB', 'XGE', 'TCE', 'FTD', 'BGG', 'BMT', 'DSotDQ', 'ERLW', 'EFA', 'FRHoF', 'LFL', 'PSK', 'PSX', 'RHW', 'SCC', 'SatO', 'MTF', 'ABH'],
+  '5r': ['XPHB', 'PHB', 'XGE', 'TCE', 'FTD', 'BGG', 'BMT', 'DSotDQ', 'ERLW', 'EFA', 'FRHoF', 'LFL', 'PSK', 'PSX', 'RHW', 'SCC', 'SatO', 'MTF', 'ABH'],
+};
+
 export function createDefaultRuleAuthorizationPolicy(
   catalog: RuleCatalog,
   ruleSystem: RuleSystem,
@@ -34,6 +39,7 @@ export function createDefaultRuleAuthorizationPolicy(
     race: raceSources,
     subrace: subraceSources,
     background: backgroundSourcePriority[ruleSystem],
+    feat: featSourcePriority[ruleSystem],
   };
   return {
     allowedSources,
@@ -43,6 +49,7 @@ export function createDefaultRuleAuthorizationPolicy(
       race: raceSources,
       subrace: subraceSources,
       background: backgroundSourcePriority[ruleSystem],
+      feat: featSourcePriority[ruleSystem],
     },
   };
 }

@@ -4,8 +4,10 @@ import {
   evaluateFeatPrerequisite,
   getEligibleAbilityScoreImprovementFeats,
   getFeatAbilityChoiceOptions,
+  getRuleFeatOptions,
   validateBasicFeatAdvancementChoice,
   type RuleCharacterSnapshot,
+  type RuleContext,
   type RuleFeat,
 } from '../src/index.ts';
 
@@ -67,6 +69,52 @@ test('filters authorized feats and applies source priority without leaking denie
     4,
     { allowedSources: ['XPHB'], sourcePriority: ['XPHB'] },
   ), []);
+});
+
+test('filters catalog feat options through caller authorization', () => {
+  const context: RuleContext = {
+    ruleSystem: '5r',
+    catalog: {
+      generatedAt: 'test',
+      classes: [],
+      subclasses: [],
+      races: [],
+      subraces: [],
+      backgrounds: [],
+      feats: [
+        { key: 'Athlete', name: '运动员 2014', englishName: 'Athlete', source: 'PHB', features: [] },
+        { key: 'Athlete', name: '运动员 2024', englishName: 'Athlete', source: 'XPHB', features: [] },
+        { key: 'Allowed', name: '显式允许', source: 'TEST', features: [] },
+        { key: 'Denied', name: '同源未允许', source: 'TEST', features: [] },
+      ],
+      invocations: [],
+      fightingStyles: [],
+      metamagics: [],
+      maneuvers: [],
+      weapons: [],
+      armors: [],
+      weaponMasteries: [],
+      spells: [],
+    },
+    authorization: {
+      allowedSources: { feat: ['PHB', 'XPHB'] },
+      allowedEntityIds: { feat: ['Allowed|TEST'] },
+      sourcePriority: { feat: ['XPHB', 'PHB'] },
+    },
+  };
+  assert.deepEqual(
+    getRuleFeatOptions(context, { ...character, knownFeats: [] }, 4)
+      .map(({ key, source }) => `${key}|${source}`)
+      .sort(),
+    ['Allowed|TEST', 'Athlete|XPHB'],
+  );
+  assert.deepEqual(
+    getRuleFeatOptions(context, {
+      ...character,
+      knownFeats: [{ id: 'Athlete|PHB', key: 'Athlete', name: '本地化显示名', source: 'PHB' }],
+    }, 4).map(({ key }) => key),
+    ['Allowed'],
+  );
 });
 
 test('returns structured ability choices from feat data', () => {

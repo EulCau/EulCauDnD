@@ -1,4 +1,10 @@
-import type { RuleAbilityName, RuleSystem } from './catalog/model.js';
+import type {
+  RuleAbilityName,
+  RuleFeatCatalogEntry,
+  RuleSystem,
+} from './catalog/model.js';
+import type { RuleContext } from './model/context.js';
+import { isRuleEntityAuthorized } from './policy/authorization.js';
 
 export * from './catalog/identity.js';
 export * from './catalog/model.js';
@@ -41,7 +47,7 @@ export interface RuleCharacterSnapshot {
   subrace: string;
   background: string;
   proficiencies: readonly string[];
-  knownFeats: readonly { name: string; source?: string }[];
+  knownFeats: readonly { id?: string; key?: string; name: string; source?: string }[];
   hasSpellcasting: boolean;
 }
 
@@ -151,7 +157,11 @@ export function getEligibleAbilityScoreImprovementFeats<T extends RuleFeat>(
     if (!allowedSources.has(feat.source)) continue;
     if (ruleSystem === '5e' && feat.source === 'XPHB') continue;
     if (character.knownFeats.some((knownFeat) => (
-      (knownFeat.name === feat.name || knownFeat.name === feat.englishName)
+      knownFeat.id === `${feat.key}|${feat.source}`
+      || knownFeat.key === feat.key
+      || knownFeat.name === feat.key
+      || knownFeat.name === feat.name
+      || knownFeat.name === feat.englishName
     ))) continue;
     if (!evaluateFeatPrerequisite(feat, character, level).eligible) continue;
     const key = feat.englishName || feat.name;
@@ -165,6 +175,26 @@ export function getEligibleAbilityScoreImprovementFeats<T extends RuleFeat>(
   return [...byName.values()].sort((left, right) => (
     left.name.localeCompare(right.name, 'zh-Hans-CN')
   ));
+}
+
+export function getRuleFeatOptions(
+  context: RuleContext,
+  character: RuleCharacterSnapshot,
+  level: number,
+): RuleFeatCatalogEntry[] {
+  const authorized = context.catalog.feats.filter((feat) => (
+    isRuleEntityAuthorized('feat', feat, context.authorization)
+  ));
+  return getEligibleAbilityScoreImprovementFeats(
+    authorized,
+    context.ruleSystem,
+    character,
+    level,
+    {
+      allowedSources: [...new Set(authorized.map(({ source }) => source))],
+      sourcePriority: context.authorization.sourcePriority.feat ?? [],
+    },
+  );
 }
 
 export function getFeatAbilityChoiceOptions(feat: RuleFeat | undefined): RuleAbilityName[] {

@@ -33,6 +33,7 @@ import {
   findRuleOriginOption,
   getRuleBackgroundOptions,
   getRuleClassOptions,
+  getRuleFeatOptions,
   getRuleRaceOptions,
   getRuleSubclassOptions,
   getRuleSubraceOptions,
@@ -275,33 +276,6 @@ const XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS = [
     note: '岚之暴鸣: 60 尺内生物对你造成伤害时, 可用反应对该生物造成 1d8 雷鸣伤害.',
   },
 ];
-
-const OFFICIAL_FEAT_SOURCES = new Set([
-  'ABH',
-  'BGG',
-  'BMT',
-  'DSotDQ',
-  'EFA',
-  'ERLW',
-  'FRHoF',
-  'FTD',
-  'LFL',
-  'MTF',
-  'PHB',
-  'PSK',
-  'PSX',
-  'RHW',
-  'SatO',
-  'SCC',
-  'TCE',
-  'XGE',
-  'XPHB',
-]);
-
-const FEAT_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
-  '5e': ['PHB', 'XGE', 'TCE', 'FTD', 'BGG', 'BMT', 'DSotDQ', 'ERLW', 'EFA', 'FRHoF', 'LFL', 'PSK', 'PSX', 'RHW', 'SCC', 'SatO', 'MTF', 'ABH'],
-  '5r': ['XPHB', 'PHB', 'XGE', 'TCE', 'FTD', 'BGG', 'BMT', 'DSotDQ', 'ERLW', 'EFA', 'FRHoF', 'LFL', 'PSK', 'PSX', 'RHW', 'SCC', 'SatO', 'MTF', 'ABH'],
-};
 
 const OFFICIAL_SPELL_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
   '5e': ['PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
@@ -863,16 +837,11 @@ const getOfficialFeatOptions = (
   level: number,
   predicate: (feat: AutoBuilderFeat) => boolean,
 ): AutoBuilderFeat[] => {
-  return getEligibleAbilityScoreImprovementFeats(
-    content.feats.filter(predicate),
-    ruleSystem,
+  return getRuleFeatOptions(
+    getAutoBuilderRuleContext(content, ruleSystem),
     toRuleCharacterSnapshot(character),
     level,
-    {
-      allowedSources: [...OFFICIAL_FEAT_SOURCES],
-      sourcePriority: FEAT_SOURCE_PRIORITY[ruleSystem],
-    },
-  );
+  ).filter(predicate);
 };
 
 const toRuleCharacterSnapshot = (character: CharacterData): RuleCharacterSnapshot => ({
@@ -881,9 +850,23 @@ const toRuleCharacterSnapshot = (character: CharacterData): RuleCharacterSnapsho
   subrace: character.subrace,
   background: character.background,
   proficiencies: [...character.proficiencies],
-  knownFeats: character.featureEntries
+  knownFeats: [...new Map(character.featureEntries
     .filter(feature => feature.sourceId.startsWith('auto-feat-'))
-    .map(feature => ({ name: feature.name, source: feature.sourceName })),
+    .map(feature => {
+      const identity = feature.sourceId.slice('auto-feat-'.length);
+      const separator = identity.lastIndexOf('-');
+      if (separator <= 0 || separator === identity.length - 1) {
+        return [feature.sourceId, { name: feature.name, source: feature.sourceName }] as const;
+      }
+      const key = identity.slice(0, separator);
+      const source = identity.slice(separator + 1);
+      return [feature.sourceId, {
+        id: `${key}|${source}`,
+        key,
+        name: key,
+        source,
+      }] as const;
+    })).values()],
   hasSpellcasting: character.spellcastingProfiles.length > 0,
 });
 
