@@ -1063,13 +1063,83 @@ refactor(rules): share complete feat rules
 
 ### R6. 职业特有选择
 
+- 状态: 进行中.
 - 迁移子职, 专精, 战斗风格, 祈唤, 战技, 超魔和武器精通.
 - 迁移先决条件和 progression.
+
+盘点基线:
+
+- catalog 包含 24 个 PHB/XPHB 主职业和 302 个授权候选范围内的子职条目; 每个主职业均保存 `subclassLevels`.
+- 战斗风格入口覆盖 Fighter、Paladin、Ranger 的 PHB/XPHB 共 6 个职业定义; 2024 版本选择战斗风格专长, 2014 版本选择 optional feature.
+- 专精入口覆盖 Bard、Ranger、Rogue 的 5 个职业定义, 且 PHB Rogue 允许盗贼工具作为候选.
+- 祈唤 progression 覆盖 PHB/XPHB Warlock, catalog 含 82 个祈唤; 需要等级、已有祈唤、魔契和已知法术先决条件.
+- 超魔 progression 覆盖 PHB/XPHB Sorcerer, catalog 含 20 个超魔选项.
+- 战技 progression 覆盖 PHB Battle Master、XPHB Fighter 下的 PHB/XPHB Battle Master 共 3 个子职条目, catalog 含 43 个战技选项.
+- 武器精通 progression 当前覆盖 XPHB Barbarian 和 Fighter; 选项还受职业可用武器类别、近战和 Finesse/Light 属性限制.
+
+共享接口约束:
+
+- progression 以调用方明确传入的旧/新职业等级计算, 不从总角色等级推断.
+- choice state 返回稳定 group ID、严格 count 和授权后的结构化实体候选; 已知选项通过稳定 ID 排除.
+- effects 只接受 state 中的候选 ID, 拒绝伪造、重复、过量和过期选择, 输出 canonical `feature.add` 或 `proficiency.add`.
+- 子职和 optional feature 正文只用于 EulCauDnD 展示 adapter; Ao 消费结构化 identity 和 effects, 不复制正文.
+- R5.4 的 optional feature 来源优先级和祈唤先决条件必须抽成职业和专长共用入口, 不允许复制第二套 evaluator.
+
+R6 拆分为以下可独立回归的提交边界:
+
+#### R6.1 子职 choice 和等级 feature projection
+
+- 共享子职触发等级、候选授权、稳定 identity、选择校验和本级 feature effects.
+- 迁移 Hexblade 入门护甲、盾牌和军用武器熟练结构化效果.
 
 提交:
 
 ```text
-refactor(rules): share class feature choices
+refactor(rules): share subclass advancement
+```
+
+#### R6.2 专精、战斗风格和武器精通
+
+- 共享职业专精候选、2014 optional fighting style、2024 fighting style feat 和武器精通 progression.
+- Fighting Style cantrip 选择作为结构化依赖组, 不再通过本地名称决定职业法术池.
+
+提交:
+
+```text
+refactor(rules): share common class choices
+```
+
+#### R6.3 祈唤 progression
+
+- 将 R5.4 祈唤候选和先决条件扩展为职业 progression, 支持已有、同次新增和已知法术上下文.
+- 共享严格 effects, 删除本地 `getAvailableInvocationOptions`、progression limit 和 operations.
+
+提交:
+
+```text
+refactor(rules): share invocation advancement
+```
+
+#### R6.4 战技和超魔 progression
+
+- 将 R5.4 战技、超魔候选扩展为职业/子职 progression, 统一来源优先级、已有选项排除和增量 count.
+- 共享严格 effects, 删除本地 limit、候选去重和 operations.
+
+提交:
+
+```text
+refactor(rules): share maneuver metamagic advancement
+```
+
+#### R6.5 清理和完整职业选择审计
+
+- 删除已无调用的本地 progression、名称判断和 feature operations.
+- 增加独立职业选择行为审计, 并回归初始构筑、升级、法术、专长和装备行为.
+
+提交:
+
+```text
+refactor(rules): share complete class choices
 ```
 
 ### R7. 法术规则
@@ -1163,11 +1233,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作是 R6 职业特有选择:
+下一项工作是 R6.1 子职 choice 和等级 feature projection:
 
-1. 盘点子职、专精、战斗风格、祈唤、战技、超魔和武器精通的 progression、候选和先决条件.
-2. 优先让职业入口复用 R5.4 已有的可选 feature 来源策略和祈唤先决条件, 不建立第二套候选规则.
-3. 迁移共享 choice state、严格 selection validation 和 canonical effects.
-4. 删除 EulCauDnD 对应本地 progression 和 operations, 运行职业、升级、法术和装备审计.
+1. 定义旧/新职业等级驱动的子职触发 state, 复用既有子职授权和稳定 identity.
+2. 严格验证首次选择和已有子职一致性, 拒绝跨职业、跨规则版本和过期候选.
+3. 投影本级子职 feature effects 和 Hexblade 入门结构化熟练效果.
+4. 接入 EulCauDnD, 增加 2014/2024 首次选择和后续等级 feature 回归.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.
