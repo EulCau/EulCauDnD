@@ -94,7 +94,7 @@ export function applyRuleEffects(
           hpMaxBonus: 0,
           initiativeBonus: 0,
         };
-        modifiers[effect.field] += effect.value;
+        modifiers[effect.field] = (modifiers[effect.field] ?? 0) + effect.value;
         next.combat.modifiers = modifiers;
         return;
       }

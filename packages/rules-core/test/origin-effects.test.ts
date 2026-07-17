@@ -115,6 +115,7 @@ test('applies origin effects to a cloned canonical snapshot', () => {
     { type: 'ability.add', ability: 'CON', value: 2, sourceId: 'origin' },
     { type: 'proficiency.add', proficiency: 'Perception', sourceId: 'origin' },
     { type: 'combat.value.set', field: 'speed', value: 35, sourceId: 'origin' },
+    { type: 'combat.number.add', field: 'speedBonus', value: 10, sourceId: 'feat' },
     { type: 'combat.value.set', field: 'size', value: 'M', sourceId: 'origin' },
     {
       type: 'combat.text.add',
@@ -129,6 +130,7 @@ test('applies origin effects to a cloned canonical snapshot', () => {
   assert.equal(applied.value.abilities.CON, 12);
   assert.deepEqual(applied.value.proficiencies, ['Perception']);
   assert.equal(applied.value.combat.speed, 35);
+  assert.equal(applied.value.combat.modifiers?.speedBonus, 10);
   assert.equal(applied.value.combat.size, 'M');
   assert.deepEqual(applied.value.combat.damageResistances, ['火焰']);
   assert.equal(character.abilities.CON, 10);

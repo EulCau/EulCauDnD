@@ -32,7 +32,7 @@ export type RuleEffect =
     }
   | {
       type: 'combat.number.add';
-      field: 'armorBonus' | 'hpMaxBonus' | 'initiativeBonus';
+      field: 'armorBonus' | 'hpMaxBonus' | 'initiativeBonus' | 'speedBonus';
       value: number;
       sourceId: string;
     }

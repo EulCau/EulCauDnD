@@ -73,6 +73,7 @@ export interface RuleCombatSnapshot {
     armorBonus: number;
     hpMaxBonus: number;
     initiativeBonus: number;
+    speedBonus?: number;
   };
 }
 
@@ -332,6 +333,10 @@ function validateCombat(
       || !finiteNumber(value.modifiers.armorBonus)
       || !finiteNumber(value.modifiers.hpMaxBonus)
       || !finiteNumber(value.modifiers.initiativeBonus)
+      || (
+        value.modifiers.speedBonus !== undefined
+        && !finiteNumber(value.modifiers.speedBonus)
+      )
     )
   ) {
     issues.push({ path: ['combat', 'modifiers'], reason: 'combat_modifiers_invalid' });
