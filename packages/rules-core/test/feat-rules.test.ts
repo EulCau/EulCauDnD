@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import {
   evaluateFeatPrerequisite,
   getEligibleAbilityScoreImprovementFeats,
   getFeatAbilityChoiceOptions,
   getRuleFeatOptions,
+  parseRuleCatalog,
+  parseRuleEntitySourceId,
+  ruleEntityRefMatches,
   validateBasicFeatAdvancementChoice,
   type RuleCharacterSnapshot,
   type RuleContext,
@@ -33,6 +37,12 @@ test('evaluates supported feat prerequisites and fails closed on unknown keys', 
     name: 'Campaign',
     source: 'PHB',
     prerequisite: [{ campaign: ['Example'] }],
+  }, character, 20), { eligible: false, failures: ['campaign'] });
+  assert.deepEqual(evaluateFeatPrerequisite({
+    key: 'unknown',
+    name: 'Unknown',
+    source: 'PHB',
+    prerequisite: [{ unknownRequirement: true }],
   }, character, 20), { eligible: false, failures: ['unsupported'] });
   assert.deepEqual(evaluateFeatPrerequisite({
     key: 'caster',
@@ -40,6 +50,124 @@ test('evaluates supported feat prerequisites and fails closed on unknown keys', 
     source: 'PHB',
     prerequisite: [{ spellcasting: true }],
   }, character, 20), { eligible: false, failures: ['spellcasting'] });
+});
+
+test('evaluates feature, campaign, category, and localized feat prerequisites', () => {
+  const qualified: RuleCharacterSnapshot = {
+    ...character,
+    campaigns: ['艾伯伦'],
+    features: ['战斗风格', '施法'],
+    knownFeats: [{
+      id: 'Initiate of High Sorcery|DSotDQ',
+      key: 'Initiate of High Sorcery',
+      name: '高等术法学徒',
+      source: 'DSotDQ',
+      category: 'D',
+    }],
+    hasSpellcastingFeature: true,
+  };
+  assert.equal(evaluateFeatPrerequisite({
+    key: 'qualified',
+    name: 'Qualified',
+    source: 'TEST',
+    prerequisite: [{
+      campaign: ['艾伯伦'],
+      feature: ['战斗风格'],
+      feat: ['高等术法学徒|DSotDQ|高等术法学徒（努伊塔利）'],
+      featCategory: ['D'],
+      spellcastingFeature: true,
+    }],
+  }, qualified, 4).eligible, true);
+  assert.deepEqual(evaluateFeatPrerequisite({
+    key: 'exclusive',
+    name: 'Exclusive',
+    source: 'TEST',
+    prerequisite: [{ exclusiveFeatCategory: ['D'] }],
+  }, qualified, 4), { eligible: false, failures: ['feat_category'] });
+  assert.deepEqual(evaluateFeatPrerequisite({
+    key: 'manual',
+    name: 'Manual',
+    source: 'TEST',
+    prerequisite: [{ other: 'requires human review' }],
+  }, qualified, 4), { eligible: false, failures: ['manual_review'] });
+});
+
+test('requires the matching subrace and supports the structured small-size prerequisite', () => {
+  const drowFeat: RuleFeat = {
+    key: 'Drow High Magic',
+    name: '高等卓尔魔法',
+    source: 'XGE',
+    prerequisite: [{ race: [{ ENG_name: 'elf', name: '精灵', subrace: '卓尔' }] }],
+  };
+  assert.equal(evaluateFeatPrerequisite(
+    drowFeat,
+    { ...character, race: '精灵', subrace: '高等精灵' },
+    4,
+  ).eligible, false);
+  assert.equal(evaluateFeatPrerequisite(
+    drowFeat,
+    { ...character, race: '精灵', subrace: '卓尔' },
+    4,
+  ).eligible, true);
+  assert.equal(evaluateFeatPrerequisite({
+    key: 'Squat Nimbleness',
+    name: '低身机敏',
+    source: 'XGE',
+    prerequisite: [{ race: [{ ENG_name: 'small race', name: '小型种族' }] }],
+  }, { ...character, race: '地精', size: '小型' }, 4).eligible, true);
+});
+
+test('classifies every catalog feat prerequisite without unknown fields', async () => {
+  const content = await readFile(
+    new URL('../../../public/data/auto-builder-core.json', import.meta.url),
+    'utf8',
+  );
+  const parsed = parseRuleCatalog(JSON.parse(content));
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+  const feats = parsed.value.feats.filter(({ prerequisite }) => prerequisite?.length);
+  assert.equal(feats.length, 205);
+  for (const feat of feats) {
+    for (const prerequisite of feat.prerequisite ?? []) {
+      const result = evaluateFeatPrerequisite(
+        { ...feat, prerequisite: [prerequisite] },
+        {
+          abilities: { STR: 30, DEX: 30, CON: 30, INT: 30, WIS: 30, CHA: 30 },
+          race: '',
+          subrace: '',
+          background: '',
+          campaigns: [],
+          proficiencies: [],
+          features: [],
+          knownFeats: [],
+          hasSpellcasting: true,
+          hasSpellcastingFeature: true,
+        },
+        20,
+      );
+      assert.equal(
+        result.failures.includes('unsupported'),
+        false,
+        `${feat.key}|${feat.source}: ${JSON.stringify(prerequisite)}`,
+      );
+    }
+  }
+});
+
+test('parses and compares structured feat source identities', () => {
+  const parsed = parseRuleEntitySourceId('feat', 'auto-feat-Great Weapon Master-XPHB');
+  assert.deepEqual(parsed, {
+    id: 'Great Weapon Master|XPHB',
+    key: 'Great Weapon Master',
+    source: 'XPHB',
+  });
+  assert.equal(parsed !== undefined && ruleEntityRefMatches(
+    parsed,
+    'Great Weapon Master',
+    'XPHB',
+  ), true);
+  assert.equal(parsed !== undefined && ruleEntityRefMatches(parsed, 'Great Weapon Master'), true);
+  assert.equal(parseRuleEntitySourceId('feat', 'auto-race-Elf-XPHB'), undefined);
 });
 
 test('filters authorized feats and applies source priority without leaking denied entries', () => {

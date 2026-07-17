@@ -941,11 +941,13 @@ refactor(rules): share feat catalog options
 
 ##### R5.1b 完整先决条件和装备 identity
 
-- 状态: 未开始.
+- 状态: 已完成.
 - 205 个带先决条件的专长实际使用 `level`, `ability`, `feat`, `feature`, `proficiency`, `race`, `background`, `spellcasting`, `spellcasting2020`, `spellcastingFeature`, `campaign`, `featCategory`, `exclusiveFeatCategory`, `other` 和 `otherSummary`.
-- 当前 evaluator 已支持其中的等级、属性、专长、护甲/武器熟练、种族、背景和两种施法能力标记; 未支持字段继续失败关闭, 不得在本阶段完成前静默放行.
-- 扩充结构化角色快照以表达 feature、专长类别、战役和施法 feature, 并为无法机器判定的 `other`/`otherSummary` 返回明确问题.
-- 将装备侧专长依赖统一迁移到共享 identity helper, 完整 catalog 测试需要逐一证明 205 个专长得到可判定结果或明确的失败关闭原因.
+- evaluator 已支持等级、属性、稳定专长 identity、护甲/武器熟练、种族与亚种族、体型、背景、feature、战役、专长类别和三种施法条件. `other`/`otherSummary` 返回 `manual_review`, 未知字段返回 `unsupported`, 两者均失败关闭.
+- 结构化角色快照增加 feature、专长类别、战役、体型和施法 feature; EulCauDnD 从 catalog 补全已选专长的中英文名称和类别, 不再用本地化 feature 显示名称反推专长.
+- 亚种族先决条件必须同时满足种族和亚种族, “小型种族”使用结构化体型判定, 避免半精灵因包含“精灵”字样而误通过精灵条件.
+- 装备侧专长依赖统一使用共享 source identity parser 和 matcher.
+- 完整 catalog 测试逐项覆盖 205 个带先决条件的专长, 确认没有未分类字段; 规则单元测试覆盖战役、feature、类别、施法 feature、本地化专长引用、亚种族、体型、人工复核和未知字段.
 
 提交:
 

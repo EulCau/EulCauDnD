@@ -39,6 +39,7 @@ import {
   getRuleSubraceOptions,
   inferRuleOriginSpellLevelUpBlock,
   getEligibleAbilityScoreImprovementFeats,
+  parseRuleEntitySourceId,
   parseRuleAbilityChoiceGroups,
   parseRuleClassSkillChoiceGroups,
   parseRuleCatalog,
@@ -839,35 +840,47 @@ const getOfficialFeatOptions = (
 ): AutoBuilderFeat[] => {
   return getRuleFeatOptions(
     getAutoBuilderRuleContext(content, ruleSystem),
-    toRuleCharacterSnapshot(character),
+    toRuleCharacterSnapshot(content, character),
     level,
   ).filter(predicate);
 };
 
-const toRuleCharacterSnapshot = (character: CharacterData): RuleCharacterSnapshot => ({
+const toRuleCharacterSnapshot = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+): RuleCharacterSnapshot => ({
   abilities: character.abilities,
   race: character.race,
   subrace: character.subrace,
+  size: character.bodyType,
   background: character.background,
+  campaigns: [],
   proficiencies: [...character.proficiencies],
+  features: character.featureEntries.flatMap(feature => [
+    feature.name,
+    feature.sourceName,
+  ]),
   knownFeats: [...new Map(character.featureEntries
     .filter(feature => feature.sourceId.startsWith('auto-feat-'))
     .map(feature => {
-      const identity = feature.sourceId.slice('auto-feat-'.length);
-      const separator = identity.lastIndexOf('-');
-      if (separator <= 0 || separator === identity.length - 1) {
+      const identity = parseRuleEntitySourceId('feat', feature.sourceId);
+      if (!identity) {
         return [feature.sourceId, { name: feature.name, source: feature.sourceName }] as const;
       }
-      const key = identity.slice(0, separator);
-      const source = identity.slice(separator + 1);
+      const catalogFeat = content.feats.find(feat => (
+        feat.key === identity.key && feat.source === identity.source
+      ));
       return [feature.sourceId, {
-        id: `${key}|${source}`,
-        key,
-        name: key,
-        source,
+        ...identity,
+        name: catalogFeat?.name ?? identity.key,
+        englishName: catalogFeat?.englishName,
+        category: catalogFeat?.category,
       }] as const;
     })).values()],
   hasSpellcasting: character.spellcastingProfiles.length > 0,
+  hasSpellcastingFeature: character.featureEntries.some(feature => (
+    ['施法', 'Spellcasting', '契约魔法', 'Pact Magic'].includes(feature.name)
+  )),
 });
 
 export const getRaceFeatChoiceOptions = (

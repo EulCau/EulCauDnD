@@ -45,10 +45,21 @@ export interface RuleCharacterSnapshot {
   abilities: Readonly<Record<RuleAbilityName, number>>;
   race: string;
   subrace: string;
+  size?: string;
   background: string;
+  campaigns?: readonly string[];
   proficiencies: readonly string[];
-  knownFeats: readonly { id?: string; key?: string; name: string; source?: string }[];
+  features?: readonly string[];
+  knownFeats: readonly {
+    id?: string;
+    key?: string;
+    name: string;
+    englishName?: string;
+    source?: string;
+    category?: string;
+  }[];
   hasSpellcasting: boolean;
+  hasSpellcastingFeature?: boolean;
 }
 
 export interface RuleFeat {
@@ -65,11 +76,16 @@ export interface RuleFeat {
 export type FeatPrerequisiteFailure =
   | 'ability'
   | 'background'
+  | 'campaign'
   | 'feat'
+  | 'feat_category'
+  | 'feature'
   | 'level'
+  | 'manual_review'
   | 'proficiency'
   | 'race'
   | 'spellcasting'
+  | 'spellcasting_feature'
   | 'unsupported';
 
 export interface FeatPrerequisiteEvaluation {
@@ -280,17 +296,37 @@ function evaluatePrerequisiteAlternative(
     } else if (key === 'ability') {
       if (!isAbilityPrerequisiteMet(character, requirement)) failures.push('ability');
     } else if (key === 'spellcasting' || key === 'spellcasting2020') {
-      if (!character.hasSpellcasting) failures.push('spellcasting');
+      if (requirement !== true || !character.hasSpellcasting) failures.push('spellcasting');
+    } else if (key === 'spellcastingFeature') {
+      if (requirement !== true || !character.hasSpellcastingFeature) {
+        failures.push('spellcasting_feature');
+      }
     } else if (key === 'proficiency') {
       if (!isProficiencyPrerequisiteMet(character, requirement)) failures.push('proficiency');
     } else if (key === 'race') {
-      if (!isNamedPrerequisiteMet(`${character.race} ${character.subrace}`.trim(), requirement)) {
+      if (!isRacePrerequisiteMet(character, requirement)) {
         failures.push('race');
       }
     } else if (key === 'background') {
       if (!isNamedPrerequisiteMet(character.background, requirement)) failures.push('background');
     } else if (key === 'feat') {
       if (!hasFeatPrerequisite(character, requirement)) failures.push('feat');
+    } else if (key === 'feature') {
+      if (!isNamedListPrerequisiteMet(character.features ?? [], requirement)) {
+        failures.push('feature');
+      }
+    } else if (key === 'campaign') {
+      if (!isNamedListPrerequisiteMet(character.campaigns ?? [], requirement)) {
+        failures.push('campaign');
+      }
+    } else if (key === 'featCategory') {
+      if (!hasFeatCategory(character, requirement)) failures.push('feat_category');
+    } else if (key === 'exclusiveFeatCategory') {
+      if (!isFeatCategoryValue(requirement) || hasFeatCategory(character, requirement)) {
+        failures.push('feat_category');
+      }
+    } else if (key === 'other' || key === 'otherSummary') {
+      failures.push('manual_review');
     } else {
       failures.push('unsupported');
     }
@@ -350,7 +386,7 @@ function basicFeatAbilityIncrease(
 }
 
 function isAbilityPrerequisiteMet(character: RuleCharacterSnapshot, value: unknown): boolean {
-  if (!Array.isArray(value)) return true;
+  if (!Array.isArray(value)) return false;
   return value.some((entry) => (
     isRecord(entry)
     && Object.entries(entry).every(([ability, minimum]) => {
@@ -363,7 +399,7 @@ function isAbilityPrerequisiteMet(character: RuleCharacterSnapshot, value: unkno
 }
 
 function isProficiencyPrerequisiteMet(character: RuleCharacterSnapshot, value: unknown): boolean {
-  if (!Array.isArray(value)) return true;
+  if (!Array.isArray(value)) return false;
   const proficiencies = new Set(character.proficiencies);
   return value.every((entry) => (
     isRecord(entry)
@@ -379,25 +415,65 @@ function isProficiencyPrerequisiteMet(character: RuleCharacterSnapshot, value: u
 }
 
 function isNamedPrerequisiteMet(current: string, value: unknown): boolean {
-  if (!Array.isArray(value)) return true;
+  if (!Array.isArray(value)) return false;
   return value.some((entry) => {
-    if (typeof entry === 'string') return current === entry;
+    if (typeof entry === 'string') return sameName(current, entry);
     if (!isRecord(entry)) return false;
     const name = typeof entry.name === 'string' ? entry.name : '';
     const englishName = typeof entry.ENG_name === 'string' ? entry.ENG_name : '';
-    return (name.length > 0 && current.includes(name))
-      || (englishName.length > 0 && current.includes(englishName));
+    return (name.length > 0 && sameName(current, name))
+      || (englishName.length > 0 && sameName(current, englishName));
+  });
+}
+
+function isRacePrerequisiteMet(character: RuleCharacterSnapshot, value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+  return value.some((entry) => {
+    if (typeof entry === 'string') return sameName(character.race, entry);
+    if (!isRecord(entry)) return false;
+    const name = typeof entry.name === 'string' ? entry.name : '';
+    const englishName = typeof entry.ENG_name === 'string' ? entry.ENG_name : '';
+    const smallRace = sameName(name, '小型种族') || sameName(englishName, 'small race');
+    const raceMatches = smallRace
+      ? isSmallSize(character.size)
+      : (name.length > 0 && sameName(character.race, name))
+        || (englishName.length > 0 && sameName(character.race, englishName));
+    if (!raceMatches) return false;
+    if (typeof entry.subrace !== 'string') return true;
+    return normalizeName(character.subrace).includes(normalizeName(entry.subrace));
   });
 }
 
 function hasFeatPrerequisite(character: RuleCharacterSnapshot, value: unknown): boolean {
-  if (!Array.isArray(value)) return true;
+  if (!Array.isArray(value)) return false;
   return value.every((entry) => {
-    const expected = normalizeEntityRef(String(entry));
+    const [name = '', source = '', displayName = ''] = String(entry)
+      .split('|')
+      .map((part) => normalizeEntityRef(part));
     return character.knownFeats.some((feat) => (
-      `${feat.name} ${feat.source ?? ''}`.includes(expected)
+      (source.length === 0 || feat.source === source)
+      && [feat.key, feat.name, feat.englishName]
+        .some((candidate) => candidate === name || candidate === displayName)
     ));
   });
+}
+
+function hasFeatCategory(character: RuleCharacterSnapshot, value: unknown): boolean {
+  if (!isFeatCategoryValue(value)) return false;
+  const categories = new Set(value);
+  return character.knownFeats.some(({ category }) => (
+    category !== undefined && categories.has(category)
+  ));
+}
+
+function isFeatCategoryValue(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+}
+
+function isNamedListPrerequisiteMet(current: readonly string[], value: unknown): boolean {
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string')) return false;
+  const normalized = new Set(current.map((entry) => entry.normalize('NFKC').trim().toLowerCase()));
+  return value.some((entry) => normalized.has(entry.normalize('NFKC').trim().toLowerCase()));
 }
 
 function sourceRank(priority: readonly string[], source: string): number {
@@ -411,6 +487,19 @@ function normalizeKey(value: string): string {
 
 function normalizeEntityRef(value: string): string {
   return normalizeKey(value).split(/[;；]/)[0]!.trim();
+}
+
+function isSmallSize(value: string | undefined): boolean {
+  if (value === undefined) return false;
+  return ['s', 'small', '小型'].includes(normalizeName(value));
+}
+
+function sameName(left: string, right: string): boolean {
+  return normalizeName(left) === normalizeName(right);
+}
+
+function normalizeName(value: string): string {
+  return value.normalize('NFKC').trim().toLowerCase();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

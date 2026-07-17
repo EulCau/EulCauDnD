@@ -5,6 +5,8 @@ import type { AutoBuilderArmor, AutoBuilderContent, AutoBuilderWeapon } from './
 import {
   getRuleOriginArmorFormula,
   getRuleOriginNaturalAttackDefinitions,
+  parseRuleEntitySourceId,
+  ruleEntityRefMatches,
   type RuleOriginNaturalAttackDefinition,
 } from '../packages/rules-core/src/index';
 
@@ -201,11 +203,17 @@ const hasFeature = (character: CharacterData, names: string[]): boolean => (
 );
 
 const hasFeatSource = (character: CharacterData, key: string, source: string): boolean => (
-  character.featureEntries.some(feature => feature.sourceId === `auto-feat-${key}-${source}`)
+  character.featureEntries.some(feature => {
+    const feat = parseRuleEntitySourceId('feat', feature.sourceId);
+    return feat !== undefined && ruleEntityRefMatches(feat, key, source);
+  })
 );
 
 const hasFeatKey = (character: CharacterData, key: string): boolean => (
-  character.featureEntries.some(feature => feature.sourceId.startsWith(`auto-feat-${key}-`))
+  character.featureEntries.some(feature => {
+    const feat = parseRuleEntitySourceId('feat', feature.sourceId);
+    return feat !== undefined && ruleEntityRefMatches(feat, key);
+  })
 );
 
 const getAppliedRaceOrigins = (character: CharacterData): AppliedRaceOrigin[] => {
@@ -277,7 +285,7 @@ const hasSlasherFeat = (character: CharacterData): boolean => hasFeatKey(charact
 const hasDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['至圣斩', 'Divine Smite', '圣武斩', "Paladin's Smite"]);
 const hasImprovedDivineSmite = (character: CharacterData): boolean => hasFeature(character, ['精通至圣斩', 'Improved Divine Smite', '光耀打击', 'Radiant Strikes']);
 const hasPhbDualWielder = (character: CharacterData): boolean => (
-  character.featureEntries.some(feature => feature.sourceId === 'auto-feat-Dual Wielder-PHB')
+  hasFeatSource(character, 'Dual Wielder', 'PHB')
 );
 
 const isCrossbow = (weapon: AutoBuilderWeapon): boolean => (
