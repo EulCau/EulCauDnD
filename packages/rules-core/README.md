@@ -12,6 +12,8 @@ Current scope:
 - deduplicate authorized catalog entries by source priority;
 - select base class, subclass, race, subrace, and background options;
 - parse common ability, proficiency, expertise, resistance, and weapon choices;
+- compose race, subrace, and background choices, including size and
+  source-specific origin features;
 - validate choice counts, uniqueness, option membership, and stale groups;
 - evaluate supported feat prerequisites and return structured failure reasons;
 - filter Ability Score Improvement feat candidates through a caller-supplied

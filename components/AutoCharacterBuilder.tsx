@@ -16,12 +16,14 @@ import {
   AutoBuilderToolChoiceSelection,
   AutoBuilderWeaponChoiceSelection,
   areAutoBuilderChoiceGroupsComplete,
+  areAutoBuilderOriginChoicesComplete,
   buildLevelOneCharacter,
   buildLevelUpCharacter,
   getAutoBuilderClass,
   getAutoBuilderClasses,
   getAutoBuilderBackgrounds,
   getAutoBuilderOrigin,
+  getAutoBuilderOriginChoiceGroups,
   getAutoBuilderRaces,
   getAutoBuilderSubclasses,
   getAutoBuilderSubraces,
@@ -59,16 +61,8 @@ import {
   getClassToolChoiceOptions,
   getMulticlassSkillChoiceOptions,
   getMulticlassToolChoiceOptions,
-  getOriginLanguageChoiceOptions,
   getOriginFixedSkillProficiencies,
-  getOriginToolChoiceOptions,
-  getOriginWeaponChoiceOptions,
-  getRaceAbilityChoiceOptions,
-  getRaceFeatureChoiceOptions,
   getRaceFeatChoiceOptions,
-  getRaceResistanceOptions,
-  getRaceSizeChoiceOptions,
-  getRaceSkillChoiceOptions,
   getSpellChoiceState,
   getSkillChoiceOptions,
   getWeaponMasteryChoiceState,
@@ -162,11 +156,31 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     1,
     currentCharacterLevel + (isLevelUpMode ? 1 : 0),
   );
-  const raceResistanceOptions = getRaceResistanceOptions(selectedRace, selectedSubrace);
-  const raceSizeOptions = getRaceSizeChoiceOptions(selectedRace, selectedSubrace);
-  const raceFeatureChoiceOptions = getRaceFeatureChoiceOptions(selectedRace, selectedSubrace);
-  const raceAbilityChoiceState = getRaceAbilityChoiceOptions(selectedRace, selectedSubrace);
-  const raceSkillChoiceState = getRaceSkillChoiceOptions(selectedRace, selectedSubrace);
+  const raceOriginChoiceGroups = content
+    ? getAutoBuilderOriginChoiceGroups(content, ruleSystem, selectedRace, selectedSubrace)
+    : null;
+  const raceResistanceOptions = raceOriginChoiceGroups?.resistance[0]?.from || [];
+  const raceSizeOptions = raceOriginChoiceGroups?.size[0]?.options.map(option => ({
+    value: option.id,
+    label: option.name,
+  })) || [];
+  const raceFeatureChoiceOptions = raceOriginChoiceGroups?.feature.map(group => ({
+    id: group.id,
+    label: group.label,
+    options: group.options.map(option => ({ value: option.id, label: option.name })),
+  })) || [];
+  const raceAbilityChoiceState = raceOriginChoiceGroups?.ability[0]
+    ? {
+        from: raceOriginChoiceGroups.ability[0].from as AbilityName[],
+        count: raceOriginChoiceGroups.ability[0].count,
+      }
+    : null;
+  const raceSkillChoiceState = raceOriginChoiceGroups?.skill[0]
+    ? {
+        from: raceOriginChoiceGroups.skill[0].from,
+        count: raceOriginChoiceGroups.skill[0].count,
+      }
+    : null;
   const raceFeatChoiceState = content ? getRaceFeatChoiceOptions(content, ruleSystem, data, selectedRace, selectedSubrace) : null;
   const selectedRaceFeat = raceFeatChoiceState?.from.find(feat => (
     `${feat.key}|${feat.source}` === raceChoices.featId || feat.key === raceChoices.featId
@@ -212,11 +226,14 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const activeSkillChoiceState = selectedClass
     ? (isNewMulticlass ? getMulticlassSkillChoiceOptions(selectedClass) : (!isLevelUpMode ? skillChoiceState : null))
     : null;
-  const raceToolChoiceOptions = getOriginToolChoiceOptions(selectedRace, selectedSubrace);
-  const raceWeaponChoiceOptions = content ? getOriginWeaponChoiceOptions(content, ruleSystem, selectedRace, selectedSubrace) : [];
-  const backgroundToolChoiceOptions = getOriginToolChoiceOptions(selectedBackground);
-  const raceLanguageChoiceOptions = getOriginLanguageChoiceOptions(selectedRace, selectedSubrace);
-  const backgroundLanguageChoiceOptions = getOriginLanguageChoiceOptions(selectedBackground);
+  const backgroundOriginChoiceGroups = content
+    ? getAutoBuilderOriginChoiceGroups(content, ruleSystem, selectedBackground)
+    : null;
+  const raceToolChoiceOptions = raceOriginChoiceGroups?.tool || [];
+  const raceWeaponChoiceOptions = raceOriginChoiceGroups?.weapon || [];
+  const backgroundToolChoiceOptions = backgroundOriginChoiceGroups?.tool || [];
+  const raceLanguageChoiceOptions = raceOriginChoiceGroups?.language || [];
+  const backgroundLanguageChoiceOptions = backgroundOriginChoiceGroups?.language || [];
   const classToolChoiceOptions = selectedClass
     ? (isNewMulticlass ? getMulticlassToolChoiceOptions(selectedClass) : (!isLevelUpMode ? getClassToolChoiceOptions(selectedClass) : []))
     : [];
@@ -420,11 +437,13 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   }, [ruleSystem]);
 
   useEffect(() => {
-    const resistances = getRaceResistanceOptions(selectedRace, selectedSubrace);
+    const originChoiceGroups = content
+      ? getAutoBuilderOriginChoiceGroups(content, ruleSystem, selectedRace, selectedSubrace)
+      : null;
     const featChoice = content ? getRaceFeatChoiceOptions(content, ruleSystem, data, selectedRace, selectedSubrace) : null;
     setRaceChoices({
-      resistance: resistances[0],
-      size: getRaceSizeChoiceOptions(selectedRace, selectedSubrace)[0]?.value,
+      resistance: originChoiceGroups?.resistance[0]?.from[0],
+      size: originChoiceGroups?.size[0]?.from[0],
       featId: featChoice?.from[0] ? `${featChoice.from[0].key}|${featChoice.from[0].source}` : undefined,
     });
   }, [content, data, ruleSystem, selectedRace, selectedSubrace]);
@@ -1108,11 +1127,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	    );
 	  const isRaceChoiceComplete = isLevelUpMode
 	    || (
-	      (raceResistanceOptions.length === 0 || Boolean(raceChoices.resistance ?? raceResistanceOptions[0]))
-	      && (raceSizeOptions.length === 0 || Boolean(raceChoices.size ?? raceSizeOptions[0]?.value))
-	      && raceFeatureChoiceOptions.every(choice => Boolean(raceChoices.featureChoices?.[choice.id]))
-	      && (!raceAbilityChoiceState || (raceChoices.abilities || []).length === raceAbilityChoiceState.count)
-	      && (!raceSkillChoiceState || (raceChoices.skills || []).length === raceSkillChoiceState.count)
+	      (!raceOriginChoiceGroups || areAutoBuilderOriginChoicesComplete(raceOriginChoiceGroups, raceChoices))
 	      && (!raceFeatChoiceState || (
 	        Boolean(raceChoices.featId ?? raceFeatChoiceState.from[0] ? `${raceFeatChoiceState.from[0].key}|${raceFeatChoiceState.from[0].source}` : undefined)
 	        && (raceFeatAbilityOptions.length === 0 || Boolean(raceChoices.featAbility))
@@ -1126,9 +1141,6 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	        && isFeatSpellChoiceComplete(raceFeatSpellChoiceState, raceChoices)
       ))
       && isOriginSpellChoiceComplete(raceOriginSpellChoiceState, raceChoices)
-      && areChoiceGroupsComplete(raceToolChoiceOptions, raceChoices.toolChoices)
-      && areChoiceGroupsComplete(raceWeaponChoiceOptions, raceChoices.weaponChoices)
-      && areChoiceGroupsComplete(raceLanguageChoiceOptions, raceChoices.languageChoices)
     );
 	  const isBackgroundToolChoiceComplete = isLevelUpMode
 	    || areChoiceGroupsComplete(backgroundToolChoiceOptions, backgroundToolChoices);

@@ -730,9 +730,19 @@ refactor(rules): share structured choice validation
 
 #### R4.1 起源 options 和 validation
 
-- 组合 R3 的通用 group, 增加体型, 来源特定特性, 起源专长和起源法术分支.
+- 状态: 已完成.
+- 组合 R3 的通用 group, 增加体型和来源特定特性.
 - 统一种族, 亚种族和背景默认值, group 依赖及完整性校验.
-- 未识别的 `choose`, `fromFilter` 或 `additionalSpells` 返回 `unsupported_rule_shape`.
+- 未识别的 `choose` 返回 `unsupported_rule_shape`.
+
+完成记录:
+
+- 新增 `createRuleOriginChoiceGroups`, 一次组合属性, 技能, 工具, 语言, 武器, 抗性, 体型和来源特定特性 choice group.
+- 体型和来源特定特性获得稳定 group ID, 精确 count 和结构化 option. XPHB Goliath 的 Giant Ancestry 不再由 React 单独构造.
+- EulCauDnD adapter 将共享 group 映射到现有车卡 state, React 的种族选择完整性统一调用共享 validation.
+- 种族, 亚种族和背景的工具及语言选项由同一共享入口生成. 未支持的起源选择结构继续失败关闭.
+- 测试覆盖 XPHB Human 的体型/技能, XPHB Dragonborn 的抗性, XPHB Goliath 的 Giant Ancestry, 完整提交和非法结构.
+- 起源专长和 `additionalSpells` 依赖专长/法术池及等级刷新, 按生命周期归入 R4.3.
 
 提交:
 
@@ -754,7 +764,8 @@ refactor(rules): share origin effect projection
 
 #### R4.3 起源资源, 法术和升级刷新
 
-- 迁移来源特定资源, 固定 AC, 天生攻击, 起源专长和起源法术 effects.
+- 迁移来源特定资源, 固定 AC, 天生攻击, 起源专长和起源法术 options/effects.
+- 未识别的 `fromFilter` 或 `additionalSpells` 返回 `unsupported_rule_shape`.
 - 迁移熟练加值/等级阈值刷新, Verdan 体型变化和 Dwarf HP 增量.
 - 以完整起源行为审计验证接入, 删除旧的重复规则分支.
 

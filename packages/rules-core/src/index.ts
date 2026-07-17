@@ -10,6 +10,7 @@ export * from './model/effect.js';
 export * from './model/issue.js';
 export * from './options/catalog-options.js';
 export * from './options/common-choices.js';
+export * from './options/origin-choices.js';
 export * from './policy/authorization.js';
 export * from './policy/default-policy.js';
 export * from './policy/source-priority.js';

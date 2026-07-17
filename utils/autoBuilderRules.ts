@@ -18,6 +18,7 @@ import {
 } from './equipmentRules';
 import {
   areRuleChoiceSelectionsComplete,
+  createRuleOriginChoiceGroups,
   createDefaultRuleAuthorizationPolicy,
   findRuleClassOption,
   findRuleOriginOption,
@@ -47,6 +48,7 @@ import {
   type RuleFightingStyle,
   type RuleOptionalFeature,
   type RuleOrigin,
+  type RuleOriginChoiceGroups,
   type RuleProficiencyRecord,
   type RuleResult,
   type RuleSpell,
@@ -531,6 +533,63 @@ export const areAutoBuilderChoiceGroupsComplete = (
     };
   });
   return areRuleChoiceSelectionsComplete(groups, values);
+};
+
+export const getAutoBuilderOriginChoiceGroups = (
+  content: AutoBuilderContent,
+  ruleSystem: RuleSystem,
+  origin: AutoBuilderOrigin | undefined,
+  secondaryOrigin?: AutoBuilderOrigin,
+): RuleOriginChoiceGroups => {
+  const result = createRuleOriginChoiceGroups(
+    content,
+    ruleSystem,
+    [origin, secondaryOrigin],
+  );
+  if (result.ok) return result.value;
+  const first = 'issues' in result ? result.issues[0] : undefined;
+  throw new Error(
+    `Unsupported origin choice shape at ${first?.path.join('.') || 'unknown'}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
+};
+
+export const areAutoBuilderOriginChoicesComplete = (
+  state: RuleOriginChoiceGroups,
+  choices: AutoBuilderRaceChoice,
+): boolean => {
+  const selections: Record<string, string[]> = {};
+  const assignFirst = (
+    groups: readonly RuleStringChoiceGroup[],
+    values: readonly string[] | undefined,
+  ) => {
+    const group = groups[0];
+    if (group) selections[group.id] = values ? [...values] : [];
+  };
+  assignFirst(state.ability, choices.abilities);
+  assignFirst(state.skill, choices.skills);
+  assignFirst(
+    state.resistance,
+    choices.resistance ? [choices.resistance] : [state.resistance[0]?.from[0]].filter(Boolean) as string[],
+  );
+  assignFirst(
+    state.size,
+    choices.size ? [choices.size] : [state.size[0]?.from[0]].filter(Boolean) as string[],
+  );
+  for (const group of state.feature) {
+    const value = choices.featureChoices?.[group.id];
+    selections[group.id] = value ? [value] : [];
+  }
+  for (const [groupId, values] of Object.entries(choices.toolChoices || {})) {
+    selections[groupId] = values;
+  }
+  for (const [groupId, values] of Object.entries(choices.languageChoices || {})) {
+    selections[groupId] = values;
+  }
+  for (const [groupId, values] of Object.entries(choices.weaponChoices || {})) {
+    selections[groupId] = values;
+  }
+  return areRuleChoiceSelectionsComplete(state.all, selections);
 };
 
 const normalizeSkillName = (skill: string): string => {
