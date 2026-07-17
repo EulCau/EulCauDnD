@@ -1127,8 +1127,9 @@ refactor(rules): share common class choices
 - 共享严格 effects, 删除本地 `getAvailableInvocationOptions`、progression limit 和 operations.
 - `createRuleInvocationAdvancementState` 以旧/新 Warlock 等级、已有祈唤、同次选择和已知法术计算目标数量及授权候选.
 - 职业祈唤与 Eldritch Adept 共用 `getRuleInvocationOptions` 先决条件 evaluator, 覆盖等级、optional feature、pact 和结构化 spell filter, 不再维护第二套判断.
+- 同次新增祈唤会解析为完整 key、名称、ID 和来源 identity, 避免稳定 ID 与先决条件引用形式不同造成误判.
 - `createRuleInvocationAdvancementEffects` 严格验证数量、重复和候选身份并输出 canonical `feature.add`; EulCauDnD adapter 只补充描述和显示元数据.
-- 共享包 76 项测试、EulCauDnD 生产构建、专长行为和来源优先级审计通过.
+- 共享包 75 项测试、EulCauDnD 生产构建、专长行为和来源优先级审计通过.
 
 提交:
 
