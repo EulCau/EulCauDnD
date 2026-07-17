@@ -12,6 +12,12 @@ Current scope:
 - validate basic feat advancement, including eligibility, unresolved structured
   choices, selected ability, and the ability score cap.
 
+The complete inventory, target API, ownership boundary, and staged extraction
+plan are documented in
+[`docs/rules-core-extraction-plan.md`](../../docs/rules-core-extraction-plan.md).
+The current package scope is intentionally only the first migrated rule slice;
+it is not yet the complete auto-builder engine.
+
 The package deliberately does not load catalog files, access browser storage,
 render React, or mutate a character. Callers must provide an already reviewed
 catalog and their own authorization policy. Unknown prerequisite fields fail
