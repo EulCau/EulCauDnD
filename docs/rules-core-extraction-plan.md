@@ -1226,6 +1226,7 @@ export function createRuleSpellcastingAdvancementEffects(
 ```
 
 - state 必须完整携带本次可选集合. effects 只接受 state 内 ID, 严格拒绝伪造、重复、缺失、过量、过期和非法替换.
+- canonical 模型先增加独立 `RuleSpellRef`, 保存 `prepared` 和 `alwaysPrepared` 语义; `RuleSpellcastingProfile` 增加 `slotSource: class | shared | pact`. 不能继续用不含准备状态的通用 `RuleEntityRef` 表示职业法术.
 - 法术候选统一使用授权策略和来源优先级. `name`、`englishName` 和翻译正文仅供显示, 不能参与身份校验.
 - 初始构筑和升级使用同一 advancement API, 通过 `oldClassLevel = 0` 表示建卡. spellbook 的新增和 preparedAll 的每日准备是不同操作; R7 只处理建卡/升级取得的规则内容.
 - slots 使用独立纯函数计算. 非 pact 多职业共享 slots, pact profile 保持独立, profile effect 不复制或重置无关 profile.
@@ -1240,12 +1241,24 @@ R7 拆分为以下可独立回归的提交边界:
 - 共享 preparedAll、knownSelection、spellbook、戏法、累计目标和固定环阶 choice groups.
 - 先迁移 EulCauDnD 查询 façade, 保留 profile 写入逻辑不变.
 
+提交:
+
+```text
+refactor(rules): share spell choice progression
+```
+
 #### R7.2 profile projection 和已知法术替换
 
 - 状态: 待开始.
 - 共享初始 profile、升级新增、自动准备/扩展法术和 spellbook 投影.
 - 共享严格替换 state/effects, 并明确保留已有法术与 preparation 状态.
 - EulCauDnD 的 `createSpellcastingProfile` 和 `updateSpellcastingForLevel` 退化为展示 adapter.
+
+提交:
+
+```text
+refactor(rules): share spellcasting profile effects
+```
 
 #### R7.3 多职业和 pact slots
 
@@ -1254,11 +1267,23 @@ R7 拆分为以下可独立回归的提交边界:
 - 表驱动覆盖 full、artificer、1/2、1/3、pact、混合施法者和边界等级.
 - 升级刷新总量时保留合法 expended 值, 不隐式执行长休.
 
+提交:
+
+```text
+refactor(rules): share spell slot progression
+```
+
 #### R7.4 Magical Secrets
 
 - 状态: 待开始.
 - 共享 PHB Bard 10/14/18 级新增选择和 XPHB Bard 10 级扩展法术池.
 - 严格区分“新增两项 Magical Secrets”和“后续职业法术候选池扩展”, 拒绝重复与未授权职业法表.
+
+提交:
+
+```text
+refactor(rules): share magical secrets
+```
 
 #### R7.5 清理和完整法术审计
 
@@ -1269,7 +1294,7 @@ R7 拆分为以下可独立回归的提交边界:
 提交:
 
 ```text
-refactor(rules): share spellcasting advancement
+refactor(rules): share complete spellcasting rules
 ```
 
 ### R8. 1 级建卡和升级 projection
