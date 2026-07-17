@@ -398,7 +398,7 @@ export interface RuleAuthorizationPolicy {
 ### 6.2 角色快照
 
 ```ts
-export interface RuleCharacterSnapshot {
+export interface CanonicalRuleCharacterSnapshot {
   schemaVersion: 1;
   ruleSystem: '5e' | '5r';
   classes: readonly RuleClassState[];
@@ -478,20 +478,20 @@ Effect 不包含:
 ```ts
 export function getLevelOneOptions(
   context: RuleContext,
-  draft: RuleCharacterSnapshot,
+  draft: CanonicalRuleCharacterSnapshot,
   partialChoice: LevelOneChoiceDraft,
 ): RuleResult<LevelOneOptions>;
 
 export function getLevelUpOptions(
   context: RuleContext,
-  character: RuleCharacterSnapshot,
+  character: CanonicalRuleCharacterSnapshot,
   target: LevelUpTarget,
   partialChoice: LevelUpChoiceDraft,
 ): RuleResult<LevelUpOptions>;
 
 export function getEquipmentOptions(
   context: RuleContext,
-  character: RuleCharacterSnapshot,
+  character: CanonicalRuleCharacterSnapshot,
 ): RuleResult<EquipmentOptions>;
 ```
 
@@ -509,20 +509,20 @@ Options 必须只包含:
 ```ts
 export function validateLevelOneChoice(
   context: RuleContext,
-  draft: RuleCharacterSnapshot,
+  draft: CanonicalRuleCharacterSnapshot,
   choice: LevelOneChoice,
 ): RuleValidationResult<NormalizedLevelOneChoice>;
 
 export function validateLevelUpChoice(
   context: RuleContext,
-  character: RuleCharacterSnapshot,
+  character: CanonicalRuleCharacterSnapshot,
   target: LevelUpTarget,
   choice: LevelUpChoice,
 ): RuleValidationResult<NormalizedLevelUpChoice>;
 
 export function validateEquipmentChoice(
   context: RuleContext,
-  character: RuleCharacterSnapshot,
+  character: CanonicalRuleCharacterSnapshot,
   choice: EquipmentChoice,
 ): RuleValidationResult<NormalizedEquipmentChoice>;
 ```
@@ -534,25 +534,25 @@ Validation 必须重新生成可选集合, 不能相信客户端回传的 option
 ```ts
 export function projectLevelOneCharacter(
   context: RuleContext,
-  draft: RuleCharacterSnapshot,
+  draft: CanonicalRuleCharacterSnapshot,
   choice: NormalizedLevelOneChoice,
 ): RuleProjectionResult;
 
 export function projectLevelUpCharacter(
   context: RuleContext,
-  character: RuleCharacterSnapshot,
+  character: CanonicalRuleCharacterSnapshot,
   target: LevelUpTarget,
   choice: NormalizedLevelUpChoice,
 ): RuleProjectionResult;
 
 export function projectEquipmentChange(
   context: RuleContext,
-  character: RuleCharacterSnapshot,
+  character: CanonicalRuleCharacterSnapshot,
   choice: NormalizedEquipmentChoice,
 ): RuleProjectionResult;
 
 export interface RuleProjectionResult {
-  character: RuleCharacterSnapshot;
+  character: CanonicalRuleCharacterSnapshot;
   effects: readonly RuleEffect[];
   choices: readonly RuleChoiceRecord[];
   explanations: readonly RuleExplanation[];
@@ -566,7 +566,7 @@ Projection 只接受 validation 返回的 normalized choice. TypeScript 类型�
 ```ts
 export function validateAndProjectLevelUp(
   context: RuleContext,
-  character: RuleCharacterSnapshot,
+  character: CanonicalRuleCharacterSnapshot,
   target: LevelUpTarget,
   choice: LevelUpChoice,
 ): RuleResult<RuleProjectionResult>;
@@ -635,7 +635,7 @@ export type RuleResult<T> =
 
 ### R0. 盘点和接口冻结
 
-状态: 本文档完成后完成.
+状态: 已完成.
 
 - 固定盘点基线.
 - 冻结第一版 canonical DTO, issue 和公共 API 方向.
@@ -649,9 +649,20 @@ docs(rules): design shared auto-builder core
 
 ### R1. Catalog 和 canonical model
 
+状态: 已完成.
+
 - 拆出 catalog DTO, entity identity, character snapshot, choice, effect 和 issue.
 - 增加 runtime parser 和 JSON round-trip 测试.
 - 保持现有 `autoBuilderRules.ts` 类型兼容 façade.
+
+完成记录:
+
+- 新增 `catalog/model.ts`, `catalog/identity.ts` 和 `catalog/parse.ts`.
+- 新增 `model/character.ts`, `model/choice.ts`, `model/effect.ts`, `model/issue.ts` 和 JSON-safe clone 边界.
+- `parseRuleCatalog` 会复制输入, 拒绝循环引用, 非普通对象, 非有限数字, 危险对象 key, 无效实体身份和重复实体身份.
+- `parseCanonicalRuleCharacter` 会验证版本, 规则系统, 职业等级, 属性, 实体引用, 熟练, 资源, 法术档案, 装备, 战斗数据和选择记录.
+- `autoBuilderRules.ts` 已删除重复 catalog 类型定义, 通过共享类型别名保持原导出名称兼容, catalog loader 在返回前调用共享 parser.
+- 测试覆盖真实完整 catalog, JSON round-trip, 输入不可变, 稳定实体 ID, 非 JSON 输入, 重复身份和 canonical character clone.
 
 提交:
 

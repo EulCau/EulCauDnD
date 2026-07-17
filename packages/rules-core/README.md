@@ -5,6 +5,9 @@ the EulCauDnD browser application and trusted server integrations.
 
 Current scope:
 
+- define and parse the JSON-safe auto-builder catalog;
+- define canonical character, choice, effect, and issue DTOs;
+- derive stable rule entity identities without time or random values;
 - evaluate supported feat prerequisites and return structured failure reasons;
 - filter Ability Score Improvement feat candidates through a caller-supplied
   authorization policy and source priority;

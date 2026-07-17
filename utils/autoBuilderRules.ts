@@ -19,93 +19,25 @@ import {
 import {
   getEligibleAbilityScoreImprovementFeats,
   getFeatAbilityChoiceOptions as getSharedFeatAbilityChoiceOptions,
+  parseRuleCatalog,
+  type RuleArmor,
+  type RuleCatalog,
+  type RuleClass,
+  type RuleClassProficiencyEntry,
   type RuleCharacterSnapshot,
+  type RuleFeatCatalogEntry,
+  type RuleFightingStyle,
+  type RuleOptionalFeature,
+  type RuleOrigin,
+  type RuleProficiencyRecord,
+  type RuleSpell,
+  type RuleSubclass,
+  type RuleWeapon,
+  type RuleWeaponMastery,
 } from '../packages/rules-core/src/index';
 
-type AutoBuilderClass = {
-  key: string;
-  name: string;
-  englishName: string;
-  source: 'PHB' | 'XPHB';
-  ruleSystem: RuleSystem;
-  hitDie?: number;
-  savingThrows?: string[];
-  spellcastingAbility?: string;
-  casterProgression?: string;
-  preparedSpells?: string;
-  preparedSpellsChange?: string;
-  preparedSpellsProgression?: number[];
-  cantripProgression?: number[];
-  spellsKnownProgression?: number[];
-  spellsKnownProgressionFixed?: number[];
-  spellsKnownProgressionFixedByLevel?: Record<string, Record<string, number>>;
-  spellsKnownProgressionFixedAllowLowerLevel?: boolean;
-  spellSlotProgression?: number[][];
-  pactSlotProgression?: Array<{ slots: number; level: number }>;
-  additionalPreparedSpells?: Array<{
-    mode?: 'prepared' | 'expanded';
-    level: number;
-    name: string;
-    source: string;
-  }>;
-  invocationProgression?: number[];
-  metamagicProgression?: number[];
-  weaponMasteryProgression?: number[];
-  channelDivinityProgression?: number[];
-  favoredEnemyProgression?: number[];
-  sorceryPointProgression?: number[];
-  subclassLevels?: number[];
-  startingProficiencies?: {
-    armor?: ClassProficiencyEntry[];
-    weapons?: ClassProficiencyEntry[];
-    tools?: string[];
-    toolProficiencies?: ProficiencyRecord[];
-    skills?: Array<{ choose?: { from?: string[]; count?: number } }>;
-  };
-  multiclassProficiencies?: {
-    armor?: ClassProficiencyEntry[];
-    weapons?: ClassProficiencyEntry[];
-    tools?: string[];
-    toolProficiencies?: ProficiencyRecord[];
-    skills?: Array<{ choose?: { from?: string[]; count?: number } }>;
-  };
-  levelOneFeatures: Array<{
-    name: string;
-    englishName?: string;
-    source: string;
-    level: number;
-    description: string;
-  }>;
-  levelFeatures: Array<{
-    name: string;
-    englishName?: string;
-    source: string;
-    level: number;
-    description: string;
-  }>;
-};
-
-type AutoBuilderSpell = {
-  id: string;
-  name: string;
-  englishName?: string;
-  source: string;
-  ruleSystem: RuleSystem;
-  level: number;
-  school?: string;
-  time: Array<{ number?: number; unit?: string }>;
-  range: unknown;
-  components: Record<string, unknown>;
-  duration: Array<Record<string, unknown>>;
-  meta?: {
-    ritual?: boolean;
-  };
-  damageInflict?: string[];
-  spellAttack?: string[];
-	  classKeys: string[];
-	  subclassIds?: string[];
-	  description?: string;
-	};
+type AutoBuilderClass = RuleClass;
+type AutoBuilderSpell = RuleSpell;
 
 export type AutoBuilderFixedSpellChoiceGroup = {
   classLevel: number;
@@ -131,208 +63,19 @@ export type AutoBuilderFeatSpellBlockChoice = {
   choices: AutoBuilderFeatSpellChoiceGroup[];
 };
 
-export type AutoBuilderSubclass = {
-  id: string;
-  key: string;
-  name: string;
-  englishName?: string;
-  shortName: string;
-  source: string;
-  className: string;
-  classSource: string;
-  features: Array<{
-    name: string;
-    englishName?: string;
-    source: string;
-    level: number;
-    description: string;
-  }>;
-  maneuverProgression?: number[];
-  additionalPreparedSpells?: Array<{
-    mode?: 'prepared' | 'expanded';
-    level: number;
-    name: string;
-    source: string;
-  }>;
-};
-
-export type AutoBuilderWeapon = {
-  id: string;
-  key: string;
-  name: string;
-  englishName?: string;
-  source: string;
-  ruleSystem: RuleSystem;
-  type?: string;
-  weaponCategory?: string;
-  property?: Array<string | { uid?: string; note?: string }>;
-  mastery?: string[];
-  range?: string;
-  dmg1?: string;
-  dmg2?: string;
-  dmgType?: string;
-  bonusWeapon?: string;
-  entries?: unknown[];
-};
-
-export type AutoBuilderArmor = {
-  id: string;
-  key: string;
-  name: string;
-  englishName?: string;
-  source: 'PHB' | 'XPHB';
-  ruleSystem: RuleSystem;
-  type?: string;
-  ac?: number;
-  strength?: string;
-  stealth?: boolean;
-};
-
-export type AutoBuilderWeaponMastery = {
-  id: string;
-  key: string;
-  name: string;
-  englishName?: string;
-  source: 'XPHB';
-  description: string;
-};
-
-export type AutoBuilderInvocation = {
-  id: string;
-  key: string;
-  name: string;
-  englishName?: string;
-  source: string;
-  prerequisite?: unknown[];
-  description: string;
-};
-
-export type AutoBuilderFightingStyle = {
-  id: string;
-  key: string;
-  name: string;
-  englishName?: string;
-  source: string;
-  featureTypes: string[];
-  description: string;
-};
-
-export type AutoBuilderMetamagic = {
-  id: string;
-  key: string;
-  name: string;
-  englishName?: string;
-  source: string;
-  description: string;
-};
-
-export type AutoBuilderManeuver = {
-  id: string;
-  key: string;
-  name: string;
-  englishName?: string;
-  source: string;
-  description: string;
-};
-
-export type AutoBuilderFeat = {
-  key: string;
-  name: string;
-  englishName?: string;
-  source: string;
-  category?: string;
-  prerequisite?: unknown[];
-  ability?: Array<Record<string, number> | { choose?: unknown }>;
-  darkvision?: number;
-  blindsight?: number;
-  tremorsense?: number;
-  truesight?: number;
-  resist?: unknown[];
-  immune?: unknown[];
-  vulnerable?: unknown[];
-  conditionImmune?: unknown[];
-  skillProficiencies?: ProficiencyRecord[];
-  toolProficiencies?: ProficiencyRecord[];
-  languageProficiencies?: ProficiencyRecord[];
-  savingThrowProficiencies?: ProficiencyRecord[];
-  weaponProficiencies?: ProficiencyRecord[];
-  armorProficiencies?: ProficiencyRecord[];
-  expertise?: ProficiencyRecord[];
-  additionalSpells?: unknown[];
-  fightingStyleCount?: number;
-  invocationCount?: number;
-  maneuverCount?: number;
-  metamagicCount?: number;
-  features: Array<{
-    name: string;
-    englishName?: string;
-    description: string;
-  }>;
-};
-
-type ProficiencyRecord = Record<string, true | number | { choose?: unknown } | { category?: string[]; count?: number }>;
-type ClassProficiencyEntry = string | { proficiency?: string; full?: string };
-
-type AutoBuilderOrigin = {
-  key: string;
-  name: string;
-  englishName?: string;
-  source: 'PHB' | 'XPHB';
-  ruleSystem: RuleSystem;
-  ability?: Array<Record<string, number> | { choose?: unknown }>;
-  speed?: number | Record<string, number | boolean>;
-  size?: string[];
-  darkvision?: number;
-  blindsight?: number;
-  tremorsense?: number;
-  truesight?: number;
-  resist?: unknown[];
-  immune?: unknown[];
-  vulnerable?: unknown[];
-  conditionImmune?: unknown[];
-  skillProficiencies?: ProficiencyRecord[];
-  toolProficiencies?: ProficiencyRecord[];
-  languageProficiencies?: ProficiencyRecord[];
-  weaponProficiencies?: ProficiencyRecord[];
-  armorProficiencies?: ProficiencyRecord[];
-  feats?: ProficiencyRecord[];
-  additionalSpells?: unknown[];
-  features: Array<{
-    name: string;
-    englishName?: string;
-    description: string;
-  }>;
-  raceName?: string;
-  raceSource?: string;
-};
-
-export type AutoBuilderContent = {
-  generatedAt: string;
-  rules?: Record<RuleSystem, {
-    primarySources: string[];
-    spellSources: string[];
-    invocationSources?: string[];
-    fightingStyleSources?: string[];
-    metamagicSources?: string[];
-    maneuverSources?: string[];
-    raceSources?: string[];
-    officialExtensionsEnabled?: boolean;
-  }>;
-  classes: AutoBuilderClass[];
-  subclasses: AutoBuilderSubclass[];
-  races: AutoBuilderOrigin[];
-  subraces: AutoBuilderOrigin[];
-  backgrounds: AutoBuilderOrigin[];
-  feats: AutoBuilderFeat[];
-  invocations: AutoBuilderInvocation[];
-  fightingStyles: AutoBuilderFightingStyle[];
-  metamagics: AutoBuilderMetamagic[];
-  maneuvers: AutoBuilderManeuver[];
-  weapons: AutoBuilderWeapon[];
-  weaponMasteries: AutoBuilderWeaponMastery[];
-  armors: AutoBuilderArmor[];
-  spells: AutoBuilderSpell[];
-};
+export type AutoBuilderSubclass = RuleSubclass;
+export type AutoBuilderWeapon = RuleWeapon;
+export type AutoBuilderArmor = RuleArmor;
+export type AutoBuilderWeaponMastery = RuleWeaponMastery;
+export type AutoBuilderInvocation = RuleOptionalFeature;
+export type AutoBuilderFightingStyle = RuleFightingStyle;
+export type AutoBuilderMetamagic = RuleOptionalFeature;
+export type AutoBuilderManeuver = RuleOptionalFeature;
+export type AutoBuilderFeat = RuleFeatCatalogEntry;
+type ProficiencyRecord = RuleProficiencyRecord;
+type ClassProficiencyEntry = RuleClassProficiencyEntry;
+type AutoBuilderOrigin = RuleOrigin;
+export type AutoBuilderContent = RuleCatalog;
 
 export type AutoBuilderSpellChoice = {
   cantrips: string[];
@@ -710,7 +453,11 @@ export const loadAutoBuilderContent = async (): Promise<AutoBuilderContent> => {
     if (!response.ok) {
       throw new Error(`Failed to load auto-builder data: ${response.status}`);
     }
-    return response.json();
+    const parsed = parseRuleCatalog(await response.json());
+    if (!parsed.ok) {
+      throw new Error(`Invalid auto-builder catalog: ${parsed.issues[0]?.detail?.reason ?? 'unknown'}`);
+    }
+    return parsed.value;
   })().catch(error => {
     autoBuilderContentPromise = null;
     throw error;
