@@ -35,6 +35,19 @@ const abilityMap: Readonly<Record<string, RuleAbilityName>> = {
   cha: 'CHA',
 };
 
+const classAliases: Readonly<Record<string, string>> = {
+  吟游诗人: 'Bard',
+  牧师: 'Cleric',
+  德鲁伊: 'Druid',
+  武僧: 'Monk',
+  圣武士: 'Paladin',
+  游侠: 'Ranger',
+  术士: 'Sorcerer',
+  魔契师: 'Warlock',
+  法师: 'Wizard',
+  奇械师: 'Artificer',
+};
+
 export function createRuleAdditionalSpellChoiceState(
   catalog: RuleCatalog,
   ruleSystem: RuleSystem,
@@ -143,6 +156,37 @@ function collectAdditionalSpells(
     }
     if ('choose' in entry) {
       const keys = Object.keys(entry);
+      if (isRecord(entry.choose)) {
+        if (
+          keys.some((key) => key !== 'choose')
+          || !Array.isArray(entry.choose.from)
+          || !entry.choose.from.every((value) => typeof value === 'string')
+          || entry.choose.from.length === 0
+          || (
+            entry.choose.count !== undefined
+            && (!Number.isInteger(entry.choose.count) || Number(entry.choose.count) <= 0)
+          )
+        ) {
+          issues.push(issue(path, 'additional_spell_choice_invalid'));
+          return;
+        }
+        const options = uniqueSpells(entry.choose.from.flatMap((ref) => {
+          const spell = resolveSpellRef(catalog, ref, ruleSystem);
+          return spell === undefined ? [] : [spell];
+        }));
+        if (options.length !== entry.choose.from.length) {
+          issues.push(issue(path, 'additional_spell_not_found'));
+          return;
+        }
+        choiceIndex += 1;
+        choices.push({
+          id: `${sourceId}-spell-choice-${choiceIndex}`,
+          label: entry.choose.from.join('|'),
+          count: typeof entry.choose.count === 'number' ? entry.choose.count : 1,
+          options,
+        });
+        return;
+      }
       if (
         keys.some((key) => key !== 'choose' && key !== 'count')
         || typeof entry.choose !== 'string'
@@ -163,6 +207,7 @@ function collectAdditionalSpells(
         })));
         return;
       }
+      if (options.value.length === 0) return;
       choiceIndex += 1;
       choices.push({
         id: `${sourceId}-spell-choice-${choiceIndex}`,
@@ -224,9 +269,11 @@ function getSpellOptionsForFilter(
   ruleSystem: RuleSystem,
   filter: string,
 ): RuleResult<RuleSpell[]> {
-  let level: number | undefined;
+  let levels: Set<number> | undefined;
   let classNames: string[] | undefined;
   let schools: Set<string> | undefined;
+  let ritual: boolean | undefined;
+  let spellAttacks: Set<string> | undefined;
   for (const part of filter.split('|')) {
     const pieces = part.split('=');
     if (pieces.length !== 2) return invalid([], 'spell_filter_invalid');
@@ -234,28 +281,43 @@ function getSpellOptionsForFilter(
     const value = pieces[1]?.trim();
     if (!key || !value) return invalid([], 'spell_filter_invalid');
     if (key === 'level') {
-      const parsed = Number(value);
-      if (!Number.isInteger(parsed) || parsed < 0 || parsed > 9) {
+      const parsed = value.split(';').map(Number);
+      if (
+        parsed.length === 0
+        || parsed.some((level) => !Number.isInteger(level) || level < 0 || level > 9)
+      ) {
         return invalid([], 'spell_filter_level_invalid');
       }
-      level = parsed;
+      levels = new Set(parsed);
     } else if (key === 'class') {
       classNames = value.split(';').map((entry) => entry.trim()).filter(Boolean);
       if (classNames.length === 0) return invalid([], 'spell_filter_class_invalid');
     } else if (key === 'school') {
       schools = new Set(value.split(';').map((entry) => entry.trim()).filter(Boolean));
       if (schools.size === 0) return invalid([], 'spell_filter_school_invalid');
+    } else if (key === 'components & miscellaneous') {
+      if (value !== '仪式' && normalize(value) !== 'ritual') {
+        return invalid([], 'spell_filter_misc_invalid');
+      }
+      ritual = true;
+    } else if (key === 'spell attack') {
+      spellAttacks = new Set(value.split(';').map((entry) => entry.trim().toUpperCase()));
+      if (spellAttacks.size === 0) return invalid([], 'spell_filter_attack_invalid');
     } else {
       return invalid([], 'spell_filter_key_unsupported');
     }
   }
   const classKeys = classNames === undefined
     ? undefined
-    : new Set(catalog.classes.filter((entry) => classNames.some((name) => (
-        normalize(entry.key) === normalize(name)
-        || normalize(entry.name) === normalize(name)
-        || normalize(entry.englishName) === normalize(name)
-      ))).map(({ key }) => key));
+    : new Set(classNames.flatMap((name) => {
+        const alias = classAliases[name] ?? name;
+        const matches = catalog.classes.filter((entry) => (
+          normalize(entry.key) === normalize(alias)
+          || normalize(entry.name) === normalize(name)
+          || normalize(entry.englishName) === normalize(alias)
+        )).map(({ key }) => key);
+        return matches.length > 0 ? matches : [alias];
+      }));
   if (classNames !== undefined && classKeys?.size === 0) {
     return invalid([], 'spell_filter_class_not_found');
   }
@@ -263,9 +325,13 @@ function getSpellOptionsForFilter(
   const byName = new Map<string, RuleSpell>();
   catalog.spells
     .filter(({ source }) => priority.includes(source))
-    .filter((spell) => level === undefined || spell.level === level)
+    .filter((spell) => levels === undefined || levels.has(spell.level))
     .filter((spell) => schools === undefined || Boolean(spell.school && schools.has(spell.school)))
     .filter((spell) => classKeys === undefined || spell.classKeys.some((key) => classKeys.has(key)))
+    .filter((spell) => ritual !== true || spell.meta?.ritual === true)
+    .filter((spell) => spellAttacks === undefined || spell.spellAttack?.some((attack) => (
+      spellAttacks?.has(attack.toUpperCase())
+    )))
     .forEach((spell) => {
       const key = spell.englishName || spell.name;
       const existing = byName.get(key);
@@ -279,9 +345,7 @@ function getSpellOptionsForFilter(
   const options = [...byName.values()].sort((left, right) => (
     left.level - right.level || left.name.localeCompare(right.name, 'zh-Hans-CN')
   ));
-  return options.length > 0
-    ? success(options)
-    : invalid([], 'spell_filter_empty');
+  return success(options);
 }
 
 function resolveSpellRef(
@@ -318,6 +382,8 @@ function validContainerKey(key: string): boolean {
     || key === '_'
     || key === 'daily'
     || key === 'rest'
+    || key === 'ritual'
+    || key === 'will'
     || ['expanded', 'innate', 'known', 'prepared'].includes(key);
 }
 

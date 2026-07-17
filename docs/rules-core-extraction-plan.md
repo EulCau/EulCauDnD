@@ -996,10 +996,34 @@ refactor(rules): adopt shared feat effects
 
 - 复用共享 `additionalSpells` parser, 迁移 66 个专长的固定/选择法术、施法属性、等级门槛、替换和已有专长升级刷新.
 
+R5.3 拆分为两个可独立回归的提交边界:
+
+##### R5.3a 共享专长法术规则
+
+- 状态: 已完成.
+- 共享 `additionalSpells` parser 新增多等级、仪式、法术攻击、直接候选数组、`will` 和 `ritual` 容器支持; 未知 filter 仍失败关闭.
+- catalog 的 `classKeys` 从完整 spell source metadata 提取, 不再仅依赖 12 个 PHB/XPHB 主职业, 因此 Artificer Initiate 能得到真实奇械师法术池.
+- `createRuleFeatSpellChoiceState` 和 `createRuleFeatSpellEffects` 覆盖固定/选择法术、多 block、施法属性和严格 option 校验.
+- `createRuleFeatSpellLevelUpChoiceState` 和 effects 覆盖等级门槛、累计同类 choice count、已有 profile 增量、XPHB Ritual Caster 和 Rune Shaper 熟练加值阈值.
+- Rune Shaper 替换同时验证移除和加入候选, 并拒绝替换法术与本级新增法术重复.
+- 完整 catalog 测试在 12 个里程碑等级解析全部 66 个专长; rules-core 54 项测试通过.
+
 提交:
 
 ```text
 refactor(rules): share feat spell advancement
+```
+
+##### R5.3b EulCauDnD 接入和本地法术分支清理
+
+- 状态: 未开始.
+- 初次专长法术 façade、构筑 effects、既有专长升级和替换改用共享 API.
+- 删除本地 filter/parser、Rune Shaper 特判、增量 state 和 spell operations, 通过完整专长法术行为审计验证等价.
+
+提交:
+
+```text
+refactor(rules): adopt shared feat spell advancement
 ```
 
 #### R5.4 专长专用选择

@@ -851,6 +851,32 @@ const autoBuilderSubclasses = Object.values(classIndex)
       .filter(subclass => subclass.features.length);
   });
 
+const SPELL_CLASS_KEY_BY_NAME = {
+  吟游诗人: 'Bard',
+  牧师: 'Cleric',
+  德鲁伊: 'Druid',
+  武僧: 'Monk',
+  圣武士: 'Paladin',
+  游侠: 'Ranger',
+  术士: 'Sorcerer',
+  魔契师: 'Warlock',
+  法师: 'Wizard',
+  奇械师: 'Artificer',
+};
+
+const getSpellClassKeys = spell => {
+  const meta = spellSources[`${spell.name}|${spell.source}`] || {};
+  const metadataNames = ['class', 'classVariant'].flatMap(kind => (
+    Object.values(meta[kind] || {}).flatMap(source => Object.keys(source || {}))
+  ));
+  return Array.from(new Set([
+    ...autoBuilderClasses
+      .filter(cls => isSpellForClass(spell, cls))
+      .map(cls => cls.key),
+    ...metadataNames.map(name => SPELL_CLASS_KEY_BY_NAME[name] || name),
+  ]));
+};
+
 const autoBuilderSpells = autoBuilderSpellList
   .map(spell => ({
     id: `${spell.name}|${spell.source}`,
@@ -867,9 +893,7 @@ const autoBuilderSpells = autoBuilderSpellList
     meta: spell.meta,
     damageInflict: spell.damageInflict,
     spellAttack: spell.spellAttack,
-    classKeys: Array.from(new Set(autoBuilderClasses
-      .filter(cls => isSpellForClass(spell, cls))
-      .map(cls => cls.key))),
+    classKeys: getSpellClassKeys(spell),
 	    subclassIds: Array.from(new Set(autoBuilderSubclasses
 	      .filter(subclass => isSpellForSubclass(spell, subclass))
 	      .map(subclass => subclass.id))),

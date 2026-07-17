@@ -11,6 +11,7 @@ export * from './catalog/model.js';
 export * from './catalog/parse.js';
 export * from './effects/apply.js';
 export * from './effects/feat.js';
+export * from './effects/feat-spells.js';
 export * from './effects/origin.js';
 export * from './effects/origin-resources.js';
 export * from './effects/origin-advancement.js';
