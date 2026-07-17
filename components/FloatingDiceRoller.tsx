@@ -68,6 +68,23 @@ export const FloatingDiceRoller: React.FC = () => {
     setInputHistoryIndex(-1);
   };
 
+  const openPanel = () => {
+    const panelSize = getPanelSize();
+    setPosition(prev => clampPosition({
+      x: prev.x - (panelSize.width - BUTTON_SIZE),
+      y: prev.y - (panelSize.height - BUTTON_SIZE),
+    }, panelSize.width, panelSize.height));
+    setIsOpen(true);
+  };
+
+  const closePanel = () => {
+    setPosition(prev => clampPosition({
+      x: prev.x + (size.width - BUTTON_SIZE),
+      y: prev.y + (size.height - BUTTON_SIZE),
+    }, BUTTON_SIZE, BUTTON_SIZE));
+    setIsOpen(false);
+  };
+
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement | HTMLButtonElement>) => {
     const target = event.target as HTMLElement;
     if (isOpen && target.closest('input,button')) return;
@@ -98,7 +115,7 @@ export const FloatingDiceRoller: React.FC = () => {
     setIsDragging(false);
     if (!isOpen && drag && !drag.moved) {
       event.preventDefault();
-      setIsOpen(true);
+      openPanel();
     }
   };
 
@@ -144,7 +161,7 @@ export const FloatingDiceRoller: React.FC = () => {
       onKeyDown={event => {
         if (!isOpen && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
-          setIsOpen(true);
+          openPanel();
         }
       }}
     >
@@ -155,7 +172,7 @@ export const FloatingDiceRoller: React.FC = () => {
             <div className="flex items-center gap-2">
               <button type="button" className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-white" onClick={resetPosition}>复位</button>
               <button type="button" className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-white" onClick={clearHistory}>清空</button>
-              <button type="button" className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-white" onClick={() => setIsOpen(false)}>关闭</button>
+              <button type="button" className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-white" onClick={closePanel}>关闭</button>
             </div>
           </div>
 
@@ -164,7 +181,7 @@ export const FloatingDiceRoller: React.FC = () => {
               <div className="text-sm text-gray-400">输入 /help 查看骰子语法。</div>
             ) : (
               <div className="flex flex-col gap-2">
-                {state.history.map(entry => (
+                {[...state.history].reverse().map(entry => (
                   <div key={entry.id} className="rounded border border-gray-200 bg-gray-50 p-2 text-sm">
                     <div className="break-words font-mono text-xs text-gray-500">{entry.input}</div>
                     <div className="mt-1 font-bold text-gray-900">{entry.output}</div>
@@ -201,6 +218,14 @@ function getInitialPosition(width: number, height: number): Position {
   return {
     x: Math.max(INITIAL_OFFSET, window.innerWidth - width - INITIAL_OFFSET),
     y: Math.max(INITIAL_OFFSET, window.innerHeight - height - INITIAL_OFFSET),
+  };
+}
+
+function getPanelSize(): { width: number; height: number } {
+  if (typeof window === 'undefined') return { width: PANEL_WIDTH, height: PANEL_HEIGHT };
+  return {
+    width: Math.min(PANEL_WIDTH, window.innerWidth - INITIAL_OFFSET * 2),
+    height: Math.min(PANEL_HEIGHT, window.innerHeight - INITIAL_OFFSET * 2),
   };
 }
 

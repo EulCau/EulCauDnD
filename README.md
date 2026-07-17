@@ -21,6 +21,7 @@ Main features:
 - Automatic updates for class features, subclass features, proficiencies, resources, hit dice, hit points, spell slots, spellcasting profiles, armor class, and attacks.
 - Search panel for spells, class/subclass features, and magic items.
 - Add-to-inventory flow for magic items from search results.
+- Floating d20 roller anchored to the panel's bottom-right corner, with command results displayed from oldest to newest.
 - Chinese and English UI localization. Chinese is the default language on this branch.
 
 ## Data source
