@@ -4,12 +4,41 @@ import type {
   RuleSubclass,
 } from '../catalog/model.js';
 import type { RuleChoiceGroup } from '../model/choice.js';
+import type { RuleSpellcastingProfile } from '../model/character.js';
 import type { RuleContext } from '../model/context.js';
+import type { RuleEffect } from '../model/effect.js';
 import type { RuleIssue, RuleResult } from '../model/issue.js';
 import { isRuleEntityAuthorized } from '../policy/authorization.js';
 import { dedupeRuleEntitiesByNameAndSourcePriority } from '../policy/source-priority.js';
+import { validateRuleChoiceSelections } from '../validation/common.js';
 
 export type RuleSpellcastingMode = 'preparedAll' | 'knownSelection' | 'spellbook';
+export type RuleSpellSlotSource = 'class' | 'shared' | 'pact';
+export type RuleSpellSlots = Record<string, { total: number; expended: number }>;
+
+export interface RuleSpellReplacementSelection {
+  removeId: string;
+  addId: string;
+}
+
+export interface RuleSpellcastingEffectOptions {
+  existingProfile?: RuleSpellcastingProfile;
+  selections?: Readonly<Record<string, readonly string[]>>;
+  replacement?: RuleSpellReplacementSelection | null;
+  slots?: RuleSpellSlots;
+  slotSource?: RuleSpellSlotSource;
+}
+
+export interface RuleMulticlassSpellcastingClass {
+  ruleClass: RuleClass;
+  level: number;
+}
+
+export interface RuleMulticlassSpellSlotState {
+  applies: boolean;
+  casterLevel: number;
+  slots: RuleSpellSlots;
+}
 
 export interface RuleFixedSpellChoiceGroup {
   classLevel: number;
@@ -31,9 +60,34 @@ export interface RuleSpellcastingAdvancementState {
   needed: { cantrips: number; leveled: number };
   cantrips: RuleSpell[];
   leveled: RuleSpell[];
+  automaticSpells: RuleSpell[];
   fixedLeveledGroups: RuleFixedSpellChoiceGroup[];
+  magicalSecretGroups: RuleChoiceGroup<RuleSpell>[];
   groups: RuleChoiceGroup<RuleSpell>[];
 }
+
+const MULTICLASS_SPELL_SLOT_TABLE: readonly (readonly number[])[] = [
+  [2, 0, 0, 0, 0, 0, 0, 0, 0],
+  [3, 0, 0, 0, 0, 0, 0, 0, 0],
+  [4, 2, 0, 0, 0, 0, 0, 0, 0],
+  [4, 3, 0, 0, 0, 0, 0, 0, 0],
+  [4, 3, 2, 0, 0, 0, 0, 0, 0],
+  [4, 3, 3, 0, 0, 0, 0, 0, 0],
+  [4, 3, 3, 1, 0, 0, 0, 0, 0],
+  [4, 3, 3, 2, 0, 0, 0, 0, 0],
+  [4, 3, 3, 3, 1, 0, 0, 0, 0],
+  [4, 3, 3, 3, 2, 0, 0, 0, 0],
+  [4, 3, 3, 3, 2, 1, 0, 0, 0],
+  [4, 3, 3, 3, 2, 1, 0, 0, 0],
+  [4, 3, 3, 3, 2, 1, 1, 0, 0],
+  [4, 3, 3, 3, 2, 1, 1, 0, 0],
+  [4, 3, 3, 3, 2, 1, 1, 1, 0],
+  [4, 3, 3, 3, 2, 1, 1, 1, 0],
+  [4, 3, 3, 3, 2, 1, 1, 1, 1],
+  [4, 3, 3, 3, 3, 1, 1, 1, 1],
+  [4, 3, 3, 3, 3, 2, 1, 1, 1],
+  [4, 3, 3, 3, 3, 2, 2, 1, 1],
+];
 
 export function getRuleMaxSpellLevel(
   ruleClass: RuleClass,
@@ -122,6 +176,12 @@ export function createRuleSpellcastingAdvancementState(
     newClassLevel,
     authorizedSubclass,
   ).map(({ id }) => id));
+  const automaticSpells = getAutomaticPreparedSpells(
+    context,
+    authorizedClass,
+    newClassLevel,
+    authorizedSubclass,
+  );
   const limits = knownSpellLimits(authorizedClass, newClassLevel);
   const fixedLeveledGroups = fixedSpellGroups(
     context,
@@ -147,6 +207,14 @@ export function createRuleSpellcastingAdvancementState(
   };
   const cantrips = options.filter((spell) => spell.level === 0);
   const leveled = options.filter((spell) => spell.level > 0);
+  const magicalSecretGroups = magicalSecretsGroups(
+    context,
+    authorizedClass,
+    oldClassLevel,
+    newClassLevel,
+    maxSpellLevel,
+    existing,
+  );
   const groups = [
     ...(needed.cantrips > 0
       ? [choiceGroup(authorizedClass, newClassLevel, 'cantrips', needed.cantrips, cantrips)]
@@ -155,6 +223,7 @@ export function createRuleSpellcastingAdvancementState(
       ? [choiceGroup(authorizedClass, newClassLevel, 'leveled', needed.leveled, leveled)]
       : []),
     ...fixedLeveledGroups.flatMap(({ group }) => group ? [group] : []),
+    ...magicalSecretGroups,
   ];
   if (groups.some((group) => group.min > group.options.length)) {
     return invalid('choice_count_invalid', ['spellcasting'], 'spell_options_insufficient');
@@ -170,9 +239,141 @@ export function createRuleSpellcastingAdvancementState(
     needed,
     cantrips,
     leveled,
+    automaticSpells,
     fixedLeveledGroups,
+    magicalSecretGroups,
     groups,
   });
+}
+
+export function getRuleClassSpellSlots(
+  ruleClass: RuleClass,
+  classLevel: number,
+  existingSlots: RuleSpellSlots = {},
+): RuleSpellSlots {
+  if (!ruleClass.spellcastingAbility || !ruleClass.casterProgression || classLevel < 1) return {};
+  const totals: number[] = [];
+  const classSlots = ruleClass.spellSlotProgression?.[classLevel - 1];
+  if (classSlots?.length) totals.push(...classSlots);
+  else {
+    const pact = ruleClass.pactSlotProgression?.[classLevel - 1];
+    if (pact?.level && pact.slots > 0) totals[pact.level - 1] = pact.slots;
+    else {
+      const maxLevel = getRuleMaxSpellLevel(ruleClass, classLevel);
+      if (maxLevel >= 1) {
+        if (ruleClass.casterProgression === 'pact') totals[Math.min(maxLevel, 5) - 1] = classLevel >= 2 ? 2 : 1;
+        else {
+          totals[0] = classLevel >= 2 ? 3 : 2;
+          if (maxLevel >= 2) totals[1] = classLevel >= 4 ? 3 : 2;
+          if (maxLevel >= 3) totals[2] = 2;
+          if (maxLevel >= 4) totals[3] = 1;
+          if (maxLevel >= 5) totals[4] = 1;
+        }
+      }
+    }
+  }
+  return slotsFromTotals(totals, existingSlots);
+}
+
+export function getRuleMulticlassSpellSlots(
+  classes: readonly RuleMulticlassSpellcastingClass[],
+  existingSlots: RuleSpellSlots = {},
+): RuleMulticlassSpellSlotState {
+  const casters = classes.filter(({ ruleClass, level }) => (
+    level > 0
+    && Boolean(ruleClass.spellcastingAbility)
+    && Boolean(ruleClass.casterProgression)
+    && ruleClass.casterProgression !== 'pact'
+  ));
+  if (casters.length < 2) return { applies: false, casterLevel: 0, slots: {} };
+  const casterLevel = Math.min(20, casters.reduce((total, entry) => (
+    total + multiclassCasterLevelContribution(entry.ruleClass, entry.level)
+  ), 0));
+  const row = MULTICLASS_SPELL_SLOT_TABLE[casterLevel - 1];
+  return row
+    ? { applies: true, casterLevel, slots: slotsFromTotals(row, existingSlots) }
+    : { applies: false, casterLevel, slots: {} };
+}
+
+export function createRuleSpellcastingAdvancementEffects(
+  context: RuleContext,
+  state: RuleSpellcastingAdvancementState,
+  options: RuleSpellcastingEffectOptions = {},
+): RuleResult<readonly RuleEffect[]> {
+  const authorizedClass = context.catalog.classes.find((candidate) => (
+    candidate.key === state.ruleClass.key
+    && candidate.source === state.ruleClass.source
+    && candidate.ruleSystem === context.ruleSystem
+    && isRuleEntityAuthorized('class', candidate, context.authorization)
+  ));
+  if (!authorizedClass) {
+    return invalid('entity_not_authorized', ['spellcasting', 'class'], 'class_not_authorized');
+  }
+  const validated = validateRuleChoiceSelections(state.groups, options.selections ?? {});
+  if (!validated.ok) return validated;
+  const selectedIds = validated.value.flatMap(({ selectedIds: ids }) => ids);
+  if (new Set(selectedIds).size !== selectedIds.length) {
+    return invalid('choice_conflict', ['spellcasting', 'choices'], 'spell_selected_in_multiple_groups');
+  }
+  const selected = state.groups.flatMap(({ options: groupOptions }) => (
+    groupOptions.filter(({ id }) => selectedIds.includes(id))
+  ));
+  const existing = options.existingProfile;
+  const existingById = new Map(existing?.spells.map((spell) => [spell.id, spell]) ?? []);
+  const automaticIds = new Set(state.automaticSpells.map(({ id }) => id));
+  const profileId = existing?.id
+    ?? `auto-${authorizedClass.key.toLowerCase()}-${authorizedClass.source.toLowerCase()}-spellcasting`;
+  const classId = existing?.classId;
+  const sourceId = profileId;
+  const spells = new Map(existingById);
+
+  const projected = state.mode === 'preparedAll'
+    ? [...state.cantrips.filter(({ id }) => selectedIds.includes(id)), ...state.leveled]
+    : selected;
+  for (const spell of [...projected, ...state.automaticSpells]) {
+    const alwaysPrepared = automaticIds.has(spell.id)
+      || state.mode === 'knownSelection'
+      || spell.level === 0;
+    spells.set(spell.id, {
+      id: spell.id,
+      key: spell.key || spell.name,
+      source: spell.source,
+      prepared: alwaysPrepared,
+      alwaysPrepared,
+    });
+  }
+
+  const replacement = validateSpellReplacement(state, existing, options.replacement);
+  if (!replacement.ok) return replacement;
+  if (replacement.value) {
+    spells.delete(replacement.value.remove.id);
+    const add = replacement.value.add;
+    spells.set(add.id, {
+      id: add.id,
+      key: add.key || add.name,
+      source: add.source,
+      prepared: true,
+      alwaysPrepared: true,
+    });
+  }
+
+  const slots = options.slots
+    ?? getRuleClassSpellSlots(authorizedClass, state.newClassLevel, existing?.slots);
+  const profile: RuleSpellcastingProfile = {
+    id: profileId,
+    ...(classId === undefined ? {} : { classId }),
+    ability: spellcastingAbility(authorizedClass),
+    preparationMode: state.mode,
+    slotSource: options.slotSource
+      ?? (authorizedClass.casterProgression === 'pact' ? 'pact' : 'class'),
+    spells: [...spells.values()],
+    slots,
+  };
+  return success([{
+    type: 'spell.profile.upsert',
+    profile,
+    sourceId,
+  }]);
 }
 
 function spellOptionsForLevel(
@@ -196,12 +397,18 @@ function spellOptionsForLevel(
         && isRuleEntityAuthorized('spell', spell, context.authorization)
       ))
     : [];
+  const magicalSecretExpansion = (
+    ruleClass.key === 'Bard'
+    && ruleClass.source === 'XPHB'
+    && classLevel >= 10
+  ) ? getRuleMagicalSecretSpellOptions(context, maxSpellLevel) : [];
   return dedupeRuleEntitiesByNameAndSourcePriority(
     'spell',
     [
       ...getRuleClassSpellOptions(context, ruleClass, maxSpellLevel),
       ...subclassSpells,
       ...expanded,
+      ...magicalSecretExpansion,
     ],
     context.authorization,
   ).sort(compareSpells);
@@ -310,6 +517,99 @@ function fixedSpellGroups(
       options,
     }];
   });
+}
+
+function magicalSecretsGroups(
+  context: RuleContext,
+  ruleClass: RuleClass,
+  oldClassLevel: number,
+  newClassLevel: number,
+  maxSpellLevel: number,
+  existing: ReadonlySet<string>,
+): RuleChoiceGroup<RuleSpell>[] {
+  if (ruleClass.key !== 'Bard' || ruleClass.source !== 'PHB') return [];
+  const pool = getRuleMagicalSecretSpellOptions(context, maxSpellLevel)
+    .filter(({ id }) => !existing.has(id));
+  return [10, 14, 18]
+    .filter((level) => oldClassLevel < level && level <= newClassLevel)
+    .map((level) => choiceGroup(ruleClass, level, 'magical-secrets', 2, pool));
+}
+
+export function getRuleMagicalSecretSpellOptions(
+  context: RuleContext,
+  maxSpellLevel: number,
+): RuleSpell[] {
+  const classKeys = new Set(['Bard', 'Cleric', 'Druid', 'Wizard']);
+  return dedupeRuleEntitiesByNameAndSourcePriority(
+    'spell',
+    context.catalog.spells.filter((spell) => (
+      spell.level <= maxSpellLevel
+      && spell.classKeys.some((key) => classKeys.has(key))
+      && isRuleEntityAuthorized('spell', spell, context.authorization)
+    )),
+    context.authorization,
+  ).sort(compareSpells);
+}
+
+function validateSpellReplacement(
+  state: RuleSpellcastingAdvancementState,
+  existing: RuleSpellcastingProfile | undefined,
+  selection: RuleSpellReplacementSelection | null | undefined,
+): RuleResult<{ remove: RuleSpellcastingProfile['spells'][number]; add: RuleSpell } | null> {
+  if (!selection) return success(null);
+  if (state.mode !== 'knownSelection' || !existing) {
+    return invalid('choice_not_available', ['spellcasting', 'replacement'], 'spell_replacement_not_available');
+  }
+  const automaticIds = new Set(state.automaticSpells.map(({ id }) => id));
+  const remove = existing.spells.find(({ id }) => (
+    id === selection.removeId && !automaticIds.has(id)
+  ));
+  const add = state.leveled.find(({ id }) => (
+    id === selection.addId
+    && id !== selection.removeId
+    && !existing.spells.some((spell) => spell.id === id)
+  ));
+  return remove && add
+    ? success({ remove, add })
+    : invalid('choice_not_available', ['spellcasting', 'replacement'], 'spell_replacement_invalid');
+}
+
+function multiclassCasterLevelContribution(ruleClass: RuleClass, level: number): number {
+  if (!ruleClass.spellcastingAbility || !ruleClass.casterProgression || ruleClass.casterProgression === 'pact') return 0;
+  if (ruleClass.casterProgression === 'full') return level;
+  if (ruleClass.casterProgression === 'artificer') return Math.ceil(level / 2);
+  if (ruleClass.casterProgression === '1/2') return Math.floor(level / 2);
+  if (ruleClass.casterProgression === '1/3') return Math.floor(level / 3);
+  return 0;
+}
+
+function slotsFromTotals(
+  totals: readonly number[],
+  existingSlots: RuleSpellSlots,
+): RuleSpellSlots {
+  const slots: RuleSpellSlots = {};
+  totals.forEach((rawTotal, index) => {
+    const total = Math.max(0, Number(rawTotal) || 0);
+    if (total === 0) return;
+    const level = String(index + 1);
+    slots[level] = {
+      total,
+      expended: Math.min(total, Math.max(0, existingSlots[level]?.expended ?? 0)),
+    };
+  });
+  return slots;
+}
+
+function spellcastingAbility(ruleClass: RuleClass): RuleSpellcastingProfile['ability'] {
+  const ability = ruleClass.spellcastingAbility?.slice(0, 3).toUpperCase();
+  return ability === 'STR'
+    || ability === 'DEX'
+    || ability === 'CON'
+    || ability === 'INT'
+    || ability === 'WIS'
+    || ability === 'CHA'
+    ? ability
+    : 'INT';
 }
 
 function choiceGroup(

@@ -1253,11 +1253,14 @@ refactor(rules): share spell choice progression
 
 #### R7.2 完整法术 projection
 
-- 状态: 待开始.
+- 状态: 已完成.
 - 合并原 R7.2-R7.5, 一次完成初始 profile、升级新增、自动准备/扩展法术、spellbook 和严格替换 effects.
 - 同一部分迁移单职业 slots、多职业共享 slots、pact slots、PHB/XPHB Magical Secrets 和额外法术.
 - EulCauDnD 的 `createSpellcastingProfile`, `updateSpellcastingForLevel`、slot 表和 Magical Secrets 本地分支退化为展示 adapter.
 - 完成共享包测试、法术/法术升级/专长法术/origin 法术/祈唤先决条件审计和生产构建后一次提交, 不再为内部子步骤增加独立文档提交.
+- 共享 state 现在携带自动准备法术和 Magical Secrets groups, effects 严格拒绝缺失、伪造、重复、跨 group 重复和非法替换, 并输出带准备状态及 slot source 的 canonical profile.
+- 单职业、pact 和多职业 slots 已迁入共享纯函数, 刷新总量时保留不超过新上限的 expended 值. PHB Bard 在 10/14/18 级取得两项选择, XPHB Bard 从 10 级起扩展普通职业法术池.
+- 共享包 90 项测试通过. 法术、法术升级、专长法术、起源结构和职业选择行为审计及 EulCauDnD 生产构建通过.
 
 提交:
 

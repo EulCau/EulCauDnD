@@ -22,6 +22,7 @@ import {
   getOriginWeaponChoiceOptions,
   getRaceFeatureChoiceOptions,
   getRaceResistanceOptions,
+  getSpellChoiceState,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import { removeCharacterAdjustments } from '${projectImport('utils/characterAdjustments.ts')}';
 import { equipWeapon, refreshAutomaticStyleAttacks } from '${projectImport('utils/equipmentRules.ts')}';
@@ -65,8 +66,46 @@ const completeClassChoices = (character, cls, options, level) => {
     level,
     existingSubclass,
   );
+  const profile = character.spellcastingProfiles.find(item => (
+    item.classId === character.classes.find(candidate => (
+      candidate.name === cls.key && candidate.source === cls.source
+    ))?.id
+    || item.id === \`auto-\${cls.key.toLowerCase()}-\${cls.source.toLowerCase()}-spellcasting\`
+  ));
+  const spellState = getSpellChoiceState(
+    content,
+    cls,
+    level,
+    profile?.spells || [],
+    options.subclass || subclassState.group?.options[0],
+  );
+  const selectedSpellIds = new Set([
+    ...(options.spellChoices?.cantrips || []),
+    ...(options.spellChoices?.leveled || []),
+  ]);
+  const completedCantrips = [
+    ...(options.spellChoices?.cantrips || []),
+    ...spellState.cantrips
+      .filter(({ id }) => !selectedSpellIds.has(id))
+      .slice(0, spellState.needed.cantrips)
+      .map(({ id }) => id),
+  ];
+  const completedLeveled = [
+    ...(options.spellChoices?.leveled || []),
+    ...spellState.leveled
+      .filter(({ id }) => !selectedSpellIds.has(id))
+      .slice(0, spellState.needed.leveled)
+      .map(({ id }) => id),
+    ...spellState.fixedLeveledGroups.flatMap(({ group }) => (
+      group?.options.slice(0, group.max).map(({ id }) => id) || []
+    )),
+  ];
   return {
     ...options,
+    spellChoices: {
+      cantrips: completedCantrips,
+      leveled: completedLeveled,
+    },
     ...(subclassState.group && !options.subclass
       ? { subclass: subclassState.group.options[0] }
       : {}),

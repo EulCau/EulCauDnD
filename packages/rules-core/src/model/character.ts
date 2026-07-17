@@ -49,9 +49,15 @@ export interface RuleSpellcastingProfile {
   id: string;
   classId?: string;
   ability: RuleAbilityName;
-  preparationMode: 'preparedAll' | 'knownSelection' | 'manual';
-  spells: RuleEntityRef[];
+  preparationMode: 'preparedAll' | 'knownSelection' | 'spellbook' | 'manual';
+  slotSource?: 'class' | 'shared' | 'pact';
+  spells: RuleSpellRef[];
   slots: Record<string, { total: number; expended: number }>;
+}
+
+export interface RuleSpellRef extends RuleEntityRef {
+  prepared?: boolean;
+  alwaysPrepared?: boolean;
 }
 
 export interface RuleEquipmentState extends RuleEntityRef {
@@ -224,7 +230,11 @@ function validateSpellcastingProfiles(
     if (
       !validText(entry.id)
       || !isAbility(entry.ability)
-      || !['preparedAll', 'knownSelection', 'manual'].includes(String(entry.preparationMode))
+      || !['preparedAll', 'knownSelection', 'spellbook', 'manual'].includes(String(entry.preparationMode))
+      || (
+        entry.slotSource !== undefined
+        && !['class', 'shared', 'pact'].includes(String(entry.slotSource))
+      )
       || !Array.isArray(entry.spells)
       || !isRecord(entry.slots)
     ) {
@@ -232,6 +242,17 @@ function validateSpellcastingProfiles(
       return;
     }
     validateRefs(entry.spells as JsonObject[], [...path, 'spells'], issues);
+    (entry.spells as JsonObject[]).forEach((spell, spellIndex) => {
+      if (
+        (spell.prepared !== undefined && typeof spell.prepared !== 'boolean')
+        || (spell.alwaysPrepared !== undefined && typeof spell.alwaysPrepared !== 'boolean')
+      ) {
+        issues.push({
+          path: [...path, 'spells', spellIndex],
+          reason: 'spell_preparation_state_invalid',
+        });
+      }
+    });
     for (const [level, slot] of Object.entries(entry.slots)) {
       if (
         !/^[1-9]$/.test(level)

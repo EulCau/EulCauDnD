@@ -13,6 +13,7 @@ import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
   buildLevelOneCharacter,
   getFeatSpellChoiceState,
+  getLevelOneSpellChoiceState,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import content from '${projectImport('public/data/auto-builder-core.json')}';
 
@@ -30,7 +31,9 @@ const featSpellChoices = Object.fromEntries(block.choices.map(group => [
   group.options.slice(0, group.count).map(spell => spell.id),
 ]));
 
-const character = buildLevelOneCharacter(INITIAL_CHARACTER, content, content.classes.find(cls => cls.key === 'Wizard' && cls.source === 'XPHB'), {
+const wizard = content.classes.find(cls => cls.key === 'Wizard' && cls.source === 'XPHB');
+const wizardSpellState = getLevelOneSpellChoiceState(content, wizard);
+const character = buildLevelOneCharacter(INITIAL_CHARACTER, content, wizard, {
   ruleSystem: '5r',
   race: content.races.find(race => race.name === '人类' && race.source === 'XPHB') || content.races[0],
   background: content.backgrounds.find(background => background.source === 'XPHB') || content.backgrounds[0],
@@ -42,7 +45,10 @@ const character = buildLevelOneCharacter(INITIAL_CHARACTER, content, content.cla
     featSpellChoices,
   },
   skillChoices: [],
-  spellChoices: { cantrips: [], leveled: [] },
+  spellChoices: {
+    cantrips: wizardSpellState.cantrips.slice(0, wizardSpellState.needed.cantrips).map(spell => spell.id),
+    leveled: wizardSpellState.leveled.slice(0, wizardSpellState.needed.leveled).map(spell => spell.id),
+  },
 });
 
 const profile = character.spellcastingProfiles.find(item => item.id.includes('magic initiate') || item.className.includes(feat.name));

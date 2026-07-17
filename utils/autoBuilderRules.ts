@@ -46,6 +46,7 @@ import {
   createRuleFeatSpellLevelUpEffects,
   createRuleSpecializedFeatChoiceState,
   createRuleSpecializedFeatEffects,
+  createRuleSpellcastingAdvancementEffects,
   createRuleSpellcastingAdvancementState,
   createRuleSubclassAdvancementEffects,
   createRuleSubclassAdvancementState,
@@ -62,7 +63,10 @@ import {
   getRuleFeatOptions,
   getRuleRaceOptions,
   getRuleClassSpellOptions,
+  getRuleClassSpellSlots,
+  getRuleMagicalSecretSpellOptions,
   getRuleMaxSpellLevel,
+  getRuleMulticlassSpellSlots,
   getRuleSubclassOptions,
   getRuleSubclassFeatureRef,
   getRuleSubraceOptions,
@@ -303,11 +307,6 @@ const XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS = [
     note: '岚之暴鸣: 60 尺内生物对你造成伤害时, 可用反应对该生物造成 1d8 雷鸣伤害.',
   },
 ];
-
-const OFFICIAL_SPELL_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
-  '5e': ['PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
-  '5r': ['XPHB', 'PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
-};
 
 const ABILITY_MAP: Record<string, AbilityName> = {
   str: 'STR',
@@ -1458,19 +1457,11 @@ export const getClassSpellOptions = (
 	    throw new Error(`Invalid spellcasting advancement: ${first?.detail?.reason || first?.code || 'unknown'}`);
 	  }
 	  if (!result.value) return [];
-	  // XPHB Bard: at level 10+, Magical Secrets expands the spell pool to include Cleric/Druid/Wizard spells
-	  const magicalSecretExpansion = (cls.englishName === 'Bard' && cls.source === 'XPHB' && level >= 10)
-	    ? getMagicalSecretSpellOptions(content, cls, result.value.maxSpellLevel)
-	    : [];
 	  return uniqueSpells([
 	    ...result.value.cantrips,
 	    ...result.value.leveled,
-	    ...magicalSecretExpansion,
 	  ]);
 	};
-
-/** Classes whose spells are eligible for Bard Magical Secrets */
-const MAGICAL_SECRETS_CLASS_KEYS = ['Bard', 'Cleric', 'Druid', 'Wizard'];
 
 /** Returns the levels at which a Bard gains Magical Secrets (2 spells each) */
 export const getMagicalSecretLevels = (cls: AutoBuilderClass): number[] => {
@@ -1485,25 +1476,10 @@ export const getMagicalSecretSpellOptions = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass,
   maxSpellLevel: number,
-): AutoBuilderSpell[] => {
-  const ruleSystem: RuleSystem = cls.source === 'XPHB' ? '5r' : '5e';
-  const priority = OFFICIAL_SPELL_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(priority);
-  const byName = new Map<string, AutoBuilderSpell>();
-  content.spells
-    .filter(spell => allowedSources.has(spell.source)
-      && spell.classKeys?.some(key => MAGICAL_SECRETS_CLASS_KEYS.includes(key))
-      && spell.level <= maxSpellLevel)
-    .forEach(spell => {
-      const key = spell.englishName || spell.name;
-      const existing = byName.get(key);
-      if (!existing || priority.indexOf(spell.source) < priority.indexOf(existing.source)) {
-        byName.set(key, spell);
-      }
-    });
-  return Array.from(byName.values())
-    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name, 'zh-Hans-CN'));
-};
+): AutoBuilderSpell[] => getRuleMagicalSecretSpellOptions(
+  getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e'),
+  maxSpellLevel,
+);
 
 const isPreparedAllClass = (cls: AutoBuilderClass): boolean => (
   cls.preparedSpellsChange === 'restLong'
@@ -1854,57 +1830,39 @@ export const getMaxSpellLevel = (cls: AutoBuilderClass, level: number): number =
   return getRuleMaxSpellLevel(cls, level);
 };
 
-const getSlotsForClassLevel = (cls: AutoBuilderClass, level: number): { [level: number]: SpellSlot } => {
-  const slots = createEmptySpellSlots();
-  if (!cls.spellcastingAbility || !cls.casterProgression) return slots;
-  const spellSlots = cls.spellSlotProgression?.[level - 1];
-  if (spellSlots?.length) {
-    spellSlots.forEach((total, index) => {
-      slots[index + 1] = { total: String(total || 0), expended: '0' };
-    });
-    return slots;
-  }
-  const pactSlots = cls.pactSlotProgression?.[level - 1];
-  if (pactSlots?.level && pactSlots.slots > 0) {
-    slots[pactSlots.level] = { total: String(pactSlots.slots), expended: '0' };
-    return slots;
-  }
-  const maxSpellLevel = getMaxSpellLevel(cls, level);
-  if (maxSpellLevel < 1) return slots;
-  if (cls.casterProgression === 'pact') {
-    slots[Math.min(maxSpellLevel, 5)] = { total: level >= 2 ? '2' : '1', expended: '0' };
-    return slots;
-  }
-  slots[1] = { total: level >= 2 ? '3' : '2', expended: '0' };
-  if (maxSpellLevel >= 2) slots[2] = { total: level >= 4 ? '3' : '2', expended: '0' };
-  if (maxSpellLevel >= 3) slots[3] = { total: '2', expended: '0' };
-  if (maxSpellLevel >= 4) slots[4] = { total: '1', expended: '0' };
-  if (maxSpellLevel >= 5) slots[5] = { total: '1', expended: '0' };
-  return slots;
+const toRuleSlots = (
+  slots: { [level: number]: SpellSlot },
+): Record<string, { total: number; expended: number }> => Object.fromEntries(
+  Object.entries(slots).flatMap(([level, slot]) => {
+    const total = Math.max(0, Number(slot.total) || 0);
+    if (total === 0) return [];
+    return [[level, {
+      total,
+      expended: Math.min(total, Math.max(0, Number(slot.expended) || 0)),
+    }]];
+  }),
+);
+
+const fromRuleSlots = (
+  ruleSlots: Readonly<Record<string, { total: number; expended: number }>>,
+): { [level: number]: SpellSlot } => {
+  const output = createEmptySpellSlots();
+  Object.entries(ruleSlots).forEach(([level, slot]) => {
+    output[Number(level)] = {
+      total: String(slot.total),
+      expended: String(slot.expended),
+    };
+  });
+  return output;
 };
 
-const MULTICLASS_SPELL_SLOT_TABLE: number[][] = [
-  [2, 0, 0, 0, 0, 0, 0, 0, 0],
-  [3, 0, 0, 0, 0, 0, 0, 0, 0],
-  [4, 2, 0, 0, 0, 0, 0, 0, 0],
-  [4, 3, 0, 0, 0, 0, 0, 0, 0],
-  [4, 3, 2, 0, 0, 0, 0, 0, 0],
-  [4, 3, 3, 0, 0, 0, 0, 0, 0],
-  [4, 3, 3, 1, 0, 0, 0, 0, 0],
-  [4, 3, 3, 2, 0, 0, 0, 0, 0],
-  [4, 3, 3, 3, 1, 0, 0, 0, 0],
-  [4, 3, 3, 3, 2, 0, 0, 0, 0],
-  [4, 3, 3, 3, 2, 1, 0, 0, 0],
-  [4, 3, 3, 3, 2, 1, 0, 0, 0],
-  [4, 3, 3, 3, 2, 1, 1, 0, 0],
-  [4, 3, 3, 3, 2, 1, 1, 0, 0],
-  [4, 3, 3, 3, 2, 1, 1, 1, 0],
-  [4, 3, 3, 3, 2, 1, 1, 1, 0],
-  [4, 3, 3, 3, 2, 1, 1, 1, 1],
-  [4, 3, 3, 3, 3, 1, 1, 1, 1],
-  [4, 3, 3, 3, 3, 2, 1, 1, 1],
-  [4, 3, 3, 3, 3, 2, 2, 1, 1],
-];
+const getSlotsForClassLevel = (
+  cls: AutoBuilderClass,
+  level: number,
+  existing: { [level: number]: SpellSlot } = createEmptySpellSlots(),
+): { [level: number]: SpellSlot } => fromRuleSlots(
+  getRuleClassSpellSlots(cls, level, toRuleSlots(existing)),
+);
 
 const getClassDefinitionForCharacterClass = (
   content: AutoBuilderContent,
@@ -1914,39 +1872,24 @@ const getClassDefinitionForCharacterClass = (
   && (!cls.source || item.source === cls.source)
 ));
 
-const getMulticlassCasterLevelContribution = (
-  cls: AutoBuilderClass,
-  level: number,
-): number => {
-  if (!cls.spellcastingAbility || !cls.casterProgression || cls.casterProgression === 'pact') return 0;
-  if (cls.casterProgression === 'full') return level;
-  if (cls.casterProgression === 'artificer') return Math.ceil(level / 2);
-  if (cls.casterProgression === '1/2') return Math.floor(level / 2);
-  if (cls.casterProgression === '1/3') return Math.floor(level / 3);
-  return 0;
-};
-
 const getSharedMulticlassSlots = (
   content: AutoBuilderContent,
   classes: CharacterData['classes'],
+  existing: { [level: number]: SpellSlot } = createEmptySpellSlots(),
 ): { slots: { [level: number]: SpellSlot }; applies: boolean } => {
   const spellcastingClasses = classes
     .map(cls => ({ characterClass: cls, definition: getClassDefinitionForCharacterClass(content, cls) }))
     .filter((entry): entry is { characterClass: CharacterData['classes'][number]; definition: AutoBuilderClass } => (
       Boolean(entry.definition?.spellcastingAbility && entry.definition.casterProgression && entry.definition.casterProgression !== 'pact')
     ));
-  if (spellcastingClasses.length < 2) return { slots: createEmptySpellSlots(), applies: false };
-
-  const casterLevel = spellcastingClasses.reduce((total, entry) => (
-    total + getMulticlassCasterLevelContribution(entry.definition, entry.characterClass.level || 0)
-  ), 0);
-  const row = MULTICLASS_SPELL_SLOT_TABLE[Math.max(0, Math.min(20, casterLevel) - 1)];
-  if (!row) return { slots: createEmptySpellSlots(), applies: false };
-  const slots = createEmptySpellSlots();
-  row.forEach((total, index) => {
-    slots[index + 1] = { total: String(total || 0), expended: '0' };
-  });
-  return { slots, applies: true };
+  const shared = getRuleMulticlassSpellSlots(spellcastingClasses.map((entry) => ({
+    ruleClass: entry.definition,
+    level: entry.characterClass.level || 0,
+  })), toRuleSlots(existing));
+  return {
+    slots: shared.applies ? fromRuleSlots(shared.slots) : createEmptySpellSlots(),
+    applies: shared.applies,
+  };
 };
 
 const applySharedSpellSlotsToProfiles = (
@@ -1954,8 +1897,8 @@ const applySharedSpellSlotsToProfiles = (
   classes: CharacterData['classes'],
   profiles: SpellcastingProfile[],
 ): SpellcastingProfile[] => {
-  const shared = getSharedMulticlassSlots(content, classes);
   return profiles.map(profile => {
+    const shared = getSharedMulticlassSlots(content, classes, profile.slots);
     const characterClass = classes.find(cls => cls.id === profile.classId);
     const definition = characterClass ? getClassDefinitionForCharacterClass(content, characterClass) : undefined;
     if (definition?.casterProgression === 'pact') {
@@ -2084,6 +2027,97 @@ const getAdditionalPreparedSpells = (
     .filter((spell): spell is AutoBuilderSpell => Boolean(spell));
 };
 
+const projectRuleSpellcastingProfile = (
+  content: AutoBuilderContent,
+  cls: AutoBuilderClass,
+  oldLevel: number,
+  newLevel: number,
+  choices: AutoBuilderSpellChoice,
+  subclass?: AutoBuilderSubclass,
+  classId = 'auto-class-main',
+  existing?: SpellcastingProfile,
+  replaceSpell?: { removeId: string; addId: string } | null,
+  magicalSecretChoices: string[] = [],
+): SpellcastingProfile | null => {
+  const context = getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e');
+  const stateResult = createRuleSpellcastingAdvancementState(
+    context,
+    cls,
+    oldLevel,
+    newLevel,
+    existing?.spells.map(({ id }) => id) || [],
+    subclass,
+  );
+  if (!stateResult.ok) {
+    const first = stateResult.issues[0];
+    throw new Error(`Invalid spellcasting advancement: ${first?.detail?.reason || first?.code || 'unknown'}`);
+  }
+  const state = stateResult.value;
+  if (!state) return null;
+  const regularIds = new Set([...choices.cantrips, ...choices.leveled]);
+  const magicalIds = new Set(magicalSecretChoices);
+  const selections = Object.fromEntries(state.groups.map((group) => [
+    group.id,
+    group.options
+      .filter(({ id }) => (
+        group.id.endsWith('-magical-secrets') ? magicalIds.has(id) : regularIds.has(id)
+      ))
+      .map(({ id }) => id),
+  ]));
+  const canonicalExisting = existing
+    ? {
+        id: existing.id,
+        ...(existing.classId === undefined ? {} : { classId: existing.classId }),
+        ability: existing.ability,
+        preparationMode: existing.preparationMode,
+        ...(existing.slotSource === undefined ? {} : { slotSource: existing.slotSource }),
+        spells: existing.spells.map((spell) => {
+          const catalogSpell = content.spells.find(({ id }) => id === spell.id);
+          return {
+            id: spell.id,
+            key: catalogSpell?.key || catalogSpell?.name || spell.name,
+            source: catalogSpell?.source || cls.source,
+            prepared: spell.prepared,
+            alwaysPrepared: spell.prepared,
+          };
+        }),
+        slots: toRuleSlots(existing.slots),
+      }
+    : undefined;
+  const effectResult = createRuleSpellcastingAdvancementEffects(context, state, {
+    ...(canonicalExisting === undefined ? {} : { existingProfile: canonicalExisting }),
+    selections,
+    replacement: replaceSpell,
+  });
+  if (!effectResult.ok) {
+    const first = effectResult.issues[0];
+    throw new Error(`Invalid spellcasting choices: ${first?.detail?.reason || first?.code || 'unknown'}`);
+  }
+  const effect = effectResult.value.find(({ type }) => type === 'spell.profile.upsert');
+  if (!effect || effect.type !== 'spell.profile.upsert') return null;
+  const previousById = new Map(existing?.spells.map((spell) => [spell.id, spell]) || []);
+  const spells = effect.profile.spells.flatMap((ref): Spell[] => {
+    const catalogSpell = content.spells.find(({ id }) => id === ref.id);
+    if (catalogSpell) return [toCharacterSpell(catalogSpell, ref.prepared ?? false)];
+    const previous = previousById.get(ref.id);
+    return previous ? [{ ...previous, prepared: ref.prepared ?? previous.prepared }] : [];
+  });
+  return {
+    id: effect.profile.id,
+    classId,
+    className: cls.name,
+    ability: effect.profile.ability,
+    preparationMode: effect.profile.preparationMode === 'spellbook'
+      ? 'knownSelection'
+      : effect.profile.preparationMode,
+    slotSource: effect.profile.slotSource,
+    saveDCOverride: existing?.saveDCOverride || '',
+    attackBonusOverride: existing?.attackBonusOverride || '',
+    slots: fromRuleSlots(effect.profile.slots),
+    spells,
+  };
+};
+
 const createSpellcastingProfile = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass,
@@ -2092,40 +2126,15 @@ const createSpellcastingProfile = (
   subclass?: AutoBuilderSubclass,
   classId = 'auto-class-main',
 ): SpellcastingProfile | null => {
-  const maxSpellLevel = getMaxSpellLevel(cls, level);
-  if (maxSpellLevel < 0 || !cls.spellcastingAbility) return null;
-
-  const ability = ABILITY_MAP[cls.spellcastingAbility] || 'INT';
-  const profileId = `auto-${cls.key.toLowerCase()}-${cls.source.toLowerCase()}-spellcasting`;
-  const allOptions = getSpellOptionsForClassLevel(content, cls, level, subclass);
-  const cantripIds = new Set(choices.cantrips);
-  const leveledIds = new Set(choices.leveled);
-  const isPreparedAll = isPreparedAllClass(cls);
-  const additionalPrepared = getAdditionalPreparedSpells(content, cls, level, subclass);
-  const selectedSpells = isPreparedAll
-    ? uniqueSpells([
-        ...allOptions.filter(spell => spell.level === 0 && cantripIds.has(spell.id)),
-        ...allOptions.filter(spell => spell.level > 0),
-        ...additionalPrepared,
-      ])
-    : uniqueSpells([
-        ...allOptions.filter(spell => cantripIds.has(spell.id) || leveledIds.has(spell.id)),
-        ...additionalPrepared,
-      ]);
-  const additionalIds = new Set(additionalPrepared.map(spell => spell.id));
-
-  return {
-    id: profileId,
+  return projectRuleSpellcastingProfile(
+    content,
+    cls,
+    0,
+    level,
+    choices,
+    subclass,
     classId,
-    className: cls.name,
-    ability,
-    preparationMode: isPreparedAll ? 'preparedAll' : 'knownSelection',
-    slotSource: cls.casterProgression === 'pact' ? 'pact' : 'class',
-    saveDCOverride: '',
-    attackBonusOverride: '',
-    slots: getSlotsForClassLevel(cls, level),
-	    spells: selectedSpells.map(spell => toCharacterSpell(spell, isKnownCasterClass(cls) || additionalIds.has(spell.id) || spell.level === 0)),
-  };
+  );
 };
 
 const createClassFeatureOperations = (
@@ -4514,67 +4523,24 @@ const updateSpellcastingForLevel = (
 	  subclass?: AutoBuilderSubclass,
 	  classId?: string,
 	  replaceSpell?: { removeId: string; addId: string } | null,
+	  magicalSecretChoices: string[] = [],
 	): { profiles: SpellcastingProfile[]; legacy: CharacterData['spellcasting'] } => {
 	  const existingProfile = getSpellcastingProfileForClass(character, cls, classId);
-	  const createdProfile = createSpellcastingProfile(content, cls, choices, newLevel, subclass, classId);
-	  if (!createdProfile) {
+	  const nextProfile = projectRuleSpellcastingProfile(
+	    content,
+	    cls,
+	    Math.max(0, newLevel - 1),
+	    newLevel,
+	    choices,
+	    subclass,
+	    classId,
+	    existingProfile,
+	    replaceSpell,
+	    magicalSecretChoices,
+	  );
+	  if (!nextProfile) {
 	    return { profiles: character.spellcastingProfiles, legacy: character.spellcasting };
 	  }
-	
-	  const isPreparedAll = createdProfile.preparationMode === 'preparedAll';
-	  const isKnownCaster = isKnownCasterClass(cls);
-	  const existingSpellIds = new Set(existingProfile?.spells.map(spell => spell.id) || []);
-	  const selectedIds = new Set([...choices.cantrips, ...choices.leveled]);
-	  const selectedCantripIds = new Set(choices.cantrips);
-	  const spellOptions = getSpellOptionsForClassLevel(content, cls, newLevel, subclass);
-	  const additionalPrepared = getAdditionalPreparedSpells(content, cls, newLevel, subclass);
-	  const additionalIds = new Set(additionalPrepared.map(spell => spell.id));
-		  const addedSpells = isPreparedAll
-		    ? uniqueSpells([
-		        ...spellOptions.filter(spell => spell.level > 0),
-		        ...additionalPrepared,
-		      ])
-		        .map(spell => toCharacterSpell(spell, additionalIds.has(spell.id)))
-		    : uniqueSpells([
-		        ...spellOptions.filter(spell => selectedIds.has(spell.id)),
-		        ...additionalPrepared,
-		      ])
-		        .filter(spell => !existingSpellIds.has(spell.id))
-		        .map(spell => toCharacterSpell(spell, isKnownCaster || additionalIds.has(spell.id) || spell.level === 0));
-		  const selectedNewCantrips = spellOptions
-		    .filter(spell => spell.level === 0 && selectedCantripIds.has(spell.id) && !existingSpellIds.has(spell.id))
-		    .map(spell => toCharacterSpell(spell, true));
-		  const knownCantrips = [
-		    ...(existingProfile?.spells.filter(spell => spell.level === 0) || []),
-		    ...selectedNewCantrips,
-		  ];
-		
-		  // Handle spell replacement on level-up (known-spell casters only)
-		  let existingLeveledSpells = existingProfile?.spells.filter(spell => spell.level > 0) || [];
-		  if (replaceSpell && replaceSpell.removeId && replaceSpell.addId) {
-		    existingLeveledSpells = existingLeveledSpells
-		      .filter(spell => spell.id !== replaceSpell.removeId);
-		    const replacementSpell = spellOptions.find(spell => spell.id === replaceSpell.addId);
-		    if (replacementSpell) {
-		      existingLeveledSpells = [
-		        ...existingLeveledSpells,
-		        toCharacterSpell(replacementSpell, isKnownCaster || additionalIds.has(replacementSpell.id) || replacementSpell.level === 0),
-		      ];
-		    }
-		  }
-	
-	  const nextProfile: SpellcastingProfile = existingProfile
-	    ? {
-	        ...existingProfile,
-	        ability: createdProfile.ability,
-	        preparationMode: createdProfile.preparationMode,
-	        slots: createdProfile.slots,
-	        spells: isPreparedAll
-	          ? uniqueCharacterSpells([...knownCantrips, ...addedSpells])
-	          : [...knownCantrips, ...existingLeveledSpells, ...addedSpells],
-	      }
-	    : createdProfile;
-	
 	  const profiles = existingProfile
 	    ? character.spellcastingProfiles.map(profile => profile.id === existingProfile.id ? nextProfile : profile)
 	    : [...character.spellcastingProfiles, nextProfile];
@@ -4639,7 +4605,17 @@ export const buildLevelUpCharacter = (
   const oldTotalLevel = character.classes.reduce((total, item) => total + (item.level || 0), 0);
   const newTotalLevel = Math.max(1, classes.reduce((total, item) => total + (item.level || 0), 0));
 	  const spellcasting = addClassFeatureSpellsToSpellcasting(
-	    updateSpellcastingForLevel(character, content, cls, newLevel, options.spellChoices, selectedSubclass, newClassId, options.replaceSpell),
+	    updateSpellcastingForLevel(
+	      character,
+	      content,
+	      cls,
+	      newLevel,
+	      options.spellChoices,
+	      selectedSubclass,
+	      newClassId,
+	      options.replaceSpell,
+	      options.magicalSecretChoices,
+	    ),
     content,
     newClassId,
     options.classFeatureChoices,
@@ -4647,23 +4623,6 @@ export const buildLevelUpCharacter = (
 	  const spellcastingProfiles = applySharedSpellSlotsToProfiles(content, classes, spellcasting.profiles);
 	  const legacySpellcasting = getPrimaryLegacySpellcasting(spellcastingProfiles, spellcasting.legacy);
 
-	  // Magical Secrets: add selected spells to Bard's profile
-	  const magicalSecretOperations: AdjustmentOperation[] = [];
-	  const msProfileId = `auto-${cls.key.toLowerCase()}-${cls.source.toLowerCase()}-spellcasting`;
-	  if (options.magicalSecretChoices?.length) {
-	    const maxLevel = getMaxSpellLevel(cls, newLevel);
-	    const pool = getMagicalSecretSpellOptions(content, cls, maxLevel);
-	    for (const spellId of options.magicalSecretChoices) {
-	      const spell = pool.find(s => s.id === spellId);
-	      if (spell) {
-	        magicalSecretOperations.push({
-	          type: 'addSpell',
-	          profileId: msProfileId,
-	          spell: toCharacterSpell(spell, true),
-	        });
-	      }
-	    }
-	  }
 	  const operations = createClassFeatureOperations(cls, options.ruleSystem, newLevel);
   const classFeatureChoiceOperations = createChosenFeatOperations(
     content,
@@ -4845,7 +4804,6 @@ export const buildLevelUpCharacter = (
             newLevel,
             [...options.spellChoices.cantrips, ...options.spellChoices.leveled],
           ),
-	        ...magicalSecretOperations,
 	      ],
 	    },
 	  );
