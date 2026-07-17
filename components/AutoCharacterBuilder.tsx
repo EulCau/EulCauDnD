@@ -183,7 +183,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const subraceOptions = useMemo(() => (
     content ? getAutoBuilderSubraces(content, selectedRace, ruleSystem) : []
   ), [content, selectedRace, ruleSystem]);
-  const selectedSubrace = getAutoBuilderOrigin(subraceOptions, subraceKey);
+  const selectedSubrace = subraceKey
+    ? getAutoBuilderOrigin(subraceOptions, subraceKey)
+    : undefined;
   const selectedBackground = getAutoBuilderOrigin(backgroundOptions, backgroundKey);
   const currentCharacterLevel = Math.max(0, data.classes.reduce((total, item) => total + item.level, 0));
   const targetCharacterLevel = Math.max(
@@ -1487,10 +1489,11 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
               <label className="text-[10px] text-gray-500 uppercase font-bold">{t('header.subrace')}</label>
               <select
                 aria-label={t('header.subrace')}
-                value={selectedSubrace?.key || subraceKey}
+                value={selectedSubrace?.key || ''}
                 onChange={event => setSubraceKey(event.target.value)}
                 className="bg-white border border-gray-300 rounded px-2 py-2 text-sm"
               >
+                <option value="">{t('auto.choose')}</option>
                 {subraceOptions.map(subrace => (
                   <option key={`${subrace.key}-${subrace.source}`} value={subrace.key}>{subrace.name}</option>
                 ))}
