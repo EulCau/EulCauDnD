@@ -741,6 +741,7 @@ refactor(rules): share structured choice validation
 - 体型和来源特定特性获得稳定 group ID, 精确 count 和结构化 option. XPHB Goliath 的 Giant Ancestry 不再由 React 单独构造.
 - EulCauDnD adapter 将共享 group 映射到现有车卡 state, React 的种族选择完整性统一调用共享 validation.
 - 种族, 亚种族和背景的工具及语言选项由同一共享入口生成. 未支持的起源选择结构继续失败关闭.
+- 共享组合器显式识别 5e 背景的 `weighted` 属性结构, 并保留现有 `+2/+1` 或 `+1/+1/+1` 专用 adapter, 防止背景选择阻断其他起源 group.
 - 测试覆盖 XPHB Human 的体型/技能, XPHB Dragonborn 的抗性, XPHB Goliath 的 Giant Ancestry, 完整提交和非法结构.
 - 起源专长和 `additionalSpells` 依赖专长/法术池及等级刷新, 按生命周期归入 R4.3.
 

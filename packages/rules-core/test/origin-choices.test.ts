@@ -64,6 +64,21 @@ test('combines origin groups and validates a complete submission', async () => {
   assert.equal(validateRuleChoiceSelections(groups.all, missingSkill).ok, false);
 });
 
+test('recognizes weighted background abilities handled by the compatibility adapter', async () => {
+  const catalog = await loadCatalog();
+  const background = required(catalog.backgrounds.find(({ ability }) => (
+    ability?.some((entry) => (
+      'choose' in entry
+      && typeof entry.choose === 'object'
+      && entry.choose !== null
+      && 'weighted' in entry.choose
+    ))
+  )));
+  const groups = value(createRuleOriginChoiceGroups(catalog, '5e', [background]));
+  assert.deepEqual(groups.ability, []);
+  assert.ok(groups.all.length >= groups.tool.length + groups.language.length);
+});
+
 test('fails closed when an origin choice has an unsupported shape', async () => {
   const catalog = await loadCatalog();
   const human = required(catalog.races.find(({ key, source }) => (
@@ -76,6 +91,16 @@ test('fails closed when an origin choice has an unsupported shape', async () => 
     ] as unknown as RuleOrigin['skillProficiencies'],
   };
   assert.equal(createRuleOriginChoiceGroups(catalog, '5r', [invalid]).ok, false);
+
+  const invalidWeighted: RuleOrigin = {
+    ...human,
+    ability: [{
+      choose: {
+        weighted: { from: ['str', 'dex'], weights: [2] },
+      },
+    }],
+  };
+  assert.equal(createRuleOriginChoiceGroups(catalog, '5r', [invalidWeighted]).ok, false);
 });
 
 async function loadCatalog(): Promise<RuleCatalog> {

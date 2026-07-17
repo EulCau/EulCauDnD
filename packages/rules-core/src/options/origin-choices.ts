@@ -50,7 +50,7 @@ export function createRuleOriginChoiceGroups(
 ): RuleResult<RuleOriginChoiceGroups> {
   const origins = values.filter((origin): origin is RuleOrigin => origin !== undefined);
   const ability = collect(origins, (origin, sourceId) => (
-    parseRuleAbilityChoiceGroups(origin.ability, sourceId)
+    parseOriginAbilityChoiceGroups(origin, sourceId)
   ));
   const skill = collect(origins, (origin, sourceId) => (
     parseRuleSkillChoiceGroups(origin.skillProficiencies, sourceId)
@@ -107,6 +107,41 @@ export function createRuleOriginChoiceGroups(
     },
     warnings: [],
   };
+}
+
+function parseOriginAbilityChoiceGroups(
+  origin: RuleOrigin,
+  sourceId: string,
+): RuleResult<RuleStringChoiceGroup[]> {
+  if (origin.ability === undefined) {
+    return { ok: true, value: [], warnings: [] };
+  }
+  const issues: RuleIssue[] = [];
+  const ability = origin.ability.map((entry, index) => {
+    if (!('choose' in entry) || !isRecord(entry.choose) || !('weighted' in entry.choose)) {
+      return entry;
+    }
+    const weighted = entry.choose.weighted;
+    if (
+      !isRecord(weighted)
+      || !nonEmptyStringArray(weighted.from)
+      || !positiveIntegerArray(weighted.weights)
+      || weighted.weights.length > weighted.from.length
+      || weighted.weights.reduce((total, value) => total + value, 0) !== 3
+      || new Set(weighted.from).size !== weighted.from.length
+    ) {
+      issues.push({
+        code: 'unsupported_rule_shape',
+        path: [sourceId, index, 'choose', 'weighted'],
+        detail: { reason: 'weighted_ability_choice_invalid' },
+      });
+    }
+    // Weighted background abilities still use the dedicated +2/+1 or +1/+1/+1
+    // adapter. They are recognized here so unrelated origin groups remain usable.
+    return {};
+  });
+  if (issues.length > 0) return { ok: false, issues };
+  return parseRuleAbilityChoiceGroups(ability, sourceId);
 }
 
 function createSizeChoiceGroups(origins: readonly RuleOrigin[]): RuleStringChoiceGroup[] {
@@ -177,4 +212,20 @@ function collect(
     value: results.flatMap((result) => result.ok ? result.value : []),
     warnings: [],
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function nonEmptyStringArray(value: unknown): value is string[] {
+  return Array.isArray(value)
+    && value.length > 0
+    && value.every((entry) => typeof entry === 'string' && entry.trim().length > 0);
+}
+
+function positiveIntegerArray(value: unknown): value is number[] {
+  return Array.isArray(value)
+    && value.length > 0
+    && value.every((entry) => Number.isInteger(entry) && Number(entry) > 0);
 }
