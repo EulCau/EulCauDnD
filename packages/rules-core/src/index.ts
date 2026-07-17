@@ -18,6 +18,7 @@ export * from './options/catalog-options.js';
 export * from './options/additional-spells.js';
 export * from './options/common-choices.js';
 export * from './options/origin-choices.js';
+export * from './options/origin-feats.js';
 export * from './policy/authorization.js';
 export * from './policy/default-policy.js';
 export * from './policy/source-priority.js';

@@ -23,6 +23,8 @@ import {
   createRuleAdditionalSpellChoiceState,
   createRuleOriginBaseEffects,
   createRuleOriginAdvancementEffects,
+  createRuleOriginFeatChoiceState,
+  createRuleOriginFeatEffects,
   createRuleOriginResourceEffects,
   createRuleOriginSpellEffects,
   findRuleClassOption,
@@ -54,6 +56,7 @@ import {
   type RuleOptionalFeature,
   type RuleOrigin,
   type RuleOriginChoiceGroups,
+  type RuleOriginFeatChoiceState,
   type RuleProficiencyRecord,
   type RuleResult,
   type RuleEffect,
@@ -492,18 +495,21 @@ export const getBackgroundFeats = (
   content: AutoBuilderContent,
   background: AutoBuilderOrigin | undefined,
 ): AutoBuilderFeat[] => {
-  if (!background?.feats?.length) return [];
-  const refs = background.feats.flatMap(entry => (
-    Object.entries(entry)
-      .filter(([, value]) => value === true)
-      .map(([key]) => parseEntityRef(key))
-  ));
-  return refs
-    .map(ref => content.feats.find(feat => (
-      (!ref.source || feat.source === ref.source)
-      && (feat.name === ref.name || feat.key === ref.name || feat.englishName === ref.name)
-    )))
-    .filter((feat): feat is AutoBuilderFeat => Boolean(feat));
+  const result = createRuleOriginFeatChoiceState(background, content.feats);
+  if (!result.ok) {
+    const first = result.issues[0];
+    throw new Error(
+      `Unsupported background feat rule at ${first?.path.join('.') || background?.key || 'unknown'}: `
+      + `${first?.detail?.reason || first?.code || 'unknown'}`,
+    );
+  }
+  if (result.value?.mode !== 'fixed') return [];
+  const effects = createRuleOriginFeatEffects(result.value);
+  if (!effects.ok) throw new Error(`Invalid fixed background feat rule: ${background?.key || 'unknown'}`);
+  const ids = new Set(effects.value.flatMap(effect => (
+    effect.type === 'feat.add' ? [effect.feat.id] : []
+  )));
+  return content.feats.filter(feat => ids.has(`${feat.key}|${feat.source}`));
 };
 
 const uniqueStrings = (values: string[]): string[] => Array.from(new Set(values));
@@ -886,39 +892,30 @@ export const getRaceFeatChoiceOptions = (
   character: CharacterData,
   race: AutoBuilderOrigin | undefined,
   subrace?: AutoBuilderOrigin,
-): { from: AutoBuilderFeat[]; count: number } | null => {
+): { from: AutoBuilderFeat[]; count: number; ruleState: RuleOriginFeatChoiceState } | null => {
   for (const origin of [race, subrace]) {
-    for (const entry of origin?.feats || []) {
-      if (typeof entry.any === 'number') {
-        const from = getOfficialFeatOptions(
-          content,
-          ruleSystem,
-          character,
-          1,
-          feat => !feat.prerequisite?.length,
-        );
-        if (!from.length) return null;
-        return {
-          count: entry.any,
-          from,
-        };
-      }
-      const categoryChoice = entry.anyFromCategory as { category?: string[]; count?: number } | undefined;
-      if (categoryChoice?.category?.length) {
-        const categories = new Set(categoryChoice.category);
-        const from = getOfficialFeatOptions(
-          content,
-          ruleSystem,
-          character,
-          1,
-          feat => Boolean(feat.category && categories.has(feat.category)),
-        );
-        if (!from.length) return null;
-        return {
-          count: categoryChoice.count || 1,
-          from,
-        };
-      }
+    if (!origin?.feats?.length) continue;
+    const eligible = getOfficialFeatOptions(
+      content,
+      ruleSystem,
+      character,
+      1,
+      feat => !feat.prerequisite?.length,
+    );
+    const result = createRuleOriginFeatChoiceState(origin, eligible);
+    if (!result.ok) {
+      const first = result.issues[0];
+      throw new Error(
+        `Unsupported race feat rule at ${first?.path.join('.') || origin.key}: `
+        + `${first?.detail?.reason || first?.code || 'unknown'}`,
+      );
+    }
+    if (result.value?.mode === 'choice') {
+      return {
+        count: result.value.count,
+        from: result.value.options,
+        ruleState: result.value,
+      };
     }
   }
   return null;
@@ -928,16 +925,22 @@ export const getOriginFeatChoiceOptions = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
   character: CharacterData,
-): { from: AutoBuilderFeat[]; count: number } | null => {
+): { from: AutoBuilderFeat[]; count: number; ruleState: RuleOriginFeatChoiceState } | null => {
   if (ruleSystem !== '5r') return null;
-  const from = getOfficialFeatOptions(
+  const eligible = getOfficialFeatOptions(
     content,
     ruleSystem,
     character,
     1,
-    feat => feat.category === 'O' && !feat.prerequisite?.length,
+    feat => !feat.prerequisite?.length,
   );
-  return from.length ? { count: 1, from } : null;
+  const result = createRuleOriginFeatChoiceState(undefined, eligible, true);
+  if (!result.ok) throw new Error('Unsupported decoupled origin feat rule');
+  return result.value ? {
+    count: result.value.count,
+    from: result.value.options,
+    ruleState: result.value,
+  } : null;
 };
 
 export const isAbilityScoreImprovementLevel = (
@@ -4223,6 +4226,7 @@ const createRaceChoiceOperations = (
   race: AutoBuilderOrigin,
   ruleSystem: RuleSystem,
   choices?: AutoBuilderRaceChoice,
+  subrace?: AutoBuilderOrigin,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [];
   if (choices?.resistance) {
@@ -4240,7 +4244,22 @@ const createRaceChoiceOperations = (
       } satisfies CharacterFeatureEntry,
     });
   }
-  operations.push(...createChosenFeatOperations(content, character, ruleSystem, choices, operations));
+  const featState = getRaceFeatChoiceOptions(
+    content,
+    ruleSystem,
+    character,
+    race,
+    subrace,
+  )?.ruleState;
+  operations.push(...createChosenFeatOperations(
+    content,
+    character,
+    ruleSystem,
+    choices,
+    operations,
+    1,
+    featState,
+  ));
   return operations;
 };
 
@@ -4251,9 +4270,27 @@ const createChosenFeatOperations = (
   choices?: AutoBuilderFeatChoice,
   previousOperations: AdjustmentOperation[] = [],
   characterLevel = Math.max(1, getTotalLevel(character.classes)),
+  originFeatState?: RuleOriginFeatChoiceState,
 ): AdjustmentOperation[] => {
   if (!choices?.featId) return [];
-  const feat = content.feats.find(item => item.key === choices.featId || `${item.key}|${item.source}` === choices.featId);
+  let selectedFeatId = choices.featId;
+  if (originFeatState) {
+    const selected = originFeatState.options.find(item => (
+      item.key === choices.featId || `${item.key}|${item.source}` === choices.featId
+    ));
+    if (!selected) return [];
+    const result = createRuleOriginFeatEffects(
+      originFeatState,
+      [`${selected.key}|${selected.source}`],
+    );
+    if (!result.ok) return [];
+    const effect = result.value.find(item => item.type === 'feat.add');
+    if (!effect || effect.type !== 'feat.add') return [];
+    selectedFeatId = effect.feat.id;
+  }
+  const feat = content.feats.find(item => (
+    item.key === selectedFeatId || `${item.key}|${item.source}` === selectedFeatId
+  ));
   if (!feat) return [];
 
   const abilitiesAfterPreviousOperations = ABILITY_OPTIONS.reduce<CharacterData['abilities']>((abilities, ability) => ({
@@ -5402,7 +5439,14 @@ export const buildLevelOneCharacter = (
     },
     ...createOriginOperations(content, options.race, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices, options.raceChoices),
     ...(options.subrace ? createOriginOperations(content, options.subrace, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices, options.raceChoices) : []),
-    ...createRaceChoiceOperations(content, character, options.race, options.ruleSystem, options.raceChoices),
+    ...createRaceChoiceOperations(
+      content,
+      character,
+      options.race,
+      options.ruleSystem,
+      options.raceChoices,
+      options.subrace,
+    ),
     ...(options.decoupleOriginFromBackground
       ? [
           ...createOriginProficiencyOperations(options.background, options.backgroundToolChoices),
@@ -5425,7 +5469,17 @@ export const buildLevelOneCharacter = (
       ? createLanguageChoiceOperations(options.backgroundLanguageChoices)
       : []),
     ...createFeatOperations(backgroundFeats, options.ruleSystem, 1),
-    ...createChosenFeatOperations(content, character, options.ruleSystem, options.originFeatChoice, [], 1),
+    ...createChosenFeatOperations(
+      content,
+      character,
+      options.ruleSystem,
+      options.originFeatChoice,
+      [],
+      1,
+      options.decoupleOriginFromBackground
+        ? getOriginFeatChoiceOptions(content, options.ruleSystem, character)?.ruleState
+        : undefined,
+    ),
     ...createChosenFeatOperations(content, character, options.ruleSystem, options.classFeatureChoices?.fightingStyle, [], 1),
     ...createFightingStyleFeatureOperations(content, cls, options.ruleSystem, options.classFeatureChoices?.fightingStyleFeatureId),
     ...createMetamagicOperations(content, options.ruleSystem, options.classFeatureChoices?.metamagics),

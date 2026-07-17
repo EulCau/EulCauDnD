@@ -854,6 +854,24 @@ refactor(rules): share origin combat traits
 
 ###### R4.3c-3 起源专长和起源法术升级刷新
 
+实施拆分:
+
+####### R4.3c-3a 起源专长授予
+
+- 状态: 已完成.
+- 新增 `createRuleOriginFeatChoiceState`, 严格解析背景固定专长、`any`、`anyFromCategory` 和 2024 起源解耦后的 Origin category 选择.
+- 新增 `feat.add` effect 和 `createRuleOriginFeatEffects`, 复核数量、重复项和候选范围后投影 canonical feat reference.
+- EulCauDnD 的背景固定专长、种族赠专长和解耦起源专长均调用共享 options/effects; 专长内部复杂子选择继续按计划归入 R5.
+- 测试枚举 catalog 中全部 19 个带专长授予的种族、亚种族和背景, 并覆盖异常结构、越权选择和不可变 effect 应用.
+
+提交:
+
+```text
+refactor(rules): share origin feat grants
+```
+
+####### R4.3c-3b 起源法术升级刷新
+
 - 状态: 待完成.
 
 R4.3c 最终清理提交:

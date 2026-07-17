@@ -17,6 +17,7 @@ export type RuleEffect =
     }
   | { type: 'ability.add'; ability: RuleAbilityName; value: number; sourceId: string }
   | { type: 'proficiency.add'; proficiency: string; expertise?: boolean; sourceId: string }
+  | { type: 'feat.add'; feat: RuleEntityRef; sourceId: string }
   | { type: 'feature.add'; feature: RuleEntityRef; sourceId: string }
   | { type: 'resource.upsert'; resource: RuleResourceState; sourceId: string }
   | { type: 'spell.profile.upsert'; profile: RuleSpellcastingProfile; sourceId: string }

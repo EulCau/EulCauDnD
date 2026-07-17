@@ -28,6 +28,9 @@ export function applyRuleEffects(
         addUnique(next.proficiencies, effect.proficiency);
         if (effect.expertise) addUnique(next.expertises, effect.proficiency);
         return;
+      case 'feat.add':
+        upsert(next.feats, effect.feat);
+        return;
       case 'feature.add':
         upsert(next.features, effect.feature);
         return;
