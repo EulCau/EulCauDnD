@@ -168,7 +168,7 @@ function resourceEffect(
       current: max,
       max,
       reset: definition.reset,
-      note: definition.note,
+      ...(definition.note === undefined ? {} : { note: definition.note }),
       ruleSystem,
     },
     sourceId: featSourceId(feat),
@@ -192,7 +192,15 @@ function resource(
   note?: string,
   source?: string,
 ): FeatResourceDefinition {
-  return { key, resourceKey, name, max, reset, note, source };
+  return {
+    key,
+    resourceKey,
+    name,
+    max,
+    reset,
+    ...(note === undefined ? {} : { note }),
+    ...(source === undefined ? {} : { source }),
+  };
 }
 
 function featSourceId(feat: Pick<RuleFeatCatalogEntry, 'key' | 'source'>): string {
