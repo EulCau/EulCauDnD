@@ -777,10 +777,35 @@ refactor(rules): share origin effect projection
 
 #### R4.3 起源资源, 法术和升级刷新
 
+- 状态: 进行中.
 - 迁移来源特定资源, 固定 AC, 天生攻击, 起源专长和起源法术 options/effects.
 - 未识别的 `fromFilter` 或 `additionalSpells` 返回 `unsupported_rule_shape`.
 - 迁移熟练加值/等级阈值刷新, Verdan 体型变化和 Dwarf HP 增量.
 - 以完整起源行为审计验证接入, 删除旧的重复规则分支.
+
+实施拆分:
+
+##### R4.3a 来源特定资源和刷新
+
+- 状态: 已完成.
+- 新增 `createRuleOriginResourceEffects`, 统一输出来源特定资源和 `Resourceful` inspiration effect.
+- resource effect 保留稳定 ID、名称、来源、次数、恢复周期、说明和规则版本元数据.
+- 熟练加值次数、3/5 级阈值、来源不同的短休/长休差异和 Giant Ancestry 选择说明均由共享规则计算.
+- `applyRuleEffects` 刷新已有资源时保留已消耗次数, 并将当前次数限制在新上限内.
+- 初始建卡和已有角色升级刷新均改用共享资源 effects; EulCauDnD adapter 只负责转换为可撤销 `AdjustmentOperation`.
+- 测试覆盖 Orc 熟练加值刷新、Aasimar/Goliath 等级阈值、Giant Ancestry 说明、Resourceful 和已消耗次数保留.
+
+提交:
+
+```text
+refactor(rules): share origin resource refresh
+```
+
+##### R4.3b 起源专长、法术和战斗特征
+
+- 迁移起源专长和 `additionalSpells` options/effects, 固定 AC、天生攻击、Dwarf HP、Verdan 体型和 Harengon 先攻刷新.
+- 对未知 `fromFilter` 和 `additionalSpells` 结构失败关闭.
+- 删除已经由共享资源和 effects 取代的旧分支, 完成 R4 全量审计.
 
 提交:
 

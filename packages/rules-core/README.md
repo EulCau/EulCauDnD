@@ -17,6 +17,7 @@ Current scope:
 - validate choice counts, uniqueness, option membership, and stale groups;
 - project origin abilities, proficiencies, movement, size, senses, resistances,
   immunities, and vulnerabilities into structured effects;
+- project source-specific origin resources and proficiency/level refreshes;
 - apply structured effects to a cloned canonical character snapshot;
 - evaluate supported feat prerequisites and return structured failure reasons;
 - filter Ability Score Improvement feat candidates through a caller-supplied

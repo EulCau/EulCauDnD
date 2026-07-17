@@ -16,6 +16,7 @@ export interface CanonicalRuleCharacterSnapshot {
   species?: RuleEntityRef;
   subrace?: RuleEntityRef;
   background?: RuleEntityRef;
+  inspiration?: boolean;
   proficiencies: string[];
   expertises: string[];
   feats: RuleEntityRef[];
@@ -38,6 +39,10 @@ export interface RuleResourceState {
   current: number;
   max: number;
   reset: 'shortRest' | 'longRest' | 'dawn' | 'manual';
+  name?: string;
+  sourceName?: string;
+  note?: string;
+  ruleSystem?: RuleSystem;
 }
 
 export interface RuleSpellcastingProfile {
@@ -113,6 +118,9 @@ export function parseCanonicalRuleCharacter(
       issues.push({ path: [key], reason: 'entity_ref_invalid' });
     }
   }
+  if (input.inspiration !== undefined && typeof input.inspiration !== 'boolean') {
+    issues.push({ path: ['inspiration'], reason: 'boolean_required' });
+  }
   validateCombat(input.combat, issues);
   if (issues.length > 0) {
     return {
@@ -183,6 +191,14 @@ function validateResources(
       || !nonNegativeInteger(entry.max)
       || Number(entry.current) > Number(entry.max)
       || !['shortRest', 'longRest', 'dawn', 'manual'].includes(String(entry.reset))
+      || (entry.name !== undefined && !validText(entry.name))
+      || (entry.sourceName !== undefined && !validText(entry.sourceName))
+      || (entry.note !== undefined && typeof entry.note !== 'string')
+      || (
+        entry.ruleSystem !== undefined
+        && entry.ruleSystem !== '5e'
+        && entry.ruleSystem !== '5r'
+      )
     ) {
       issues.push({ path, reason: 'resource_invalid' });
       return;

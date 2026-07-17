@@ -21,6 +21,7 @@ import {
   createRuleOriginChoiceGroups,
   createDefaultRuleAuthorizationPolicy,
   createRuleOriginBaseEffects,
+  createRuleOriginResourceEffects,
   findRuleClassOption,
   findRuleOriginOption,
   getRuleBackgroundOptions,
@@ -3974,6 +3975,28 @@ const createOriginResourceOperations = (
   return operations;
 };
 
+const createSharedOriginResourceOperations = (
+  entity: Pick<AutoBuilderOrigin, 'key' | 'name' | 'source'> & Partial<Pick<AutoBuilderOrigin, 'features'>>,
+  kind: 'race' | 'background',
+  ruleSystem: RuleSystem,
+  characterLevel = 1,
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
+  resourceNotes?: Record<string, string | undefined>,
+): AdjustmentOperation[] => {
+  if (kind !== 'race') return [];
+  const origin: AutoBuilderOrigin = {
+    key: entity.key,
+    name: entity.name,
+    source: entity.source,
+    ruleSystem,
+    features: entity.features || [],
+  };
+  return createRuleOriginResourceEffects(origin, ruleSystem, characterLevel, {
+    featureChoices,
+    resourceNotes,
+  }).flatMap(originEffectToAdjustmentOperations);
+};
+
 const createOriginOperations = (
   content: AutoBuilderContent,
   entity: AutoBuilderOrigin,
@@ -3999,7 +4022,7 @@ const createOriginOperations = (
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
     ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel, false),
-    ...createOriginResourceOperations(entity, kind, ruleSystem, characterLevel, featureChoices),
+    ...createSharedOriginResourceOperations(entity, kind, ruleSystem, characterLevel, featureChoices),
     ...baseEffects.flatMap(originEffectToAdjustmentOperations),
     ...createOriginSpellOperations(content, entity, kind, ruleSystem, characterLevel, originSpellChoices),
   ];
@@ -4118,6 +4141,8 @@ export const originEffectToAdjustmentOperations = (
   effect: RuleEffect,
 ): AdjustmentOperation[] => {
   switch (effect.type) {
+    case 'character.flag.set':
+      return [{ type: 'setBooleanField', field: effect.field, value: effect.value }];
     case 'ability.add':
       return [{ type: 'addNumber', path: `abilities.${effect.ability}`, value: effect.value }];
     case 'proficiency.add':
@@ -4132,6 +4157,26 @@ export const originEffectToAdjustmentOperations = (
         : [{ type: 'setStringField', field: 'bodyType', value: formatSize(String(effect.value)) }];
     case 'combat.text.add':
       return [{ type: 'addTextEntry', path: effect.field, value: effect.value }];
+    case 'resource.upsert': {
+      const resource = effect.resource;
+      if (!resource.name || !resource.sourceName || !resource.ruleSystem) {
+        throw new Error(`Origin resource metadata is incomplete: ${resource.id}`);
+      }
+      return [{
+        type: 'upsertResource',
+        resource: {
+          id: resource.id,
+          sourceId: resource.sourceId,
+          sourceName: resource.sourceName,
+          name: resource.name,
+          current: resource.current,
+          max: resource.max,
+          reset: resource.reset,
+          note: resource.note,
+          ruleSystem: resource.ruleSystem,
+        },
+      }];
+    }
     default:
       throw new Error(`Unsupported origin base effect adapter: ${effect.type}`);
   }
@@ -4842,7 +4887,7 @@ const createExistingOriginLevelUpOperations = (
     const resourceNotes = Object.fromEntries(character.resources
       .filter(resource => resource.sourceId.startsWith(resourcePrefix))
       .map(resource => [resource.sourceId.slice(resourcePrefix.length), resource.note]));
-    operations.push(...createOriginResourceOperations(
+    operations.push(...createSharedOriginResourceOperations(
       { key, name, source, features },
       'race',
       ruleSystem,

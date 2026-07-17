@@ -9,6 +9,12 @@ import type {
 import type { JsonObject } from './json.js';
 
 export type RuleEffect =
+  | {
+      type: 'character.flag.set';
+      field: 'inspiration';
+      value: boolean;
+      sourceId: string;
+    }
   | { type: 'ability.add'; ability: RuleAbilityName; value: number; sourceId: string }
   | { type: 'proficiency.add'; proficiency: string; expertise?: boolean; sourceId: string }
   | { type: 'feature.add'; feature: RuleEntityRef; sourceId: string }

@@ -14,6 +14,9 @@ export function applyRuleEffects(
 
   effects.forEach((effect, index) => {
     switch (effect.type) {
+      case 'character.flag.set':
+        next[effect.field] = effect.value;
+        return;
       case 'ability.add':
         if (!Number.isFinite(effect.value)) {
           issues.push(invalidEffect(index, 'ability_value_invalid'));
@@ -29,7 +32,15 @@ export function applyRuleEffects(
         upsert(next.features, effect.feature);
         return;
       case 'resource.upsert':
-        upsert(next.resources, effect.resource);
+        {
+          const existing = next.resources.find(({ id }) => id === effect.resource.id);
+          upsert(next.resources, {
+            ...effect.resource,
+            current: existing
+              ? Math.min(effect.resource.max, existing.current)
+              : effect.resource.current,
+          });
+        }
         return;
       case 'spell.profile.upsert':
         upsert(next.spellcastingProfiles, effect.profile);
