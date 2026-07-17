@@ -33,6 +33,14 @@ export function createDefaultRuleAuthorizationPolicy(
     ...raceSources,
     ...catalog.subraces.map(({ source }) => source),
   ]);
+  const invocationSources = configured?.invocationSources
+    ?? (ruleSystem === '5r' ? ['XPHB', 'PHB', 'XGE', 'TCE'] : ['PHB', 'XGE', 'TCE']);
+  const fightingStyleSources = configured?.fightingStyleSources
+    ?? (ruleSystem === '5r' ? ['XPHB', 'PHB', 'TCE'] : ['PHB', 'TCE']);
+  const metamagicSources = configured?.metamagicSources
+    ?? (ruleSystem === '5r' ? ['XPHB', 'PHB', 'TCE'] : ['PHB', 'TCE']);
+  const maneuverSources = configured?.maneuverSources
+    ?? (ruleSystem === '5r' ? ['XPHB', 'PHB', 'TCE'] : ['PHB', 'TCE']);
   const allowedSources: Partial<Record<RuleEntityKind, readonly string[]>> = {
     class: classSources,
     subclass: subclassSourcePriority[ruleSystem],
@@ -40,6 +48,10 @@ export function createDefaultRuleAuthorizationPolicy(
     subrace: subraceSources,
     background: backgroundSourcePriority[ruleSystem],
     feat: featSourcePriority[ruleSystem],
+    invocation: invocationSources,
+    'fighting-style': fightingStyleSources,
+    metamagic: metamagicSources,
+    maneuver: maneuverSources,
   };
   return {
     allowedSources,
@@ -50,6 +62,10 @@ export function createDefaultRuleAuthorizationPolicy(
       subrace: subraceSources,
       background: backgroundSourcePriority[ruleSystem],
       feat: featSourcePriority[ruleSystem],
+      invocation: invocationSources,
+      'fighting-style': fightingStyleSources,
+      metamagic: metamagicSources,
+      maneuver: maneuverSources,
     },
   };
 }

@@ -14,6 +14,8 @@ import {
   buildLevelUpCharacter,
   getAbilityScoreImprovementFeatOptions,
   getFeatExpertiseChoiceOptions,
+  getFeatFightingStyleChoiceState,
+  getFeatInvocationChoiceState,
   getFeatLanguageChoiceOptions,
   getFeatManeuverChoiceState,
   getFeatMetamagicChoiceState,
@@ -90,6 +92,8 @@ const knightOfTheSword = getFeat('Knight of the Sword', 'DSotDQ');
 const cartomancer = getFeat('Cartomancer', 'BMT');
 const planarWanderer = getFeat('Planar Wanderer', 'SatO');
 const runeShaper = getFeat('Rune Shaper', 'BGG');
+const fightingInitiate = getFeat('Fighting Initiate', 'TCE');
+const eldritchAdept = getFeat('Eldritch Adept', 'TCE');
 const martialAdept = getFeat('Martial Adept', 'PHB');
 const metamagicAdept = getFeat('Metamagic Adept', 'TCE');
 const chromaticGift = getFeat('Gift of the Chromatic Dragon', 'FTD');
@@ -562,6 +566,46 @@ const runeShaperLevelNineProfile = runeShaperLevelNineWithRune.spellcastingProfi
 assert(
   [selectedRuneSpell, selectedSecondRuneSpell].every(selected => runeShaperLevelNineProfile?.spells.some(spell => spell.id === selected.id && spell.prepared)),
   \`Rune Shaper level 9 upgrade should keep old rune spell and add the selected new rune spell, got \${runeShaperLevelNineProfile?.spells.map(spell => spell.id).join(', ')}\`,
+);
+
+const fightingStyleChoices = getFeatFightingStyleChoiceState(content, fightingInitiate, makeLevelThreeWizard());
+const selectedFightingStyle = fightingStyleChoices?.from[0];
+assert(fightingStyleChoices?.count === 1 && selectedFightingStyle, 'Fighting Initiate should expose one fighting style choice');
+const fightingInitiateCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Fighting Initiate|TCE',
+    featFightingStyleFeatureId: selectedFightingStyle.id,
+  },
+});
+assert(
+  fightingInitiateCharacter.featureEntries.some(feature => feature.sourceId === \`auto-fighting-style-\${selectedFightingStyle.id}\`),
+  'Fighting Initiate should add the selected fighting style feature',
+);
+
+const eldritchAdeptChoices = getFeatInvocationChoiceState(content, eldritchAdept, makeLevelThreeWizard(), '5e', 4);
+const selectedInvocation = eldritchAdeptChoices?.options.find(invocation => !invocation.prerequisite?.length);
+assert(eldritchAdeptChoices?.needed === 1 && selectedInvocation, 'Eldritch Adept should expose one invocation without prerequisites to a non-Warlock');
+assert(
+  eldritchAdeptChoices.options.every(invocation => !invocation.prerequisite?.length),
+  'Eldritch Adept should hide prerequisite invocations from a non-Warlock',
+);
+const eldritchAdeptCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'feat',
+    featId: 'Eldritch Adept|TCE',
+    featInvocations: [selectedInvocation.id],
+  },
+});
+assert(
+  eldritchAdeptCharacter.featureEntries.some(feature => (
+    feature.sourceId === \`auto-invocation-\${selectedInvocation.key}-\${selectedInvocation.source}\`
+  )),
+  'Eldritch Adept should add the selected invocation feature',
 );
 
 const martialAdeptChoices = getFeatManeuverChoiceState(content, martialAdept, makeLevelThreeWizard(), '5e');
@@ -1338,6 +1382,8 @@ export default {
     cartomancer.name,
     planarWanderer.name,
     runeShaper.name,
+    fightingInitiate.name,
+    eldritchAdept.name,
     martialAdept.name,
     metamagicAdept.name,
     chromaticGift.name,
@@ -1391,6 +1437,8 @@ export default {
     'Cartomancer adds Hidden Ace resource and Prestidigitation profile',
     'Planar Wanderer adds Portal Sense long-rest resource',
     'Rune Shaper adds Rune Magic resource, fixed Comprehend Languages, selected rune spells, level-up replacement, and proficiency-threshold rune upgrades',
+    'Fighting Initiate exposes and adds an authorized fighting style',
+    'Eldritch Adept filters prerequisites and adds the selected invocation',
     'Martial Adept exposes maneuvers and adds superiority die resource',
     'Metamagic Adept exposes metamagics and adds feat sorcery point resource',
     'Gift of the Chromatic Dragon adds fixed and proficiency-based resources',

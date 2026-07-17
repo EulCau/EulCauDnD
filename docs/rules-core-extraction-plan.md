@@ -1031,7 +1031,12 @@ refactor(rules): adopt shared feat spell advancement
 
 #### R5.4 专长专用选择
 
-- 迁移 Fighting Style、Invocation、Maneuver 和 Metamagic 四类专用入口; 具体候选先决条件调用 R6 对应共享模块, 不复制职业规则.
+- 状态: 已完成.
+- `createRuleSpecializedFeatChoiceState` 统一 Fighting Style、Invocation、Maneuver 和 Metamagic 四类专长 choice group, 使用 catalog 配置的来源授权和优先级, 并排除角色已有选项.
+- `RuleSpecializedFeatContext` 显式接收已有 feature、已选 feature、已知法术和魔契师等级. Eldritch Adept 对带先决条件祈唤执行等级、其他祈唤、魔契和法术校验; 非魔契师只能选择无先决条件祈唤.
+- `createRuleSpecializedFeatEffects` 对数量、重复项、伪造 ID 和过期候选进行共享严格校验, 再输出 canonical `feature.add` effects.
+- EulCauDnD 四个专长 façade 和初始/升级构筑 effects 已消费共享入口. 职业本身的战斗风格、祈唤、战技和超魔入口留到 R6 复用同一共享候选规则.
+- rules-core 58 项测试覆盖四类入口、来源优先级、已有选项排除、Eldritch Adept 先决条件和严格 effects; 完整专长审计新增 Fighting Initiate 和 Eldritch Adept, 原 Martial Adept 和 Metamagic Adept 行为保持通过.
 
 提交:
 
@@ -1152,11 +1157,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作是 R5.4 专长专用选择:
+下一项工作是 R5.5 固定效果、资源和清理:
 
-1. 盘点 Fighting Style、Invocation、Maneuver 和 Metamagic 四类专长入口的候选、先决条件和既有本地特判.
-2. 在 rules-core 定义共享 choice state 和严格 selection validation.
-3. 让 EulCauDnD façade 和构筑 effects 消费共享结果, 再删除重复分支.
-4. 补充四类专用入口的成功、失败和来源授权测试, 更新本文档并提交.
+1. 盘点剩余专长固定数值、资源、恢复周期和熟练加值/等级刷新本地分支.
+2. 按固定效果、资源和等级刷新拆分共享 effects, 保留稳定 source ID 和可撤销调整边界.
+3. 删除已迁移的专长名称/来源特判, 复核装备侧不再依赖显示名称.
+4. 运行专长、专长法术、装备和角色数据全量审计, 完成 R5 收尾提交.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.

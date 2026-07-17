@@ -31,6 +31,8 @@ import {
   createRuleFeatSpellEffects,
   createRuleFeatSpellLevelUpChoiceState,
   createRuleFeatSpellLevelUpEffects,
+  createRuleSpecializedFeatChoiceState,
+  createRuleSpecializedFeatEffects,
   createRuleOriginResourceEffects,
   createRuleOriginSpellEffects,
   createRuleOriginSpellLevelUpChoiceState,
@@ -1760,6 +1762,46 @@ const getWarlockLevel = (content: AutoBuilderContent, character: CharacterData):
   }, 0);
 };
 
+const getSpecializedFeatContext = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  selectedFeatureIds: string[] = [],
+  selectedSpellIds: string[] = [],
+) => ({
+  knownFeatureIds: [
+    ...character.featureEntries.map(({ sourceId }) => sourceId),
+  ],
+  knownFeatureNames: character.featureEntries.map(({ name }) => name),
+  selectedFeatureIds,
+  knownSpellIds: character.spellcastingProfiles.flatMap(profile => (
+    profile.spells.map(({ id }) => id)
+  )),
+  selectedSpellIds,
+  warlockLevel: getWarlockLevel(content, character),
+});
+
+const requireSpecializedFeatChoiceState = (
+  content: AutoBuilderContent,
+  ruleSystem: RuleSystem,
+  feat: AutoBuilderFeat,
+  character: CharacterData,
+  selectedFeatureIds: string[] = [],
+  selectedSpellIds: string[] = [],
+) => {
+  const result = createRuleSpecializedFeatChoiceState(
+    content,
+    ruleSystem,
+    feat,
+    getSpecializedFeatContext(content, character, selectedFeatureIds, selectedSpellIds),
+  );
+  if (result.ok) return result.value;
+  const first = result.issues[0];
+  throw new Error(
+    `Unsupported specialized feat choice at ${first?.path.join('.') || feat.key}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
+};
+
 const getExistingMetamagicCount = (character: CharacterData): number => (
   character.featureEntries.filter(feature => feature.sourceId.startsWith('auto-metamagic-')).length
 );
@@ -1913,22 +1955,15 @@ export const getFeatFightingStyleChoiceState = (
   content: AutoBuilderContent,
   feat: AutoBuilderFeat | undefined,
   character: CharacterData,
+  ruleSystem: RuleSystem = '5e',
 ): { from: AutoBuilderFightingStyle[]; count: number } | null => {
-  if (!feat?.fightingStyleCount) return null;
-  const knownNames = new Set(character.featureEntries.map(feature => feature.name));
-  const byName = new Map<string, AutoBuilderFightingStyle>();
-  content.fightingStyles
-    .filter(style => style.featureTypes.includes('FS:F'))
-    .filter(style => !knownNames.has(style.name))
-    .forEach(style => {
-      const key = style.englishName || style.name;
-      const existing = byName.get(key);
-      const priority = style.source === 'PHB' ? 0 : 1;
-      const existingPriority = existing?.source === 'PHB' ? 0 : 1;
-      if (!existing || priority < existingPriority) byName.set(key, style);
-    });
-  const from = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-  return from.length ? { from, count: feat.fightingStyleCount } : null;
+  if (!feat) return null;
+  const state = requireSpecializedFeatChoiceState(content, ruleSystem, feat, character);
+  const group = state.groups.find(({ kind }) => kind === 'fightingStyle');
+  return group?.options.length ? {
+    from: group.options as AutoBuilderFightingStyle[],
+    count: group.max,
+  } : null;
 };
 
 export const getFeatManeuverChoiceState = (
@@ -1938,10 +1973,13 @@ export const getFeatManeuverChoiceState = (
   ruleSystem: RuleSystem,
   extraNeeded = 0,
 ): { needed: number; options: AutoBuilderManeuver[] } | null => {
-  const needed = (feat?.maneuverCount || 0) + Math.max(0, extraNeeded);
-  if (!needed) return null;
-  const state = getManeuverChoiceState(content, undefined, character, 1, needed, ruleSystem);
-  return state.options.length ? { needed: state.needed, options: state.options } : null;
+  if (!feat) return null;
+  const state = requireSpecializedFeatChoiceState(content, ruleSystem, {
+    ...feat,
+    maneuverCount: (feat.maneuverCount || 0) + Math.max(0, extraNeeded),
+  }, character);
+  const group = state.groups.find(({ kind }) => kind === 'maneuver');
+  return group?.options.length ? { needed: group.max, options: group.options } : null;
 };
 
 export const getFeatInvocationChoiceState = (
@@ -1953,17 +1991,17 @@ export const getFeatInvocationChoiceState = (
   selectedIds: string[] = [],
   selectedSpellIds: string[] = [],
 ): { needed: number; options: AutoBuilderInvocation[] } | null => {
-  if (!feat?.invocationCount) return null;
-  const options = getAvailableInvocationOptions(
+  if (!feat) return null;
+  const state = requireSpecializedFeatChoiceState(
     content,
     ruleSystem,
+    feat,
     character,
-    characterLevel,
     selectedIds,
     selectedSpellIds,
-    true,
   );
-  return options.length ? { needed: feat.invocationCount, options } : null;
+  const group = state.groups.find(({ kind }) => kind === 'invocation');
+  return group?.options.length ? { needed: group.max, options: group.options } : null;
 };
 
 export const getFeatMetamagicChoiceState = (
@@ -1972,25 +2010,10 @@ export const getFeatMetamagicChoiceState = (
   character: CharacterData,
   ruleSystem: RuleSystem,
 ): { needed: number; options: AutoBuilderMetamagic[] } | null => {
-  if (!feat?.metamagicCount) return null;
-  const sourcePriority = OFFICIAL_METAMAGIC_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(sourcePriority);
-  const knownNames = new Set(character.featureEntries
-    .filter(feature => feature.sourceId.startsWith('auto-metamagic-'))
-    .map(feature => feature.name));
-  const byKey = new Map<string, AutoBuilderMetamagic>();
-  content.metamagics
-    .filter(metamagic => allowedSources.has(metamagic.source))
-    .filter(metamagic => !knownNames.has(metamagic.name))
-    .forEach(metamagic => {
-      const key = metamagic.englishName || metamagic.name;
-      const existing = byKey.get(key);
-      if (!existing || sourcePriority.indexOf(metamagic.source) < sourcePriority.indexOf(existing.source)) {
-        byKey.set(key, metamagic);
-      }
-    });
-  const options = Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-  return options.length ? { needed: feat.metamagicCount, options } : null;
+  if (!feat) return null;
+  const state = requireSpecializedFeatChoiceState(content, ruleSystem, feat, character);
+  const group = state.groups.find(({ kind }) => kind === 'metamagic');
+  return group?.options.length ? { needed: group.max, options: group.options } : null;
 };
 
 export const getMaxSpellLevel = (cls: AutoBuilderClass, level: number): number => {
@@ -3640,10 +3663,14 @@ const createChosenFeatOperations = (
       previousOperations,
     ),
     ...createFeatSpellOperations(content, ruleSystem, feat, choices, characterLevel),
-    ...createFightingStyleFeatureOperations(content, { key: feat.key, name: feat.name, source: feat.source } as AutoBuilderClass, ruleSystem, choices.featFightingStyleFeatureId),
-    ...createInvocationOperations(content, { invocationIds: choices.featInvocations || [] }, { ruleSystem, level: characterLevel }),
-    ...createManeuverOperations(content, ruleSystem, choices.featManeuvers),
-    ...createMetamagicOperations(content, ruleSystem, choices.featMetamagics),
+    ...createSpecializedFeatOperations(
+      content,
+      character,
+      ruleSystem,
+      feat,
+      choices,
+      characterLevel,
+    ),
   ];
 };
 
@@ -3855,6 +3882,83 @@ const createManeuverOperations = (
         ruleSystem,
         description: maneuver.description,
       } satisfies CharacterFeatureEntry,
+    }];
+  });
+};
+
+const createSpecializedFeatOperations = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  ruleSystem: RuleSystem,
+  feat: AutoBuilderFeat,
+  choice: AutoBuilderFeatChoice,
+  characterLevel: number,
+): AdjustmentOperation[] => {
+  const selections: Record<string, string[]> = {};
+  const setSelection = (
+    kind: 'fightingStyle' | 'invocation' | 'maneuver' | 'metamagic',
+    ids: string[] | undefined,
+  ) => {
+    if (ids?.length) selections[`feat-${feat.key}-${feat.source}-${kind}`] = ids;
+  };
+  setSelection(
+    'fightingStyle',
+    choice.featFightingStyleFeatureId ? [choice.featFightingStyleFeatureId] : undefined,
+  );
+  setSelection('invocation', choice.featInvocations);
+  setSelection('maneuver', choice.featManeuvers);
+  setSelection('metamagic', choice.featMetamagics);
+  const result = createRuleSpecializedFeatEffects(
+    content,
+    ruleSystem,
+    feat,
+    getSpecializedFeatContext(
+      content,
+      character,
+      choice.featInvocations,
+    ),
+    selections,
+  );
+  if (!result.ok) {
+    if (result.issues.every(({ code }) => code === 'choice_required')) return [];
+    const first = result.issues[0];
+    throw new Error(
+      `Invalid specialized feat choice at ${first?.path.join('.') || feat.key}: `
+      + `${first?.detail?.reason || first?.code || 'unknown'}`,
+    );
+  }
+  return result.value.flatMap((effect, index): AdjustmentOperation[] => {
+    if (effect.type !== 'feature.add') {
+      throw new Error(`Unsupported specialized feat effect adapter: ${effect.type}`);
+    }
+    const feature = [
+      ...content.fightingStyles,
+      ...content.invocations,
+      ...content.maneuvers,
+      ...content.metamagics,
+    ].find(({ id }) => id === effect.feature.id);
+    if (!feature) throw new Error(`Specialized feat feature is missing from catalog: ${effect.feature.id}`);
+    const kind = content.fightingStyles.some(({ id }) => id === feature.id)
+      ? 'fighting-style'
+      : content.invocations.some(({ id }) => id === feature.id)
+        ? 'invocation'
+        : content.maneuvers.some(({ id }) => id === feature.id)
+          ? 'maneuver'
+          : 'metamagic';
+    const sourceId = kind === 'invocation'
+      ? `auto-invocation-${feature.key}-${feature.source}`
+      : `auto-${kind}-${feature.id}`;
+    return [{
+      type: 'addFeature',
+      feature: {
+        id: `${sourceId}-feature-${characterLevel}-${index + 1}`,
+        sourceId,
+        sourceName: `${feature.name} ${feature.source}`,
+        name: feature.name,
+        level: characterLevel,
+        ruleSystem,
+        description: feature.description,
+      },
     }];
   });
 };
@@ -4650,10 +4754,14 @@ const createAbilityScoreImprovementOperations = (
       ...createFeatOperations([feat], ruleSystem, characterLevel),
       ...createSharedFeatOperations(content, ruleSystem, feat, character, choice),
       ...createFeatSpellOperations(content, ruleSystem, feat, choice, characterLevel),
-      ...createFightingStyleFeatureOperations(content, { key: feat.key, name: feat.name, source: feat.source } as AutoBuilderClass, ruleSystem, choice.featFightingStyleFeatureId),
-      ...createInvocationOperations(content, { invocationIds: choice.featInvocations || [] }, { ruleSystem, level: characterLevel }),
-      ...createManeuverOperations(content, ruleSystem, choice.featManeuvers),
-      ...createMetamagicOperations(content, ruleSystem, choice.featMetamagics),
+      ...createSpecializedFeatOperations(
+        content,
+        character,
+        ruleSystem,
+        feat,
+        choice,
+        characterLevel,
+      ),
     ] : [];
   }
 

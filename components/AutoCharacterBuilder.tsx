@@ -320,7 +320,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       )
     : [];
   const abilityScoreImprovementFeatFightingStyleChoiceState = content
-    ? getFeatFightingStyleChoiceState(content, selectedAbilityScoreImprovementFeat, data)
+    ? getFeatFightingStyleChoiceState(content, selectedAbilityScoreImprovementFeat, data, ruleSystem)
     : null;
   const selectedAbilityScoreImprovementFeatFightingStyle = abilityScoreImprovementFeatFightingStyleChoiceState?.from.find(style => (
     style.id === abilityScoreImprovementChoice.featFightingStyleFeatureId

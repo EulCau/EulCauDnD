@@ -26,6 +26,7 @@ export * from './options/catalog-options.js';
 export * from './options/additional-spells.js';
 export * from './options/common-choices.js';
 export * from './options/feat-choices.js';
+export * from './options/feat-specialized.js';
 export * from './options/origin-choices.js';
 export * from './options/origin-feats.js';
 export * from './policy/authorization.js';
