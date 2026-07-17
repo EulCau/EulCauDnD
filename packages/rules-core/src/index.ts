@@ -3,6 +3,8 @@ import type { RuleAbilityName, RuleSystem } from './catalog/model.js';
 export * from './catalog/identity.js';
 export * from './catalog/model.js';
 export * from './catalog/parse.js';
+export * from './effects/apply.js';
+export * from './effects/origin.js';
 export * from './model/character.js';
 export * from './model/choice.js';
 export * from './model/context.js';

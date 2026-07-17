@@ -20,6 +20,7 @@ import {
   areRuleChoiceSelectionsComplete,
   createRuleOriginChoiceGroups,
   createDefaultRuleAuthorizationPolicy,
+  createRuleOriginBaseEffects,
   findRuleClassOption,
   findRuleOriginOption,
   getRuleBackgroundOptions,
@@ -51,6 +52,7 @@ import {
   type RuleOriginChoiceGroups,
   type RuleProficiencyRecord,
   type RuleResult,
+  type RuleEffect,
   type RuleSpell,
   type RuleStringChoiceGroup,
   type RuleSubclass,
@@ -564,7 +566,7 @@ export const areAutoBuilderOriginChoicesComplete = (
     values: readonly string[] | undefined,
   ) => {
     const group = groups[0];
-    if (group) selections[group.id] = values ? [...values] : [];
+    if (group && values !== undefined) selections[group.id] = [...values];
   };
   assignFirst(state.ability, choices.abilities);
   assignFirst(state.skill, choices.skills);
@@ -3250,13 +3252,16 @@ const addStructuredTextEntries = (
     description: string;
     ruleSystem: RuleSystem;
   },
+  includeTextEntries = true,
 ): void => {
   if (!values.length) return;
-  operations.push(...values.map(value => ({
-    type: 'addTextEntry' as const,
-    path,
-    value,
-  })));
+  if (includeTextEntries) {
+    operations.push(...values.map(value => ({
+      type: 'addTextEntry' as const,
+      path,
+      value,
+    })));
+  }
   operations.push({
     type: 'addFeature',
     feature: {
@@ -3276,6 +3281,7 @@ const createOriginStructuredFeatureOperations = (
   kind: 'race' | 'background',
   ruleSystem: RuleSystem,
   characterLevel = 1,
+  includeBaseEffects = true,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [];
   const sourceId = `auto-${kind}-${entity.key}-${entity.source}`;
@@ -3292,7 +3298,7 @@ const createOriginStructuredFeatureOperations = (
       name: '黑暗视觉',
       ruleSystem,
       description: `你拥有 ${entity.darkvision} 尺黑暗视觉.`,
-    });
+    }, includeBaseEffects);
   }
   if (entity.blindsight) {
     addStructuredTextEntries(operations, 'senses', [`盲视 ${entity.blindsight} 尺`], {
@@ -3301,7 +3307,7 @@ const createOriginStructuredFeatureOperations = (
       name: '盲视',
       ruleSystem,
       description: `你拥有 ${entity.blindsight} 尺盲视.`,
-    });
+    }, includeBaseEffects);
   }
   if (entity.tremorsense) {
     addStructuredTextEntries(operations, 'senses', [`震颤感知 ${entity.tremorsense} 尺`], {
@@ -3310,7 +3316,7 @@ const createOriginStructuredFeatureOperations = (
       name: '震颤感知',
       ruleSystem,
       description: `你拥有 ${entity.tremorsense} 尺震颤感知.`,
-    });
+    }, includeBaseEffects);
   }
   if (entity.truesight) {
     addStructuredTextEntries(operations, 'senses', [`真实视觉 ${entity.truesight} 尺`], {
@@ -3319,7 +3325,7 @@ const createOriginStructuredFeatureOperations = (
       name: '真实视觉',
       ruleSystem,
       description: `你拥有 ${entity.truesight} 尺真实视觉.`,
-    });
+    }, includeBaseEffects);
   }
 
   const sourceName = `${entity.name} ${entity.source}`;
@@ -3330,7 +3336,7 @@ const createOriginStructuredFeatureOperations = (
     name: '伤害抗性',
     ruleSystem,
     description: `你获得对 ${fixedResistances.join(', ')} 伤害的抗性.`,
-  });
+  }, includeBaseEffects);
   const fixedImmunities = getFixedTextEntries(entity.immune);
   addStructuredTextEntries(operations, 'damageImmunities', fixedImmunities, {
     sourceId: `${sourceId}-fixed-immunities`,
@@ -3338,7 +3344,7 @@ const createOriginStructuredFeatureOperations = (
     name: '伤害免疫',
     ruleSystem,
     description: `你获得对 ${fixedImmunities.join(', ')} 伤害的免疫.`,
-  });
+  }, includeBaseEffects);
   const fixedVulnerabilities = getFixedTextEntries(entity.vulnerable);
   addStructuredTextEntries(operations, 'damageVulnerabilities', fixedVulnerabilities, {
     sourceId: `${sourceId}-fixed-vulnerabilities`,
@@ -3346,7 +3352,7 @@ const createOriginStructuredFeatureOperations = (
     name: '伤害易伤',
     ruleSystem,
     description: `你对 ${fixedVulnerabilities.join(', ')} 伤害具有易伤.`,
-  });
+  }, includeBaseEffects);
   const fixedConditionImmunities = getFixedTextEntries(entity.conditionImmune);
   addStructuredTextEntries(operations, 'conditionImmunities', fixedConditionImmunities, {
     sourceId: `${sourceId}-fixed-condition-immunities`,
@@ -3354,7 +3360,7 @@ const createOriginStructuredFeatureOperations = (
     name: '状态免疫',
     ruleSystem,
     description: `你免疫 ${fixedConditionImmunities.join(', ')} 状态.`,
-  });
+  }, includeBaseEffects);
 
   const movementModes = formatMovementModes(entity.speed);
   if (movementModes.length) {
@@ -3978,28 +3984,26 @@ const createOriginOperations = (
   characterLevel = 1,
   featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
   originSpellChoices?: AutoBuilderRaceChoice,
+  languageChoices?: AutoBuilderLanguageChoiceSelection,
 ): AdjustmentOperation[] => {
+  const baseEffects = getOriginBaseEffects(
+    content,
+    entity,
+    ruleSystem,
+    abilityChoice,
+    toolChoices,
+    languageChoices,
+    featureChoices,
+    originSpellChoices,
+  );
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
-    ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel),
+    ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel, false),
     ...createOriginResourceOperations(entity, kind, ruleSystem, characterLevel, featureChoices),
-    ...createAbilityOperations(entity, abilityChoice),
-    ...createFixedProficiencyOperations(entity.skillProficiencies, ''),
-    ...createFixedProficiencyOperations(entity.toolProficiencies, 'tool'),
-    ...createToolChoiceOperations(toolChoices),
-    ...createFixedProficiencyOperations(entity.languageProficiencies, 'language'),
-    ...createFixedProficiencyOperations(entity.weaponProficiencies, 'weapon'),
-    ...createFixedProficiencyOperations(entity.armorProficiencies, 'armor'),
+    ...baseEffects.flatMap(originEffectToAdjustmentOperations),
     ...createOriginSpellOperations(content, entity, kind, ruleSystem, characterLevel, originSpellChoices),
   ];
 
-  const walkSpeed = getWalkSpeed(entity.speed);
-  if (walkSpeed !== null) {
-    operations.push({ type: 'set', path: 'speed', value: String(walkSpeed) });
-  }
-  if (entity.size?.length === 1) {
-    operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(entity.size[0]) });
-  }
   if (kind === 'race' && entity.key === 'Verdan' && entity.source === 'AI') {
     operations.push({ type: 'setStringField', field: 'bodyType', value: '小型' });
   }
@@ -4011,6 +4015,126 @@ const createOriginOperations = (
   }
 
   return operations;
+};
+
+const getOriginBaseEffects = (
+  content: AutoBuilderContent,
+  entity: AutoBuilderOrigin,
+  ruleSystem: RuleSystem,
+  abilityChoice?: AutoBuilderAbilityChoice,
+  toolChoices?: AutoBuilderToolChoiceSelection,
+  languageChoices?: AutoBuilderLanguageChoiceSelection,
+  featureChoices?: AutoBuilderOriginFeatureChoiceSelection,
+  choices?: AutoBuilderRaceChoice,
+): RuleEffect[] => {
+  const state = getAutoBuilderOriginChoiceGroups(content, ruleSystem, entity);
+  const selections: Record<string, string[]> = {};
+  const assignFirst = (
+    groups: readonly RuleStringChoiceGroup[],
+    values: readonly string[] | undefined,
+  ) => {
+    const group = groups[0];
+    if (group && values !== undefined) selections[group.id] = [...values];
+  };
+  assignFirst(state.ability, choices?.abilities);
+  assignFirst(state.skill, choices?.skills);
+  assignFirst(
+    state.resistance,
+    choices?.resistance ? [choices.resistance] : state.resistance[0]?.from.slice(0, 1),
+  );
+  assignFirst(
+    state.size,
+    choices?.size ? [choices.size] : state.size[0]?.from.slice(0, 1),
+  );
+  for (const group of state.feature) {
+    const selected = featureChoices?.[group.id];
+    if (selected) selections[group.id] = [selected];
+  }
+  const availableGroupIds = new Set(state.all.map(({ id }) => id));
+  for (const choiceMap of [
+    toolChoices,
+    languageChoices,
+    choices?.toolChoices,
+    choices?.languageChoices,
+    choices?.weaponChoices,
+  ]) {
+    for (const [groupId, values] of Object.entries(choiceMap || {})) {
+      if (availableGroupIds.has(groupId)) selections[groupId] = values;
+    }
+  }
+  const weightedAbilities = abilityChoiceToBonuses(abilityChoice)
+    || getDefaultWeightedAbilityBonuses(entity);
+  const result = createRuleOriginBaseEffects(content, ruleSystem, entity, {
+    choices: selections,
+    ...(weightedAbilities ? { weightedAbilities } : {}),
+    allowIncompleteChoices: true,
+  });
+  if (result.ok) return result.value;
+  const first = 'issues' in result ? result.issues[0] : undefined;
+  throw new Error(
+    `Invalid origin effects at ${first?.path.join('.') || entity.key}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
+};
+
+const abilityChoiceToBonuses = (
+  choice: AutoBuilderAbilityChoice | undefined,
+): Partial<Record<AbilityName, number>> | undefined => {
+  if (choice?.mode === 'plus2plus1' && choice.plus2 && choice.plus1) {
+    return { [choice.plus2]: 2, [choice.plus1]: 1 };
+  }
+  if (
+    choice?.mode === 'plus1three'
+    && choice.plus1a
+    && choice.plus1b
+    && choice.plus1c
+  ) {
+    return { [choice.plus1a]: 1, [choice.plus1b]: 1, [choice.plus1c]: 1 };
+  }
+  return undefined;
+};
+
+const getDefaultWeightedAbilityBonuses = (
+  entity: AutoBuilderOrigin,
+): Partial<Record<AbilityName, number>> | undefined => {
+  for (const entry of entity.ability || []) {
+    if (!('choose' in entry) || !entry.choose || typeof entry.choose !== 'object') continue;
+    const weighted = (entry.choose as { weighted?: unknown }).weighted;
+    if (!weighted || typeof weighted !== 'object') continue;
+    const from = (weighted as { from?: unknown }).from;
+    const weights = (weighted as { weights?: unknown }).weights;
+    if (!Array.isArray(from) || !Array.isArray(weights)) continue;
+    const bonuses: Partial<Record<AbilityName, number>> = {};
+    weights.forEach((value, index) => {
+      const ability = normalizeAbilityName(String(from[index] || ''));
+      if (ability && typeof value === 'number') bonuses[ability] = value;
+    });
+    if (Object.keys(bonuses).length === weights.length) return bonuses;
+  }
+  return undefined;
+};
+
+export const originEffectToAdjustmentOperations = (
+  effect: RuleEffect,
+): AdjustmentOperation[] => {
+  switch (effect.type) {
+    case 'ability.add':
+      return [{ type: 'addNumber', path: `abilities.${effect.ability}`, value: effect.value }];
+    case 'proficiency.add':
+      return [{
+        type: 'addProficiency',
+        key: effect.proficiency,
+        ...(effect.expertise ? { expertise: true } : {}),
+      }];
+    case 'combat.value.set':
+      return effect.field === 'speed'
+        ? [{ type: 'set', path: 'speed', value: String(effect.value) }]
+        : [{ type: 'setStringField', field: 'bodyType', value: formatSize(String(effect.value)) }];
+    case 'combat.text.add':
+      return [{ type: 'addTextEntry', path: effect.field, value: effect.value }];
+    default:
+      throw new Error(`Unsupported origin base effect adapter: ${effect.type}`);
+  }
 };
 
 const createOriginProficiencyOperations = (
@@ -4033,19 +4157,8 @@ const createRaceChoiceOperations = (
   choices?: AutoBuilderRaceChoice,
 ): AdjustmentOperation[] => {
   const operations: AdjustmentOperation[] = [];
-  for (const ability of choices?.abilities || []) {
-    operations.push({ type: 'addNumber', path: `abilities.${ability}`, value: 1 });
-  }
-  for (const skill of choices?.skills || []) {
-    operations.push({ type: 'addProficiency', key: skill });
-  }
   if (choices?.resistance) {
     const sourceId = `auto-race-${race.key}-${race.source}-choice-resistance`;
-    operations.push({
-      type: 'addTextEntry',
-      path: 'damageResistances',
-      value: choices.resistance,
-    });
     operations.push({
       type: 'addFeature',
       feature: {
@@ -4059,10 +4172,6 @@ const createRaceChoiceOperations = (
       } satisfies CharacterFeatureEntry,
     });
   }
-  if (choices?.size) {
-    operations.push({ type: 'setStringField', field: 'bodyType', value: formatSize(choices.size) });
-  }
-  operations.push(...createWeaponChoiceOperations(content, choices?.weaponChoices));
   operations.push(...createChosenFeatOperations(content, character, ruleSystem, choices, operations));
   return operations;
 };
@@ -5227,16 +5336,27 @@ export const buildLevelOneCharacter = (
     ...createOriginOperations(content, options.race, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices, options.raceChoices),
     ...(options.subrace ? createOriginOperations(content, options.subrace, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices, options.raceChoices) : []),
     ...createRaceChoiceOperations(content, character, options.race, options.ruleSystem, options.raceChoices),
-    ...createToolChoiceOperations(options.raceChoices?.toolChoices),
-    ...createLanguageChoiceOperations(options.raceChoices?.languageChoices),
     ...(options.decoupleOriginFromBackground
       ? [
           ...createOriginProficiencyOperations(options.background, options.backgroundToolChoices),
           ...createAbilityOperations(options.background, options.backgroundAbilityChoice, false),
         ]
-      : createOriginOperations(content, options.background, 'background', options.ruleSystem, options.backgroundAbilityChoice, options.backgroundToolChoices)
+      : createOriginOperations(
+          content,
+          options.background,
+          'background',
+          options.ruleSystem,
+          options.backgroundAbilityChoice,
+          options.backgroundToolChoices,
+          1,
+          undefined,
+          undefined,
+          options.backgroundLanguageChoices,
+        )
     ),
-    ...createLanguageChoiceOperations(options.backgroundLanguageChoices),
+    ...(options.decoupleOriginFromBackground
+      ? createLanguageChoiceOperations(options.backgroundLanguageChoices)
+      : []),
     ...createFeatOperations(backgroundFeats, options.ruleSystem, 1),
     ...createChosenFeatOperations(content, character, options.ruleSystem, options.originFeatChoice, [], 1),
     ...createChosenFeatOperations(content, character, options.ruleSystem, options.classFeatureChoices?.fightingStyle, [], 1),

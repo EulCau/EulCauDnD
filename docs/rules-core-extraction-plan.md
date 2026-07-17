@@ -753,9 +753,21 @@ refactor(rules): share origin choice options
 
 #### R4.2 起源基础 effects 和 adapter
 
+- 状态: 已完成.
 - 迁移固定/选择属性, 熟练, 速度, 体型, 感官, 抗性, 免疫, 易伤和状态免疫.
 - 增加 canonical snapshot 的纯 effect 应用器.
 - EulCauDnD adapter 将共享 effects 转为现有 `AdjustmentOperation`.
+
+完成记录:
+
+- 新增 `createRuleOriginBaseEffects`, 在严格模式下先复核所有起源 choice, 再输出结构化 `RuleEffect`.
+- 固定和选择属性保留 catalog 中的实际加值, 包括 `amount: 2` 和背景 `weighted` 的 `+2/+1`、`+1/+1/+1` 变体.
+- 固定及选择技能、工具、语言和武器熟练统一投影为 `proficiency.add`; 武器选择通过 catalog ID 解析, 不信任调用方提交的显示文本.
+- 步行速度、体型、四类感官、固定/选择抗性、免疫、易伤和状态免疫统一投影为类型化 combat effects.
+- 新增 `applyRuleEffects`, 先克隆并验证 canonical snapshot, 再纯应用属性、熟练、特性、资源、法术、职业、战斗和装备 effects. 原 snapshot 保持不变.
+- EulCauDnD 建卡路径通过 adapter 将共享起源 effects 转为现有可撤销 `AdjustmentOperation`; 旧实现只保留特性说明、来源特定资源及 R4.3 范围.
+- adapter 的兼容模式允许旧的直接构筑调用省略选择, 但共享 API 默认严格拒绝缺项、失效 group 和越权 option.
+- 共享测试覆盖实际 `amount: 2` 起源、背景 weighted 属性、结构化投影、非法选择和纯应用不修改输入. 完整起源行为审计验证现有可撤销结果保持一致.
 
 提交:
 

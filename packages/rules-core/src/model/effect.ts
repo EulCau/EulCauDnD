@@ -17,5 +17,22 @@ export type RuleEffect =
   | { type: 'spell.add'; profileId: string; spell: RuleEntityRef; sourceId: string }
   | { type: 'spell.remove'; profileId: string; spellId: string; sourceId: string }
   | { type: 'class.upsert'; classState: RuleClassState; sourceId: string }
+  | {
+      type: 'combat.value.set';
+      field: 'speed' | 'size';
+      value: number | string;
+      sourceId: string;
+    }
+  | {
+      type: 'combat.text.add';
+      field:
+        | 'senses'
+        | 'damageResistances'
+        | 'damageImmunities'
+        | 'damageVulnerabilities'
+        | 'conditionImmunities';
+      value: string;
+      sourceId: string;
+    }
   | { type: 'combat.patch'; patch: JsonObject; sourceId: string }
   | { type: 'equipment.patch'; equipment: RuleEquipmentState; sourceId: string };
