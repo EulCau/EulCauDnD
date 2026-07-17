@@ -4,6 +4,7 @@ import {
   evaluateFeatPrerequisite,
   getEligibleAbilityScoreImprovementFeats,
   getFeatAbilityChoiceOptions,
+  validateBasicFeatAdvancementChoice,
   type RuleCharacterSnapshot,
   type RuleFeat,
 } from '../src/index.ts';
@@ -41,8 +42,8 @@ test('evaluates supported feat prerequisites and fails closed on unknown keys', 
 
 test('filters authorized feats and applies source priority without leaking denied entries', () => {
   const feats: RuleFeat[] = [
-    { key: 'Alert', name: '警觉 2014', englishName: 'Alert', source: 'PHB' },
-    { key: 'Alert', name: '警觉 2024', englishName: 'Alert', source: 'XPHB' },
+    { key: 'Athlete', name: '运动员 2014', englishName: 'Athlete', source: 'PHB' },
+    { key: 'Athlete', name: '运动员 2024', englishName: 'Athlete', source: 'XPHB' },
     { key: 'Setting', name: '设定专长', source: 'ERLW' },
   ];
   assert.deepEqual(getEligibleAbilityScoreImprovementFeats(
@@ -59,6 +60,13 @@ test('filters authorized feats and applies source priority without leaking denie
     4,
     { allowedSources: ['PHB', 'XPHB'], sourcePriority: ['PHB', 'XPHB'] },
   ).map(({ source }) => source), ['PHB']);
+  assert.deepEqual(getEligibleAbilityScoreImprovementFeats(
+    [{ key: 'Alert', name: 'Alert', source: 'PHB' }],
+    '5e',
+    character,
+    4,
+    { allowedSources: ['PHB'], sourcePriority: ['PHB'] },
+  ), []);
 });
 
 test('returns structured ability choices from feat data', () => {
@@ -68,4 +76,51 @@ test('returns structured ability choices from feat data', () => {
     source: 'XPHB',
     ability: [{ choose: { from: ['str', 'dex'] } }],
   }), ['STR', 'DEX']);
+});
+
+test('validates basic feat advancement and rejects unresolved structured choices', () => {
+  const feats: RuleFeat[] = [
+    {
+      key: 'Crusher',
+      name: 'Crusher',
+      source: 'TCE',
+      ability: [{ choose: { from: ['str', 'con'], amount: 1 } }],
+    },
+    {
+      key: 'Fey Touched',
+      name: 'Fey Touched',
+      source: 'TCE',
+      ability: [{ choose: { from: ['int', 'wis', 'cha'], amount: 1 } }],
+      additionalSpells: [{ choose: 'level=1' }],
+    } as RuleFeat,
+  ];
+  const policy = { allowedSources: ['TCE'], sourcePriority: ['TCE'] };
+  assert.deepEqual(validateBasicFeatAdvancementChoice(
+    feats,
+    '5e',
+    character,
+    4,
+    policy,
+    { featId: 'Crusher|TCE', ability: 'STR' },
+  ), {
+    valid: true,
+    feat: feats[0],
+    abilityIncreases: { STR: 1 },
+  });
+  assert.deepEqual(validateBasicFeatAdvancementChoice(
+    feats,
+    '5e',
+    character,
+    4,
+    policy,
+    { featId: 'Crusher|TCE' },
+  ), { valid: false, error: 'feat_ability_required' });
+  assert.deepEqual(validateBasicFeatAdvancementChoice(
+    feats,
+    '5e',
+    character,
+    4,
+    policy,
+    { featId: 'Fey Touched|TCE', ability: 'INT' },
+  ), { valid: false, error: 'feat_choices_not_supported' });
 });

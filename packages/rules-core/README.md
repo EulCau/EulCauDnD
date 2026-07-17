@@ -9,6 +9,8 @@ Current scope:
 - filter Ability Score Improvement feat candidates through a caller-supplied
   authorization policy and source priority;
 - expose structured ability choices for a selected feat.
+- validate basic feat advancement, including eligibility, unresolved structured
+  choices, selected ability, and the ability score cap.
 
 The package deliberately does not load catalog files, access browser storage,
 render React, or mutate a character. Callers must provide an already reviewed

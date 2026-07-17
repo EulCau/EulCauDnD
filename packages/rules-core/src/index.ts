@@ -41,6 +41,29 @@ export interface FeatAuthorizationPolicy {
   sourcePriority: readonly string[];
 }
 
+export type BasicFeatAdvancementError =
+  | 'feat_ability_invalid'
+  | 'feat_ability_required'
+  | 'feat_choices_not_supported'
+  | 'feat_not_eligible';
+
+export type BasicFeatAdvancementResult<T extends RuleFeat> = {
+  valid: true;
+  feat: T;
+  abilityIncreases: Partial<Record<RuleAbilityName, number>>;
+} | {
+  valid: false;
+  error: BasicFeatAdvancementError;
+};
+
+type BasicFeatAbilityResult = {
+  valid: true;
+  abilityIncreases: Partial<Record<RuleAbilityName, number>>;
+} | {
+  valid: false;
+  error: 'feat_ability_invalid' | 'feat_ability_required';
+};
+
 const abilityMap: Readonly<Record<string, RuleAbilityName>> = {
   str: 'STR',
   dex: 'DEX',
@@ -92,6 +115,10 @@ export function getEligibleAbilityScoreImprovementFeats<T extends RuleFeat>(
   for (const feat of feats) {
     if (!allowedSources.has(feat.source)) continue;
     if (ruleSystem === '5e' && feat.source === 'XPHB') continue;
+    if (character.knownFeats.some((knownFeat) => (
+      (knownFeat.name === feat.name || knownFeat.name === feat.englishName)
+      && (knownFeat.source === undefined || knownFeat.source === feat.source)
+    ))) continue;
     if (!evaluateFeatPrerequisite(feat, character, level).eligible) continue;
     const key = feat.englishName || feat.name;
     const existing = byName.get(key);
@@ -116,6 +143,62 @@ export function getFeatAbilityChoiceOptions(feat: RuleFeat | undefined): RuleAbi
       .filter((ability): ability is RuleAbilityName => ability !== undefined);
   }
   return [];
+}
+
+export function validateBasicFeatAdvancementChoice<T extends RuleFeat>(
+  feats: readonly T[],
+  ruleSystem: RulesVersion,
+  character: RuleCharacterSnapshot,
+  level: number,
+  policy: FeatAuthorizationPolicy,
+  choice: { featId: string; ability?: RuleAbilityName },
+): BasicFeatAdvancementResult<T> {
+  const feat = getEligibleAbilityScoreImprovementFeats(
+    feats,
+    ruleSystem,
+    character,
+    level,
+    policy,
+  ).find((entry) => `${entry.key}|${entry.source}` === choice.featId);
+  if (feat === undefined) return { valid: false, error: 'feat_not_eligible' };
+  if (!isBasicFeatAdvancementSupported(feat)) {
+    return { valid: false, error: 'feat_choices_not_supported' };
+  }
+  const ability = basicFeatAbilityIncrease(feat, choice.ability);
+  if (!ability.valid) return ability;
+  if (Object.entries(ability.abilityIncreases).some(([key, increase]) => (
+    character.abilities[key as RuleAbilityName] + increase > 20
+  ))) {
+    return { valid: false, error: 'feat_ability_invalid' };
+  }
+  return { valid: true, feat, abilityIncreases: ability.abilityIncreases };
+}
+
+export function isBasicFeatAdvancementSupported(feat: RuleFeat): boolean {
+  const ignored = new Set([
+    'ability',
+    'category',
+    'englishName',
+    'features',
+    'key',
+    'name',
+    'prerequisite',
+    'source',
+  ]);
+  for (const [key, value] of Object.entries(feat)) {
+    if (ignored.has(key)) continue;
+    if (
+      ['fightingStyleCount', 'invocationCount', 'maneuverCount', 'metamagicCount']
+        .includes(key)
+    ) {
+      if (value !== undefined && value !== 0) return false;
+      continue;
+    }
+    if (value !== undefined && value !== null && (!Array.isArray(value) || value.length > 0)) {
+      return false;
+    }
+  }
+  return basicFeatAbilityShapeSupported(feat);
 }
 
 function evaluatePrerequisiteAlternative(
@@ -147,6 +230,57 @@ function evaluatePrerequisiteAlternative(
     }
   }
   return { eligible: failures.length === 0, failures };
+}
+
+function basicFeatAbilityShapeSupported(feat: RuleFeat): boolean {
+  const entries = feat.ability ?? [];
+  if (entries.length === 0) return true;
+  if (entries.length !== 1) return false;
+  const entry = entries[0]!;
+  if ('choose' in entry) {
+    if (!isRecord(entry.choose) || !Array.isArray(entry.choose.from)) return false;
+    const amount = entry.choose.amount ?? 1;
+    return Number.isInteger(amount)
+      && Number(amount) > 0
+      && entry.choose.from.every((ability) => (
+        typeof ability === 'string' && abilityMap[ability] !== undefined
+      ));
+  }
+  const fixed = Object.entries(entry);
+  const amount = fixed[0]?.[1];
+  return fixed.length === 1
+    && abilityMap[fixed[0]![0]] !== undefined
+    && typeof amount === 'number'
+    && Number.isInteger(amount)
+    && amount > 0;
+}
+
+function basicFeatAbilityIncrease(
+  feat: RuleFeat,
+  selected: RuleAbilityName | undefined,
+): BasicFeatAbilityResult {
+  const entries = feat.ability ?? [];
+  if (entries.length === 0) {
+    return selected === undefined
+      ? { valid: true, abilityIncreases: {} }
+      : { valid: false, error: 'feat_ability_invalid' };
+  }
+  const entry = entries[0]!;
+  if ('choose' in entry) {
+    const options = getFeatAbilityChoiceOptions(feat);
+    if (selected === undefined) return { valid: false, error: 'feat_ability_required' };
+    if (!options.includes(selected)) return { valid: false, error: 'feat_ability_invalid' };
+    const amount = isRecord(entry.choose) && typeof entry.choose.amount === 'number'
+      ? entry.choose.amount
+      : 1;
+    return { valid: true, abilityIncreases: { [selected]: amount } };
+  }
+  if (selected !== undefined) return { valid: false, error: 'feat_ability_invalid' };
+  const [key, amount] = Object.entries(entry)[0]!;
+  return {
+    valid: true,
+    abilityIncreases: { [abilityMap[key]!]: amount as number },
+  };
 }
 
 function isAbilityPrerequisiteMet(character: RuleCharacterSnapshot, value: unknown): boolean {
