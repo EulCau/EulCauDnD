@@ -1251,49 +1251,13 @@ R7 拆分为以下可独立回归的提交边界:
 refactor(rules): share spell choice progression
 ```
 
-#### R7.2 profile projection 和已知法术替换
+#### R7.2 完整法术 projection
 
 - 状态: 待开始.
-- 共享初始 profile、升级新增、自动准备/扩展法术和 spellbook 投影.
-- 共享严格替换 state/effects, 并明确保留已有法术与 preparation 状态.
-- EulCauDnD 的 `createSpellcastingProfile` 和 `updateSpellcastingForLevel` 退化为展示 adapter.
-
-提交:
-
-```text
-refactor(rules): share spellcasting profile effects
-```
-
-#### R7.3 多职业和 pact slots
-
-- 状态: 待开始.
-- 将 caster level 折算、共享多职业法术位表、单职业 slots 和 pact slots 迁移为纯函数.
-- 表驱动覆盖 full、artificer、1/2、1/3、pact、混合施法者和边界等级.
-- 升级刷新总量时保留合法 expended 值, 不隐式执行长休.
-
-提交:
-
-```text
-refactor(rules): share spell slot progression
-```
-
-#### R7.4 Magical Secrets
-
-- 状态: 待开始.
-- 共享 PHB Bard 10/14/18 级新增选择和 XPHB Bard 10 级扩展法术池.
-- 严格区分“新增两项 Magical Secrets”和“后续职业法术候选池扩展”, 拒绝重复与未授权职业法表.
-
-提交:
-
-```text
-refactor(rules): share magical secrets
-```
-
-#### R7.5 清理和完整法术审计
-
-- 状态: 待开始.
-- 删除 adapter 中无调用的来源数组、模式推断、progression、slot 表、替换和 Magical Secrets 校验.
-- 增加独立共享 façade 行为审计, 回归法术、法术升级、专长法术、origin 法术、祈唤先决条件、多职业和生产构建.
+- 合并原 R7.2-R7.5, 一次完成初始 profile、升级新增、自动准备/扩展法术、spellbook 和严格替换 effects.
+- 同一部分迁移单职业 slots、多职业共享 slots、pact slots、PHB/XPHB Magical Secrets 和额外法术.
+- EulCauDnD 的 `createSpellcastingProfile`, `updateSpellcastingForLevel`、slot 表和 Magical Secrets 本地分支退化为展示 adapter.
+- 完成共享包测试、法术/法术升级/专长法术/origin 法术/祈唤先决条件审计和生产构建后一次提交, 不再为内部子步骤增加独立文档提交.
 
 提交:
 
@@ -1303,10 +1267,12 @@ refactor(rules): share complete spellcasting rules
 
 ### R8. 1 级建卡和升级 projection
 
+- 状态: 待开始, 为当前可玩主线最后一个规则阶段.
 - 实现权威 `validateAndProjectLevelOne`.
 - 实现权威 `validateAndProjectLevelUp`.
 - 移除 `Date.now` 产生的职业 ID, 改用稳定语义 ID 或调用方明确提供的 command ID.
 - 现有 build 函数退化为 adapter façade.
+- 同一阶段完成 Ao 服务端升级入口的必要接入和回归, 不等待 R9-R10.
 
 提交:
 
@@ -1316,9 +1282,11 @@ refactor(rules): share character build projections
 
 ### R9. 装备和战斗派生
 
+- 状态: 延后, 不阻塞当前朋友间游玩.
 - 迁移攻击, AC, 武器熟练, 装备互斥和自动刷新纯规则.
 - 从显示名称判断迁移到实体 ID.
 - 文案本地化保留在前端.
+- 不完成时 EulCauDnD 现有前端装备、AC 和攻击计算仍可使用, 但 Ao 后端不能独立复算并权威验证这些派生值. 这会影响未来自动战斗结算和对恶意客户端的防护, 不影响手动核对角色卡和当前基础跑团.
 
 提交:
 
@@ -1328,9 +1296,11 @@ refactor(rules): share equipment projections
 
 ### R10. 清理和消费者接入
 
+- 状态: 延后, 不阻塞当前朋友间游玩.
 - 删除已无调用方的重复实现.
 - 确认 EulCauDnD 所有原审计调用共享入口.
-- 再更新 Ao 子模块, 由 Ao adapter 接入剩余 Phase 8.
+- 完成剩余非关键消费者迁移、命名统一和 dead code 清理. 当前游玩必需的 Ao 建卡/升级接入已经前移到 R8.
+- 不完成时会保留部分兼容 façade 和重复代码, 增加后续维护成本, 但不会关闭现有功能.
 
 提交:
 
@@ -1338,7 +1308,7 @@ refactor(rules): share equipment projections
 refactor(rules): remove legacy builder rules
 ```
 
-Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交, 但不得在 Ao 重新实现缺失规则.
+本节 R9-R10 是规则共享迁移编号, 与 Ao 产品路线图中的 Phase 9 多场景画布和 Phase 10 AI 地图审批不是同一任务.
 
 ## 11. 每阶段完成标准
 
@@ -1381,10 +1351,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作是 R7 法术规则迁移:
+当前可玩主线只剩两个实现阶段:
 
 1. 在允许 `tsx` 创建 IPC socket 的环境补跑共享包 86 项测试.
-2. 若测试全部通过, 将 R7.1 标记为已完成并开始 R7.2 profile projection 和已知法术替换.
-3. 若测试失败, 只修复 R7.1 范围内的法术池、模式、progression 或测试夹具问题, 重新运行两项行为审计和生产构建.
+2. 完成合并后的 R7.2 完整法术 projection.
+3. 完成 R8 权威建卡/升级 projection 和 Ao 必要接入.
+4. R9-R10 延后到自动战斗结算或长期维护需要出现时再做.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.
