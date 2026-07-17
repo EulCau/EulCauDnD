@@ -61,11 +61,11 @@ test('filters authorized feats and applies source priority without leaking denie
     { allowedSources: ['PHB', 'XPHB'], sourcePriority: ['PHB', 'XPHB'] },
   ).map(({ source }) => source), ['PHB']);
   assert.deepEqual(getEligibleAbilityScoreImprovementFeats(
-    [{ key: 'Alert', name: 'Alert', source: 'PHB' }],
-    '5e',
+    [{ key: 'Alert', name: 'Alert', source: 'XPHB' }],
+    '5r',
     character,
     4,
-    { allowedSources: ['PHB'], sourcePriority: ['PHB'] },
+    { allowedSources: ['XPHB'], sourcePriority: ['XPHB'] },
   ), []);
 });
 
@@ -84,7 +84,9 @@ test('validates basic feat advancement and rejects unresolved structured choices
       key: 'Crusher',
       name: 'Crusher',
       source: 'TCE',
+      id: 'Crusher|TCE',
       ability: [{ choose: { from: ['str', 'con'], amount: 1 } }],
+      abilityChoices: ['STR', 'CON'],
     },
     {
       key: 'Fey Touched',

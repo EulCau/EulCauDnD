@@ -17,8 +17,10 @@ export interface RuleFeat {
   name: string;
   englishName?: string;
   source: string;
+  id?: string;
   prerequisite?: readonly unknown[];
   ability?: readonly (Record<string, number> | { choose?: unknown })[];
+  abilityChoices?: readonly RuleAbilityName[];
 }
 
 export type FeatPrerequisiteFailure =
@@ -117,7 +119,6 @@ export function getEligibleAbilityScoreImprovementFeats<T extends RuleFeat>(
     if (ruleSystem === '5e' && feat.source === 'XPHB') continue;
     if (character.knownFeats.some((knownFeat) => (
       (knownFeat.name === feat.name || knownFeat.name === feat.englishName)
-      && (knownFeat.source === undefined || knownFeat.source === feat.source)
     ))) continue;
     if (!evaluateFeatPrerequisite(feat, character, level).eligible) continue;
     const key = feat.englishName || feat.name;
@@ -177,9 +178,11 @@ export function validateBasicFeatAdvancementChoice<T extends RuleFeat>(
 export function isBasicFeatAdvancementSupported(feat: RuleFeat): boolean {
   const ignored = new Set([
     'ability',
+    'abilityChoices',
     'category',
     'englishName',
     'features',
+    'id',
     'key',
     'name',
     'prerequisite',
