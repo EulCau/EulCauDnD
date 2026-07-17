@@ -5,8 +5,13 @@ export * from './catalog/model.js';
 export * from './catalog/parse.js';
 export * from './model/character.js';
 export * from './model/choice.js';
+export * from './model/context.js';
 export * from './model/effect.js';
 export * from './model/issue.js';
+export * from './options/catalog-options.js';
+export * from './policy/authorization.js';
+export * from './policy/default-policy.js';
+export * from './policy/source-priority.js';
 export type { JsonObject, JsonPrimitive, JsonValue } from './model/json.js';
 
 export const ruleAbilityNames: readonly RuleAbilityName[] = [

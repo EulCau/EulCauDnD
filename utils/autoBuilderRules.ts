@@ -17,6 +17,14 @@ import {
   refreshCharacterAutomation,
 } from './equipmentRules';
 import {
+  createDefaultRuleAuthorizationPolicy,
+  findRuleClassOption,
+  findRuleOriginOption,
+  getRuleBackgroundOptions,
+  getRuleClassOptions,
+  getRuleRaceOptions,
+  getRuleSubclassOptions,
+  getRuleSubraceOptions,
   getEligibleAbilityScoreImprovementFeats,
   getFeatAbilityChoiceOptions as getSharedFeatAbilityChoiceOptions,
   parseRuleCatalog,
@@ -271,21 +279,6 @@ const FEAT_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
   '5r': ['XPHB', 'PHB', 'XGE', 'TCE', 'FTD', 'BGG', 'BMT', 'DSotDQ', 'ERLW', 'EFA', 'FRHoF', 'LFL', 'PSK', 'PSX', 'RHW', 'SCC', 'SatO', 'MTF', 'ABH'],
 };
 
-const RACE_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
-  '5e': ['PHB', 'MPMM', 'AAG', 'FTD', 'TCE', 'ERLW', 'EFA', 'EGW', 'GGR', 'MOT', 'VRGR', 'WBtW', 'SCC', 'DSotDQ', 'AI', 'EEPC', 'MTF', 'VGM', 'SCAG', 'PSA', 'PSD', 'PSI', 'PSK', 'PSX', 'PSZ', 'LFL', 'RHW'],
-  '5r': ['XPHB', 'MPMM', 'PHB', 'AAG', 'FTD', 'TCE', 'ERLW', 'EFA', 'EGW', 'GGR', 'MOT', 'VRGR', 'WBtW', 'SCC', 'DSotDQ', 'AI', 'EEPC', 'MTF', 'VGM', 'SCAG', 'PSA', 'PSD', 'PSI', 'PSK', 'PSX', 'PSZ', 'LFL', 'RHW'],
-};
-
-const BACKGROUND_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
-  '5e': ['PHB'],
-  '5r': ['XPHB', 'PHB'],
-};
-
-const SUBCLASS_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
-  '5e': ['PHB', 'DMG', 'SCAG', 'XGE', 'TCE', 'FTD', 'BGG', 'DSotDQ', 'EGW', 'FRHoF', 'PSA', 'PSK', 'RHW', 'VRGR'],
-  '5r': ['XPHB', 'PHB', 'DMG', 'SCAG', 'XGE', 'TCE', 'FTD', 'BGG', 'DSotDQ', 'EGW', 'FRHoF', 'PSA', 'PSK', 'RHW', 'VRGR'],
-};
-
 const OFFICIAL_SPELL_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
   '5e': ['PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
   '5r': ['XPHB', 'PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
@@ -471,79 +464,36 @@ export const getAutoBuilderClass = (
   classKey: string,
   ruleSystem: RuleSystem,
 ): AutoBuilderClass | undefined => {
-  return content.classes.find(cls => cls.key === classKey && cls.source === RULE_SOURCE[ruleSystem]);
+  return findRuleClassOption(getAutoBuilderRuleContext(content, ruleSystem), classKey);
 };
+
+export const getAutoBuilderClasses = (
+  content: AutoBuilderContent,
+  ruleSystem: RuleSystem,
+): AutoBuilderClass[] => getRuleClassOptions(getAutoBuilderRuleContext(content, ruleSystem));
 
 export const getAutoBuilderRaces = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
-): AutoBuilderOrigin[] => {
-  const priority = content.rules?.[ruleSystem]?.raceSources || RACE_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(priority);
-  const byName = new Map<string, AutoBuilderOrigin>();
-  content.races
-    .filter(race => allowedSources.has(race.source))
-    .filter(race => ruleSystem === '5r' || race.source !== 'XPHB')
-    .forEach(race => {
-      const key = normalizeKey(race.englishName || race.key || race.name).toLowerCase();
-      const existing = byName.get(key);
-      if (!existing || priority.indexOf(race.source) < priority.indexOf(existing.source)) {
-        byName.set(key, race);
-      }
-    });
-  return Array.from(byName.values())
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-};
-
-const sourcePriorityRank = (priority: string[], source: string): number => {
-  const index = priority.indexOf(source);
-  return index >= 0 ? index : priority.length;
-};
-
-const dedupeByNameAndSourcePriority = <T extends { name: string; englishName?: string; key?: string; source: string }>(
-  items: T[],
-  priority: string[],
-): T[] => {
-  const byName = new Map<string, T>();
-  items.forEach(item => {
-    const key = normalizeKey(item.englishName || item.key || item.name).toLowerCase();
-    const existing = byName.get(key);
-    if (!existing || sourcePriorityRank(priority, item.source) < sourcePriorityRank(priority, existing.source)) {
-      byName.set(key, item);
-    }
-  });
-  return Array.from(byName.values())
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
-};
+): AutoBuilderOrigin[] => getRuleRaceOptions(getAutoBuilderRuleContext(content, ruleSystem));
 
 export const getAutoBuilderBackgrounds = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
-): AutoBuilderOrigin[] => {
-  const priority = BACKGROUND_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(priority);
-  return dedupeByNameAndSourcePriority(
-    content.backgrounds
-      .filter(background => allowedSources.has(background.source))
-      .filter(background => ruleSystem === '5r' || background.source !== 'XPHB'),
-    priority,
-  );
-};
+): AutoBuilderOrigin[] => getRuleBackgroundOptions(getAutoBuilderRuleContext(content, ruleSystem));
 
 export const getAutoBuilderSubraces = (
   content: AutoBuilderContent,
   race: AutoBuilderOrigin | undefined,
+  ruleSystem: RuleSystem = race?.source === 'XPHB' ? '5r' : '5e',
 ): AutoBuilderOrigin[] => {
-  if (!race) return [];
-  return content.subraces
-    .filter(subrace => subrace.raceName === race.name && subrace.raceSource === race.source)
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+  return getRuleSubraceOptions(getAutoBuilderRuleContext(content, ruleSystem), race);
 };
 
 export const getAutoBuilderOrigin = (
   origins: AutoBuilderOrigin[],
   key: string,
-): AutoBuilderOrigin | undefined => origins.find(origin => origin.key === key) || origins[0];
+): AutoBuilderOrigin | undefined => findRuleOriginOption(origins, key);
 
 export const getAutoBuilderSubclasses = (
   content: AutoBuilderContent,
@@ -551,16 +501,17 @@ export const getAutoBuilderSubclasses = (
 ): AutoBuilderSubclass[] => {
   if (!cls) return [];
   const ruleSystem: RuleSystem = cls.source === 'XPHB' ? '5r' : '5e';
-  const priority = SUBCLASS_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(priority);
-  return dedupeByNameAndSourcePriority(
-    content.subclasses
-      .filter(subclass => subclass.className === cls.name && subclass.classSource === cls.source)
-      .filter(subclass => allowedSources.has(subclass.source))
-      .filter(subclass => ruleSystem === '5r' || subclass.source !== 'XPHB'),
-    priority,
-  );
+  return getRuleSubclassOptions(getAutoBuilderRuleContext(content, ruleSystem), cls);
 };
+
+const getAutoBuilderRuleContext = (
+  content: AutoBuilderContent,
+  ruleSystem: RuleSystem,
+) => ({
+  ruleSystem,
+  catalog: content,
+  authorization: createDefaultRuleAuthorizationPolicy(content, ruleSystem),
+});
 
 export const isCharacterClassForDefinition = (item: CharacterData['classes'][number], cls: AutoBuilderClass): boolean => {
   const sameName = item.name === cls.key || item.name === cls.name;

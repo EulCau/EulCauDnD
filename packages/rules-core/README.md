@@ -8,6 +8,9 @@ Current scope:
 - define and parse the JSON-safe auto-builder catalog;
 - define canonical character, choice, effect, and issue DTOs;
 - derive stable rule entity identities without time or random values;
+- enforce caller-owned source and entity authorization policies;
+- deduplicate authorized catalog entries by source priority;
+- select base class, subclass, race, subrace, and background options;
 - evaluate supported feat prerequisites and return structured failure reasons;
 - filter Ability Score Improvement feat candidates through a caller-supplied
   authorization policy and source priority;

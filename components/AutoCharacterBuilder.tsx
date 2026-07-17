@@ -18,6 +18,7 @@ import {
   buildLevelOneCharacter,
   buildLevelUpCharacter,
   getAutoBuilderClass,
+  getAutoBuilderClasses,
   getAutoBuilderBackgrounds,
   getAutoBuilderOrigin,
   getAutoBuilderRaces,
@@ -138,7 +139,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   }, [content, isOpen]);
 
   const classOptions = useMemo(() => (
-    content?.classes.filter(cls => cls.ruleSystem === ruleSystem) || []
+    content ? getAutoBuilderClasses(content, ruleSystem) : []
   ), [content, ruleSystem]);
   const isOriginDecoupled = ruleSystem === '5r' && decoupleOriginFromBackground;
   const raceOptions = useMemo(() => (
@@ -151,8 +152,8 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const subclassOptions = content ? getAutoBuilderSubclasses(content, selectedClass) : [];
   const selectedRace = getAutoBuilderOrigin(raceOptions, raceKey);
   const subraceOptions = useMemo(() => (
-    content ? getAutoBuilderSubraces(content, selectedRace) : []
-  ), [content, selectedRace]);
+    content ? getAutoBuilderSubraces(content, selectedRace, ruleSystem) : []
+  ), [content, selectedRace, ruleSystem]);
   const selectedSubrace = getAutoBuilderOrigin(subraceOptions, subraceKey);
   const selectedBackground = getAutoBuilderOrigin(backgroundOptions, backgroundKey);
   const currentCharacterLevel = Math.max(0, data.classes.reduce((total, item) => total + item.level, 0));

@@ -672,10 +672,21 @@ refactor(rules): extract catalog and canonical models
 
 ### R2. 授权策略, 来源优先级和基础 options
 
+状态: 已完成.
+
 - 迁移 source priority, source filter 和同名去重.
 - 迁移职业, 子职, 种族和背景基础候选.
 - EulCauDnD 前端切换到共享函数.
 - 保留调用方授权 policy.
+
+完成记录:
+
+- 新增 `RuleContext` 和默认拒绝的 `RuleAuthorizationPolicy`, 支持按实体类型授权来源或稳定实体 ID.
+- 新增统一来源优先级排名和规范化名称去重, 相同名称只保留授权范围内优先级最高的条目.
+- 新增职业, 子职, 种族, 亚种族和背景候选函数. 子职和亚种族必须同时匹配已授权父实体.
+- `createDefaultRuleAuthorizationPolicy` 从 catalog 的规则配置和已盘点的官方扩展优先级构造 EulCauDnD 默认策略, 调用方仍可传入更窄的白名单.
+- `AutoCharacterBuilder` 不再直接过滤职业数组; 原 `getAutoBuilder*` 入口作为兼容层调用共享候选函数.
+- 测试覆盖 5e/5r 来源隔离, 同名去重, XPHB 优先级, 父实体作用域, 默认拒绝和单实体 ID 授权.
 
 提交:
 
