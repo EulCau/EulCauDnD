@@ -26,6 +26,7 @@ import {
   getAutoBuilderOriginChoiceGroups,
   getAutoBuilderRaces,
   getAutoBuilderSubclasses,
+  getAutoBuilderSubclassAdvancementState,
   getAutoBuilderSubraces,
   getBackgroundAbilityOptions,
   getBackgroundFeats,
@@ -357,7 +358,16 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     data,
     abilityScoreImprovementChoice.featSkillChoices,
   );
-  const needsSubclassChoice = Boolean(selectedClass?.subclassLevels?.includes(targetClassLevel) && !existingClass?.subclass);
+  const subclassAdvancementState = content && selectedClass
+    ? getAutoBuilderSubclassAdvancementState(
+        content,
+        selectedClass,
+        currentClassLevel,
+        targetClassLevel,
+        existingClass?.subclass || undefined,
+      )
+    : null;
+  const needsSubclassChoice = Boolean(subclassAdvancementState?.group);
   const selectedSubclass = subclassOptions.find(subclass => subclass.id === subclassId)
     || subclassOptions.find(subclass => existingClass?.subclass && subclass.name === existingClass.subclass);
   const activeSpellSubclass = needsSubclassChoice || existingClass?.subclass ? selectedSubclass : undefined;

@@ -35,6 +35,8 @@ import {
   createRuleFeatSpellLevelUpEffects,
   createRuleSpecializedFeatChoiceState,
   createRuleSpecializedFeatEffects,
+  createRuleSubclassAdvancementEffects,
+  createRuleSubclassAdvancementState,
   createRuleOriginResourceEffects,
   createRuleOriginSpellEffects,
   createRuleOriginSpellLevelUpChoiceState,
@@ -46,6 +48,7 @@ import {
   getRuleFeatOptions,
   getRuleRaceOptions,
   getRuleSubclassOptions,
+  getRuleSubclassFeatureRef,
   getRuleSubraceOptions,
   inferRuleOriginSpellLevelUpBlock,
   getEligibleAbilityScoreImprovementFeats,
@@ -79,6 +82,7 @@ import {
   type RuleSpell,
   type RuleStringChoiceGroup,
   type RuleSubclass,
+  type RuleSubclassAdvancementState,
   type RuleWeapon,
   type RuleWeaponMastery,
 } from '../packages/rules-core/src/index';
@@ -450,6 +454,40 @@ export const getAutoBuilderSubclasses = (
   if (!cls) return [];
   const ruleSystem: RuleSystem = cls.source === 'XPHB' ? '5r' : '5e';
   return getRuleSubclassOptions(getAutoBuilderRuleContext(content, ruleSystem), cls);
+};
+
+export const getAutoBuilderSubclassAdvancementState = (
+  content: AutoBuilderContent,
+  cls: AutoBuilderClass,
+  oldClassLevel: number,
+  newClassLevel: number,
+  existingSubclassName?: string,
+): RuleSubclassAdvancementState => {
+  const existingSubclassId = existingSubclassName === undefined
+    ? undefined
+    : getAutoBuilderSubclasses(content, cls)
+        .find(({ name }) => name === existingSubclassName)?.id;
+  if (existingSubclassName !== undefined && existingSubclassId === undefined) {
+    throw new Error(
+      `Existing subclass is not authorized for ${cls.key}: ${existingSubclassName}`,
+    );
+  }
+  const result = createRuleSubclassAdvancementState(
+    getAutoBuilderRuleContext(
+      content,
+      cls.source === 'XPHB' ? '5r' : '5e',
+    ),
+    cls,
+    oldClassLevel,
+    newClassLevel,
+    existingSubclassId,
+  );
+  if (result.ok) return result.value;
+  const first = result.issues[0];
+  throw new Error(
+    `Invalid subclass advancement at ${first?.path.join('.') || cls.key}: `
+    + `${first?.detail?.reason || first?.code || 'unknown'}`,
+  );
 };
 
 const getAutoBuilderRuleContext = (
@@ -2601,35 +2639,63 @@ const addClassFeatureSpellsToSpellcasting = (
 };
 
 const createSubclassFeatureOperations = (
+  content: AutoBuilderContent,
+  cls: AutoBuilderClass,
   subclass: AutoBuilderSubclass | undefined,
   ruleSystem: RuleSystem,
-  level: number,
+  oldClassLevel: number,
+  newClassLevel: number,
+  existingSubclassName?: string,
 ): AdjustmentOperation[] => {
-  if (!subclass) return [];
-  const operations: AdjustmentOperation[] = subclass.features
-    .filter(feature => feature.level === level)
-    .map((feature, index) => ({
+  const state = getAutoBuilderSubclassAdvancementState(
+    content,
+    cls,
+    oldClassLevel,
+    newClassLevel,
+    existingSubclassName,
+  );
+  const result = createRuleSubclassAdvancementEffects(
+    state,
+    state.group && subclass ? [subclass.id] : [],
+  );
+  if (!result.ok) {
+    const first = result.issues[0];
+    throw new Error(
+      `Invalid subclass selection at ${first?.path.join('.') || cls.key}: `
+      + `${first?.detail?.reason || first?.code || 'unknown'}`,
+    );
+  }
+  const selectedSubclass = state.existingSubclass ?? subclass;
+  return result.value.flatMap((effect): AdjustmentOperation[] => {
+    if (effect.type !== 'feature.add') {
+      return originEffectToAdjustmentOperations(effect);
+    }
+    if (!selectedSubclass) {
+      throw new Error(`Missing selected subclass for feature ${effect.feature.id}`);
+    }
+    const featureIndex = selectedSubclass.features.findIndex((feature, index) => (
+      getRuleSubclassFeatureRef(selectedSubclass, feature, index).id === effect.feature.id
+    ));
+    const feature = selectedSubclass.features[featureIndex];
+    if (!feature) {
+      throw new Error(`Missing subclass feature ${effect.feature.id}`);
+    }
+    const levelFeatureIndex = selectedSubclass.features
+      .filter(({ level }) => level === feature.level)
+      .findIndex((candidate) => candidate === feature);
+    return [{
       type: 'addFeature',
       feature: {
-        id: `auto-subclass-${subclass.key}-${subclass.source}-level-${level}-feature-${index + 1}`,
-        sourceId: `auto-subclass-${subclass.key}-${subclass.source}-level-${level}`,
-        sourceName: `${subclass.name} ${subclass.source}`,
+        id: `${effect.sourceId}-feature-${levelFeatureIndex + 1}`,
+        sourceId: effect.sourceId,
+        sourceName: `${selectedSubclass.name} ${selectedSubclass.source}`,
         name: feature.name,
         level: feature.level,
         ruleSystem,
         description: feature.description,
       } satisfies CharacterFeatureEntry,
-    }));
-  const isHexbladeEntryLevel = subclass.shortName === '咒剑'
-    && ((subclass.classSource === 'XPHB' && level === 3) || (subclass.classSource === 'PHB' && level === 1));
-  if (isHexbladeEntryLevel) {
-    operations.push(
-      { type: 'addProficiency', key: 'armor:medium' },
-      { type: 'addProficiency', key: 'armor:shield' },
-      { type: 'addProficiency', key: 'weapon:martial' },
-    );
-  }
-  return operations;
+    }];
+  });
 };
 
 const createInvocationOperations = (
@@ -4363,7 +4429,14 @@ export const buildLevelOneCharacter = (
     ...createExpertiseChoiceOperations(options.classFeatureChoices?.expertise),
     ...createWeaponMasteryOperations(content, cls, options.ruleSystem, options.classFeatureChoices?.weaponMasteries),
     ...createClassFeatureOperations(cls, options.ruleSystem),
-    ...createSubclassFeatureOperations(options.subclass, options.ruleSystem, 1),
+    ...createSubclassFeatureOperations(
+      content,
+      cls,
+      options.subclass,
+      options.ruleSystem,
+      0,
+      1,
+    ),
     ...createInvocationOperations(content, options.invocationChoices, { ruleSystem: options.ruleSystem, level: 1 }),
     ...createProficiencyOperations(cls),
     ...createToolChoiceOperations(options.classToolChoices),
@@ -4705,7 +4778,15 @@ export const buildLevelUpCharacter = (
     ...existingOriginSpellLevelUpOperations,
 	        ...classResourceOperations,
 	        ...(isNewClass ? createMulticlassProficiencyOperations(cls, options.skillChoices || [], options.toolChoices) : []),
-	        ...createSubclassFeatureOperations(selectedSubclass, options.ruleSystem, newLevel),
+	        ...createSubclassFeatureOperations(
+            content,
+            cls,
+            selectedSubclass,
+            options.ruleSystem,
+            currentLevel,
+            newLevel,
+            existingClass?.subclass || undefined,
+          ),
 	        ...createInvocationOperations(content, options.invocationChoices, { ruleSystem: options.ruleSystem, level: newLevel }),
 	        ...magicalSecretOperations,
 	      ],

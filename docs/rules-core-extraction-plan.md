@@ -1089,8 +1089,13 @@ R6 拆分为以下可独立回归的提交边界:
 
 #### R6.1 子职 choice 和等级 feature projection
 
+- 状态: 已完成.
 - 共享子职触发等级、候选授权、稳定 identity、选择校验和本级 feature effects.
 - 迁移 Hexblade 入门护甲、盾牌和军用武器熟练结构化效果.
+- `createRuleSubclassAdvancementState` 以旧/新职业等级和已有子职稳定 ID 构造首次选择 state, 并拒绝未授权职业、子职和非法等级区间.
+- `createRuleSubclassAdvancementEffects` 严格校验首次选择, 只投影 `(oldClassLevel, newClassLevel]` 内的子职 feature, 并通过 `Hex Warrior` feature identity 投影 Hexblade 熟练效果.
+- EulCauDnD 的子职弹窗条件、初始构筑和升级 feature operations 已消费共享 state/effects, 不再按本地 `subclassLevels.includes(level)` 或中文短名判断.
+- 共享包 66 项测试通过, 覆盖 2014/2024 首次选择、伪造/重复/缺失选择、已有子职后续 feature、Hex Warrior 和非法输入; EulCauDnD 生产构建通过.
 
 提交:
 
@@ -1233,11 +1238,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作是 R6.1 子职 choice 和等级 feature projection:
+下一项工作是 R6.2 专精、战斗风格和武器精通:
 
-1. 定义旧/新职业等级驱动的子职触发 state, 复用既有子职授权和稳定 identity.
-2. 严格验证首次选择和已有子职一致性, 拒绝跨职业、跨规则版本和过期候选.
-3. 投影本级子职 feature effects 和 Hexblade 入门结构化熟练效果.
-4. 接入 EulCauDnD, 增加 2014/2024 首次选择和后续等级 feature 回归.
+1. 定义专精、2014 optional fighting style、2024 fighting style feat 和武器精通的等级增量 state.
+2. 统一候选授权、已有选择排除、稳定 group ID 和严格 count 校验.
+3. 将 Fighting Style cantrip 依赖选择和 feature/proficiency effects 移入共享包.
+4. 接入 EulCauDnD, 删除相应本地 progression 和 operations, 并增加 2014/2024 回归.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.

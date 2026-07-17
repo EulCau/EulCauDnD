@@ -49,7 +49,7 @@ const getFeat = (key, source) => {
 const makeLevelThreeWizard = () => ({
   ...INITIAL_CHARACTER,
   abilities: { ...INITIAL_CHARACTER.abilities, STR: 10, DEX: 13, CON: 13, INT: 16, WIS: 12, CHA: 8 },
-  classes: [{ id: 'auto-class-main', name: 'Wizard', level: 3, subclass: '', source: 'XPHB' }],
+  classes: [{ id: 'auto-class-main', name: 'Wizard', level: 3, subclass: '防护学派', source: 'XPHB' }],
   proficiencies: new Set(['INT', 'WIS']),
   expertises: new Set(),
   featureEntries: [],
@@ -58,7 +58,7 @@ const makeLevelThreeWizard = () => ({
 
 const makeLevelThreePhbWizard = () => ({
   ...makeLevelThreeWizard(),
-  classes: [{ id: 'auto-class-main', name: 'Wizard', level: 3, subclass: '', source: 'PHB' }],
+  classes: [{ id: 'auto-class-main', name: 'Wizard', level: 3, subclass: '防护学派', source: 'PHB' }],
 });
 
 const wizard = getClass('Wizard', 'XPHB');
@@ -147,7 +147,7 @@ assert(lightlyArmoredCharacter.proficiencies.has('armor:light'), 'Lightly Armore
 assert(lightlyArmoredCharacter.proficiencies.has('armor:shield'), 'Lightly Armored should add shield proficiency');
 assert(lightlyArmoredCharacter.featureEntries.some(feature => feature.sourceId === 'auto-feat-Lightly Armored-XPHB'), 'Lightly Armored should add its feat feature entry');
 
-const phbHeavilyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const phbHeavilyArmoredCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -170,7 +170,7 @@ const xphbHeavilyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard()
 assert(xphbHeavilyArmoredCharacter.abilities.CON === 14, 'XPHB Heavily Armored should add +1 CON, got ' + xphbHeavilyArmoredCharacter.abilities.CON);
 assert(xphbHeavilyArmoredCharacter.proficiencies.has('armor:heavy'), 'XPHB Heavily Armored should add heavy armor proficiency');
 
-const phbModeratelyArmoredCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const phbModeratelyArmoredCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -207,7 +207,7 @@ const martialWeaponTrainingCharacter = buildLevelUpCharacter(makeLevelThreeWizar
 assert(martialWeaponTrainingCharacter.abilities.DEX === 14, 'XPHB Martial Weapon Training should add +1 DEX, got ' + martialWeaponTrainingCharacter.abilities.DEX);
 assert(martialWeaponTrainingCharacter.proficiencies.has('weapon:martial'), 'XPHB Martial Weapon Training should add martial weapon proficiency');
 
-const phbTavernBrawlerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const phbTavernBrawlerCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -229,7 +229,7 @@ const xphbTavernBrawlerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(),
 });
 assert(xphbTavernBrawlerCharacter.proficiencies.has('weapon:improvised'), 'XPHB Tavern Brawler should add improvised weapon proficiency');
 
-const gunnerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const gunnerCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -243,7 +243,7 @@ assert(gunnerCharacter.proficiencies.has('weapon:firearms'), 'TCE Gunner should 
 const linguistLanguageChoices = getFeatLanguageChoiceOptions(linguist);
 assert(linguistLanguageChoices.length === 1, 'PHB Linguist should expose one language choice group');
 assert(linguistLanguageChoices[0].count === 3, 'PHB Linguist should require three language choices');
-const linguistCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const linguistCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -282,7 +282,7 @@ assert(observantCharacter.abilities.WIS === 13, 'XPHB Observant should add +1 WI
 assert(observantCharacter.proficiencies.has('Perception'), 'XPHB Observant should preserve selected skill proficiency');
 assert(observantCharacter.expertises.has('Perception'), 'XPHB Observant should add expertise when selected skill is already proficient');
 
-const phbLuckyCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const phbLuckyCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -311,7 +311,7 @@ const xphbLuckyLevelFive = buildLevelUpCharacter(xphbLuckyCharacter, content, wi
 const xphbLuckyLevelFiveResource = xphbLuckyLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Lucky-XPHB-luck-points');
 assert(xphbLuckyLevelFiveResource?.max === 3, \`XPHB Lucky at total level 5 should refresh to proficiency bonus 3, got \${xphbLuckyLevelFiveResource?.max}\`);
 
-const tceChefCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const tceChefCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -352,7 +352,10 @@ const xphbChefLevelFiveResource = xphbChefLevelFive.resources.find(resource => r
 assert(xphbChefLevelFiveResource?.max === 3, \`XPHB Chef at total level 5 should refresh treats to proficiency bonus 3, got \${xphbChefLevelFiveResource?.max}\`);
 
 const assertPoisonerResource = ({ featId, classDefinition, ruleSystem, ability, resourceId, label, expectedTool }) => {
-  const characterWithFeat = buildLevelUpCharacter(makeLevelThreeWizard(), content, classDefinition, {
+  const baseCharacter = classDefinition.source === 'PHB'
+    ? makeLevelThreePhbWizard()
+    : makeLevelThreeWizard();
+  const characterWithFeat = buildLevelUpCharacter(baseCharacter, content, classDefinition, {
     ruleSystem,
     spellChoices: { cantrips: [], leveled: [] },
     abilityScoreImprovementChoice: {
@@ -393,7 +396,7 @@ assertPoisonerResource({
   expectedTool: "tool:poisoner's kit",
 });
 
-const squireCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const squireCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -411,7 +414,7 @@ const squireLevelFive = buildLevelUpCharacter(squireCharacter, content, phbWizar
 const squireLevelFiveResource = squireLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Squire of Solamnia-DSotDQ-precise-strike');
 assert(squireLevelFiveResource?.max === 3, \`Squire of Solamnia at total level 5 should refresh Precise Strike to proficiency bonus 3, got \${squireLevelFiveResource?.max}\`);
 
-const cartomancerCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const cartomancerCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -429,7 +432,7 @@ assert(
   'Cartomancer should add prepared Prestidigitation feat spell',
 );
 
-const planarWandererCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const planarWandererCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -571,7 +574,7 @@ assert(
 const fightingStyleChoices = getFeatFightingStyleChoiceState(content, fightingInitiate, makeLevelThreeWizard());
 const selectedFightingStyle = fightingStyleChoices?.from[0];
 assert(fightingStyleChoices?.count === 1 && selectedFightingStyle, 'Fighting Initiate should expose one fighting style choice');
-const fightingInitiateCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const fightingInitiateCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -592,7 +595,7 @@ assert(
   eldritchAdeptChoices.options.every(invocation => !invocation.prerequisite?.length),
   'Eldritch Adept should hide prerequisite invocations from a non-Warlock',
 );
-const eldritchAdeptCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const eldritchAdeptCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -613,7 +616,7 @@ assert(martialAdeptChoices?.needed === 2, \`Martial Adept should require two man
 assert(martialAdeptChoices.options.some(maneuver => maneuver.id === '反击|PHB'), 'Martial Adept should expose PHB Riposte');
 const selectedManeuvers = martialAdeptChoices.options.slice(0, 2).map(maneuver => maneuver.id);
 assert(selectedManeuvers.length === 2, 'Martial Adept should have at least two maneuver options');
-const martialAdeptCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const martialAdeptCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -635,7 +638,7 @@ assert(metamagicAdeptChoices?.needed === 2, \`Metamagic Adept should require two
 assert(metamagicAdeptChoices.options.some(metamagic => metamagic.id === '谨慎法术|PHB'), 'Metamagic Adept should expose PHB Careful Spell');
 const selectedMetamagics = metamagicAdeptChoices.options.slice(0, 2).map(metamagic => metamagic.id);
 assert(selectedMetamagics.length === 2, 'Metamagic Adept should have at least two metamagic options');
-const metamagicAdeptCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const metamagicAdeptCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -652,7 +655,7 @@ assert(
   'Metamagic Adept should add selected metamagic features',
 );
 
-const chromaticGiftCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const chromaticGiftCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -671,7 +674,7 @@ const chromaticGiftLevelFive = buildLevelUpCharacter(chromaticGiftCharacter, con
 const chromaticLevelFiveResistanceResource = chromaticGiftLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Chromatic Dragon-FTD-reactive-resistance');
 assert(chromaticLevelFiveResistanceResource?.max === 3, \`Gift of the Chromatic Dragon at total level 5 should refresh reactive resistance to proficiency bonus 3, got \${chromaticLevelFiveResistanceResource?.max}\`);
 
-const gemGiftCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const gemGiftCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -689,7 +692,7 @@ const gemGiftLevelFive = buildLevelUpCharacter(gemGiftCharacter, content, phbWiz
 const gemLevelFiveResource = gemGiftLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Gem Dragon-FTD-telekinetic-reprisal');
 assert(gemLevelFiveResource?.max === 3, \`Gift of the Gem Dragon at total level 5 should refresh reprisal to proficiency bonus 3, got \${gemLevelFiveResource?.max}\`);
 
-const metallicGiftCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const metallicGiftCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -713,7 +716,7 @@ const metallicGiftLevelFive = buildLevelUpCharacter(metallicGiftCharacter, conte
 const metallicLevelFiveResource = metallicGiftLevelFive.resources.find(resource => resource.id === 'auto-resource-feat-Gift of the Metallic Dragon-FTD-protective-wings');
 assert(metallicLevelFiveResource?.max === 3, \`Gift of the Metallic Dragon at total level 5 should refresh Protective Wings to proficiency bonus 3, got \${metallicLevelFiveResource?.max}\`);
 
-const emberFireGiantCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const emberFireGiantCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -736,7 +739,7 @@ const emberLevelFiveResource = emberFireGiantLevelFive.resources.find(resource =
 assert(emberLevelFiveResource?.max === 3, \`Ember of the Fire Giant at total level 5 should refresh Searing Ignition to proficiency bonus 3, got \${emberLevelFiveResource?.max}\`);
 
 const assertProficiencyFeatResource = ({ featId, ability = 'WIS', resourceId, label, resistance }) => {
-  const characterWithFeat = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+  const characterWithFeat = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
     ruleSystem: '5e',
     spellChoices: { cantrips: [], leveled: [] },
     abilityScoreImprovementChoice: {
@@ -820,7 +823,7 @@ assertProficiencyFeatResource({
   label: 'Righteous Heritor',
 });
 
-const outlandsEnvoyCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const outlandsEnvoyCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -964,7 +967,7 @@ assert(
 const squatSkillChoices = getFeatSkillChoiceOptions(squatNimbleness);
 assert(squatSkillChoices.length === 1, 'Squat Nimbleness should expose one skill choice group, got ' + squatSkillChoices.length);
 assert(squatSkillChoices[0].from.includes('特技'), 'Squat Nimbleness skill choices should include Acrobatics');
-const squatNimblenessCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const squatNimblenessCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -1140,7 +1143,10 @@ const assertFixedTouchedSpellResource = ({
   resourceKey,
   spellName,
 }) => {
-  const character = buildLevelUpCharacter(makeLevelThreeWizard(), content, classDefinition, {
+  const baseCharacter = classDefinition.source === 'PHB'
+    ? makeLevelThreePhbWizard()
+    : makeLevelThreeWizard();
+  const character = buildLevelUpCharacter(baseCharacter, content, classDefinition, {
     ruleSystem,
     spellChoices: { cantrips: [], leveled: [] },
     abilityScoreImprovementChoice: {
@@ -1197,7 +1203,7 @@ assertFixedTouchedSpellResource({
   spellName: '隐形术',
 });
 
-const drowHighMagicCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const drowHighMagicCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -1219,7 +1225,7 @@ assert(
   'Drow High Magic should add prepared Detect Magic, Levitate, and Dispel Magic feat spells',
 );
 
-const feyTeleportationCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const feyTeleportationCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -1237,7 +1243,7 @@ assert(
   'Fey Teleportation should add prepared Misty Step feat spell',
 );
 
-const infernalConstitutionCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const infernalConstitutionCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
@@ -1335,7 +1341,7 @@ const selectedWeaponMasterIds = [
   ...weaponMasterChoices[0].from.filter(id => id !== battleaxe.id).slice(0, 3),
 ];
 assert(selectedWeaponMasterIds.length === 4, 'Weapon Master should have at least four selectable weapons');
-const weaponMasterCharacter = buildLevelUpCharacter(makeLevelThreeWizard(), content, phbWizard, {
+const weaponMasterCharacter = buildLevelUpCharacter(makeLevelThreePhbWizard(), content, phbWizard, {
   ruleSystem: '5e',
   spellChoices: { cantrips: [], leveled: [] },
   abilityScoreImprovementChoice: {
