@@ -271,7 +271,7 @@ function getWalkSpeed(speed: RuleOrigin['speed']): number | undefined {
 }
 
 function normalizeRef(value: string): string {
-  return value.split('|')[0].split(/[;；]/)[0].trim();
+  return (value.split('|')[0] ?? '').split(/[;；]/)[0]?.trim() ?? '';
 }
 
 function failure<T>(
