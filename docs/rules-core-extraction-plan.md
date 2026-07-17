@@ -1139,8 +1139,14 @@ refactor(rules): share invocation advancement
 
 #### R6.4 战技和超魔 progression
 
+- 状态: 已完成.
 - 将 R5.4 战技、超魔候选扩展为职业/子职 progression, 统一来源优先级、已有选项排除和增量 count.
 - 共享严格 effects, 删除本地 limit、候选去重和 operations.
+- `optional-feature-advancement` 统一处理 Sorcerer 超魔和 Battle Master 战技的稀疏 progression, 旧/新职业等级之间未出现新表项时继承最近目标值.
+- 共享 state 通过调用方授权策略筛选并去重候选, effects 严格拒绝伪造、重复、缺失和过量 ID, 输出 canonical `feature.add`.
+- Martial Adept、Metamagic Adept 和 Superior Technique 等额外来源独立计入累计目标, 不再错误占用职业或子职应获得的选择数量.
+- EulCauDnD 的 UI façade、初始构筑和升级 operations 已消费共享 state/effects; 本地 progression limit、来源数组、候选去重和直接 operations 已删除.
+- 共享包 80 项测试、EulCauDnD 生产构建、专长行为、来源优先级和角色 catalog 审计通过.
 
 提交:
 
@@ -1250,11 +1256,11 @@ Ao 接入应在每个共享规则域完成并通过上游 parity 后单独提交
 
 ## 14. 下一步
 
-下一项工作是 R6.4 战技和超魔 progression:
+下一项工作是 R6.5 清理和完整职业选择审计:
 
-1. 将 R5.4 战技和超魔候选扩展为职业/子职等级 progression.
-2. 统一来源优先级、已有选择排除、稳定 group ID 和增量 count.
-3. 输出严格 `feature.add` effects, 删除本地 limit、候选去重和 operations.
-4. 增加 PHB/XPHB Battle Master 和 Sorcerer 初始、升级与非法选择回归.
+1. 删除 R6.1-R6.4 后无调用的本地 progression、名称判断、来源数组和 feature operations.
+2. 增加独立职业选择行为审计, 覆盖 2014/2024 子职、专精、风格、精通、祈唤、战技和超魔.
+3. 回归初始构筑、升级、法术、专长和装备行为, 确认稳定 ID 与来源优先级.
+4. 更新迁移完成状态并确定 R7 法术规则入口.
 
 在 R1-R8 完成前, 不把 Ao 新增职业, 法术或计划外复杂专长规则作为主线任务.

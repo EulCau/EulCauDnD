@@ -47,13 +47,13 @@ export function createRuleSpecializedFeatChoiceState(
     known,
     context,
   ));
-  addGroup(groups, feat, 'maneuver', feat.maneuverCount, optionalFeatures(
+  addGroup(groups, feat, 'maneuver', feat.maneuverCount, getRuleOptionalFeatureOptions(
     catalog.maneuvers,
     'maneuver',
     policy,
     known,
   ));
-  addGroup(groups, feat, 'metamagic', feat.metamagicCount, optionalFeatures(
+  addGroup(groups, feat, 'metamagic', feat.metamagicCount, getRuleOptionalFeatureOptions(
     catalog.metamagics,
     'metamagic',
     policy,
@@ -114,7 +114,7 @@ function fightingStyles(
   policy: RuleAuthorizationPolicy,
   known: ReadonlySet<string>,
 ): RuleOptionalFeature[] {
-  return optionalFeatures(
+  return getRuleOptionalFeatureOptions(
     catalog.fightingStyles.filter(({ featureTypes }) => featureTypes.includes('FS:F')),
     'fighting-style',
     policy,
@@ -128,7 +128,7 @@ export function getRuleInvocationOptions(
   known: ReadonlySet<string>,
   context: RuleSpecializedFeatContext,
 ): RuleOptionalFeature[] {
-  return optionalFeatures(
+  return getRuleOptionalFeatureOptions(
     catalog.invocations.filter((invocation) => (
       (!invocation.prerequisite?.length || (context.warlockLevel ?? 0) > 0)
       && invocationPrerequisiteMet(catalog, invocation, context)
@@ -139,7 +139,7 @@ export function getRuleInvocationOptions(
   );
 }
 
-function optionalFeatures(
+export function getRuleOptionalFeatureOptions(
   entries: readonly RuleOptionalFeature[],
   kind: 'fighting-style' | 'invocation' | 'maneuver' | 'metamagic',
   policy: RuleAuthorizationPolicy,

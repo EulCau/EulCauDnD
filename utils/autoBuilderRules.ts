@@ -29,6 +29,9 @@ import {
   createRuleFightingStyleCantripEffects,
   createRuleInvocationAdvancementEffects,
   createRuleInvocationAdvancementState,
+  createRuleManeuverAdvancementState,
+  createRuleMetamagicAdvancementState,
+  createRuleOptionalFeatureAdvancementEffects,
   createRuleOriginBaseEffects,
   createRuleOriginAdvancementEffects,
   createRuleOriginFeatChoiceState,
@@ -301,16 +304,6 @@ const XPHB_GOLIATH_GIANT_ANCESTRY_OPTIONS = [
 const OFFICIAL_SPELL_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
   '5e': ['PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
   '5r': ['XPHB', 'PHB', 'XGE', 'TCE', 'FTD', 'SCC', 'AAG', 'AI', 'AitFR-AVT', 'BMT', 'EFA', 'EGW', 'FRHoF', 'GGR', 'IDRotF', 'LLK', 'SatO'],
-};
-
-const OFFICIAL_METAMAGIC_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
-  '5e': ['PHB', 'TCE'],
-  '5r': ['XPHB', 'PHB', 'TCE'],
-};
-
-const OFFICIAL_MANEUVER_SOURCE_PRIORITY: Record<RuleSystem, string[]> = {
-  '5e': ['PHB', 'TCE'],
-  '5r': ['XPHB', 'PHB', 'TCE'],
 };
 
 const ABILITY_MAP: Record<string, AbilityName> = {
@@ -1679,14 +1672,6 @@ export const getLevelOneSpellChoiceState = (
   subclass?: AutoBuilderSubclass,
 ) => getSpellChoiceState(content, cls, 1, [], subclass);
 
-const getMetamagicLimit = (cls: AutoBuilderClass, level: number): number => (
-  cls.metamagicProgression?.[Math.max(0, level - 1)] || 0
-);
-
-const getManeuverLimit = (subclass: AutoBuilderSubclass | undefined, level: number): number => (
-  subclass?.maneuverProgression?.[Math.max(0, level - 1)] || 0
-);
-
 const getExistingInvocationIds = (character: CharacterData): string[] => (
   character.featureEntries
     .filter(feature => feature.sourceId.startsWith('auto-invocation-'))
@@ -1744,13 +1729,46 @@ const requireSpecializedFeatChoiceState = (
   );
 };
 
-const getExistingMetamagicCount = (character: CharacterData): number => (
-  character.featureEntries.filter(feature => feature.sourceId.startsWith('auto-metamagic-')).length
-);
+const getExistingOptionalFeatureIds = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+  kind: 'maneuver' | 'metamagic',
+): string[] => {
+  const entries = kind === 'maneuver' ? content.maneuvers : content.metamagics;
+  return uniqueStrings(character.featureEntries.flatMap(feature => {
+    if (!feature.sourceId.startsWith(`auto-${kind}-`)) return [];
+    const entry = entries.find(candidate => (
+      feature.sourceId === `auto-${kind}-${candidate.id}`
+      || feature.name === candidate.name
+    ));
+    return entry ? [entry.id] : [];
+  }));
+};
 
-const getExistingManeuverCount = (character: CharacterData): number => (
-  character.featureEntries.filter(feature => feature.sourceId.startsWith('auto-maneuver-')).length
-);
+const getExistingManeuverExtraTarget = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+): number => {
+  const styleCount = character.featureEntries.some(feature => (
+    feature.sourceId.startsWith('auto-fighting-style-')
+    && (feature.name === '卓越技巧' || feature.name === 'Superior Technique')
+  )) ? 1 : 0;
+  const featCount = content.feats.reduce((count, feat) => {
+    if (!feat.maneuverCount || !hasAppliedFeat(character, feat.key, feat.source)) return count;
+    return count + feat.maneuverCount;
+  }, 0);
+  return styleCount + featCount;
+};
+
+const getExistingMetamagicExtraTarget = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+): number => content.feats.reduce((count, feat) => {
+  if (!feat.metamagicCount || !hasAppliedFeat(character, feat.key, feat.source)) {
+    return count;
+  }
+  return count + feat.metamagicCount;
+}, 0);
 
 export const getInvocationChoiceState = (
   content: AutoBuilderContent,
@@ -1797,30 +1815,20 @@ export const getMetamagicChoiceState = (
   if (!cls?.metamagicProgression?.length) {
     return { isMetamagicClass: false, needed: 0, options: [] };
   }
-  const limit = getMetamagicLimit(cls, level);
-  if (!limit) return { isMetamagicClass: true, needed: 0, options: [] };
   const ruleSystem: RuleSystem = cls.source === 'XPHB' ? '5r' : '5e';
-  const sourcePriority = OFFICIAL_METAMAGIC_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(sourcePriority);
-  const knownNames = new Set(character.featureEntries
-    .filter(feature => feature.sourceId.startsWith('auto-metamagic-'))
-    .map(feature => feature.name));
-  const byKey = new Map<string, AutoBuilderMetamagic>();
-  content.metamagics
-    .filter(metamagic => allowedSources.has(metamagic.source))
-    .filter(metamagic => !knownNames.has(metamagic.name))
-    .forEach(metamagic => {
-      const key = metamagic.englishName || metamagic.name;
-      const existing = byKey.get(key);
-      if (!existing || sourcePriority.indexOf(metamagic.source) < sourcePriority.indexOf(existing.source)) {
-        byKey.set(key, metamagic);
-      }
-    });
-
+  const state = createRuleMetamagicAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    Math.max(0, level - 1),
+    level,
+    getExistingOptionalFeatureIds(content, character, 'metamagic'),
+    getExistingMetamagicExtraTarget(content, character),
+  );
+  if (!state.ok) throwRuleResultError(state, cls.key);
   return {
     isMetamagicClass: true,
-    needed: Math.max(0, limit - getExistingMetamagicCount(character)),
-    options: Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN')),
+    needed: state.value.group?.min ?? 0,
+    options: state.value.group?.options ?? [],
   };
 };
 
@@ -1839,30 +1847,20 @@ export const getManeuverChoiceState = (
   if (!subclass?.maneuverProgression?.length && extraNeeded <= 0) {
     return { isManeuverSubclass: false, needed: 0, options: [] };
   }
-  const limit = getManeuverLimit(subclass, level) + Math.max(0, extraNeeded);
-  if (!limit) return { isManeuverSubclass: true, needed: 0, options: [] };
   const ruleSystem: RuleSystem = ruleSystemOverride || (subclass?.classSource === 'XPHB' ? '5r' : '5e');
-  const sourcePriority = OFFICIAL_MANEUVER_SOURCE_PRIORITY[ruleSystem];
-  const allowedSources = new Set(sourcePriority);
-  const knownNames = new Set(character.featureEntries
-    .filter(feature => feature.sourceId.startsWith('auto-maneuver-'))
-    .map(feature => feature.name));
-  const byKey = new Map<string, AutoBuilderManeuver>();
-  content.maneuvers
-    .filter(maneuver => allowedSources.has(maneuver.source))
-    .filter(maneuver => !knownNames.has(maneuver.name))
-    .forEach(maneuver => {
-      const key = maneuver.englishName || maneuver.name;
-      const existing = byKey.get(key);
-      if (!existing || sourcePriority.indexOf(maneuver.source) < sourcePriority.indexOf(existing.source)) {
-        byKey.set(key, maneuver);
-      }
-    });
-
+  const state = createRuleManeuverAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    subclass,
+    Math.max(0, level - 1),
+    level,
+    getExistingOptionalFeatureIds(content, character, 'maneuver'),
+    getExistingManeuverExtraTarget(content, character) + Math.max(0, extraNeeded),
+  );
+  if (!state.ok) throwRuleResultError(state, subclass?.key ?? 'maneuver');
   return {
     isManeuverSubclass: true,
-    needed: Math.max(0, limit - getExistingManeuverCount(character)),
-    options: Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN')),
+    needed: state.value.group?.min ?? 0,
+    options: state.value.group?.options ?? [],
   };
 };
 
@@ -3891,22 +3889,40 @@ const validateFightingStyleFeatChoice = (
 
 const createMetamagicOperations = (
   content: AutoBuilderContent,
+  cls: AutoBuilderClass,
+  character: CharacterData,
   ruleSystem: RuleSystem,
+  oldClassLevel: number,
+  newClassLevel: number,
   metamagicIds: string[] | undefined,
 ): AdjustmentOperation[] => {
-  if (!metamagicIds?.length) return [];
-  return metamagicIds.flatMap((metamagicId, index): AdjustmentOperation[] => {
-    const metamagic = content.metamagics.find(item => item.id === metamagicId);
-    if (!metamagic) return [];
-    const sourceId = `auto-metamagic-${metamagic.id}`;
+  if (!cls.metamagicProgression?.length) return [];
+  const state = createRuleMetamagicAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    cls,
+    oldClassLevel,
+    newClassLevel,
+    getExistingOptionalFeatureIds(content, character, 'metamagic'),
+    getExistingMetamagicExtraTarget(content, character),
+  );
+  if (!state.ok) throwRuleResultError(state, cls.key);
+  const effects = createRuleOptionalFeatureAdvancementEffects(
+    state.value,
+    state.value.group ? metamagicIds ?? [] : [],
+  );
+  if (!effects.ok) throwRuleResultError(effects, cls.key);
+  return effects.value.flatMap((effect, index): AdjustmentOperation[] => {
+    if (effect.type !== 'feature.add') return originEffectToAdjustmentOperations(effect);
+    const metamagic = content.metamagics.find(item => item.id === effect.feature.id);
+    if (!metamagic) throw new Error(`Missing metamagic ${effect.feature.id}`);
     return [{
       type: 'addFeature',
       feature: {
-        id: `${sourceId}-feature-${index + 1}`,
-        sourceId,
+        id: `${effect.sourceId}-feature-${index + 1}`,
+        sourceId: effect.sourceId,
         sourceName: `${metamagic.name} ${metamagic.source}`,
         name: metamagic.name,
-        level: 1,
+        level: newClassLevel,
         ruleSystem,
         description: metamagic.description,
       } satisfies CharacterFeatureEntry,
@@ -3916,27 +3932,56 @@ const createMetamagicOperations = (
 
 const createManeuverOperations = (
   content: AutoBuilderContent,
+  subclass: AutoBuilderSubclass | undefined,
+  character: CharacterData,
   ruleSystem: RuleSystem,
+  oldClassLevel: number,
+  newClassLevel: number,
+  extraTargetCount: number,
   maneuverIds: string[] | undefined,
 ): AdjustmentOperation[] => {
-  if (!maneuverIds?.length) return [];
-  return maneuverIds.flatMap((maneuverId, index): AdjustmentOperation[] => {
-    const maneuver = content.maneuvers.find(item => item.id === maneuverId);
-    if (!maneuver) return [];
-    const sourceId = `auto-maneuver-${maneuver.id}`;
+  if (!subclass?.maneuverProgression?.length && extraTargetCount <= 0) return [];
+  const state = createRuleManeuverAdvancementState(
+    getAutoBuilderRuleContext(content, ruleSystem),
+    subclass,
+    oldClassLevel,
+    newClassLevel,
+    getExistingOptionalFeatureIds(content, character, 'maneuver'),
+    getExistingManeuverExtraTarget(content, character) + extraTargetCount,
+  );
+  if (!state.ok) throwRuleResultError(state, subclass?.key ?? 'maneuver');
+  const effects = createRuleOptionalFeatureAdvancementEffects(
+    state.value,
+    state.value.group ? maneuverIds ?? [] : [],
+  );
+  if (!effects.ok) throwRuleResultError(effects, subclass?.key ?? 'maneuver');
+  return effects.value.flatMap((effect, index): AdjustmentOperation[] => {
+    if (effect.type !== 'feature.add') return originEffectToAdjustmentOperations(effect);
+    const maneuver = content.maneuvers.find(item => item.id === effect.feature.id);
+    if (!maneuver) throw new Error(`Missing maneuver ${effect.feature.id}`);
     return [{
       type: 'addFeature',
       feature: {
-        id: `${sourceId}-feature-${index + 1}`,
-        sourceId,
+        id: `${effect.sourceId}-feature-${index + 1}`,
+        sourceId: effect.sourceId,
         sourceName: `${maneuver.name} ${maneuver.source}`,
         name: maneuver.name,
-        level: 1,
+        level: newClassLevel,
         ruleSystem,
         description: maneuver.description,
       } satisfies CharacterFeatureEntry,
     }];
   });
+};
+
+const getSelectedFightingStyleManeuverCount = (
+  content: AutoBuilderContent,
+  choices: AutoBuilderClassFeatureChoice | undefined,
+): number => {
+  const style = content.fightingStyles.find(({ id }) => (
+    id === choices?.fightingStyleFeatureId
+  ));
+  return style?.key === 'Superior Technique' || style?.name === '卓越技巧' ? 1 : 0;
 };
 
 const createSpecializedFeatOperations = (
@@ -4449,8 +4494,25 @@ export const buildLevelOneCharacter = (
       1,
       options.classFeatureChoices?.fightingStyleFeatureId,
     ),
-    ...createMetamagicOperations(content, options.ruleSystem, options.classFeatureChoices?.metamagics),
-    ...createManeuverOperations(content, options.ruleSystem, options.classFeatureChoices?.maneuvers),
+    ...createMetamagicOperations(
+      content,
+      cls,
+      character,
+      options.ruleSystem,
+      0,
+      1,
+      options.classFeatureChoices?.metamagics,
+    ),
+    ...createManeuverOperations(
+      content,
+      options.subclass,
+      character,
+      options.ruleSystem,
+      0,
+      1,
+      getSelectedFightingStyleManeuverCount(content, options.classFeatureChoices),
+      options.classFeatureChoices?.maneuvers,
+    ),
     ...createExpertiseChoiceOperations(
       content,
       cls,
@@ -4726,12 +4788,21 @@ export const buildLevelUpCharacter = (
   );
   const metamagicOperations = createMetamagicOperations(
     content,
+    cls,
+    character,
     options.ruleSystem,
+    currentLevel,
+    newLevel,
     options.classFeatureChoices?.metamagics,
   );
   const maneuverOperations = createManeuverOperations(
     content,
+    selectedSubclass,
+    character,
     options.ruleSystem,
+    currentLevel,
+    newLevel,
+    getSelectedFightingStyleManeuverCount(content, options.classFeatureChoices),
     options.classFeatureChoices?.maneuvers,
   );
   const classExpertiseChoiceOperations = createExpertiseChoiceOperations(
