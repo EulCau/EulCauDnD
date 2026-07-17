@@ -839,13 +839,24 @@ refactor(rules): share origin numeric advancement
 
 ###### R4.3c-2 固定 AC 和天生攻击
 
-- 状态: 待完成.
+- 状态: 已完成.
+- 新增来源精确匹配的共享固定 AC 公式和天生攻击定义, 同一物种不同来源的伤害骰、伤害类型和说明保持独立.
+- 固定 AC 覆盖 Autognome、Thri-kreen、Lizardfolk、Loxodon、Tortle 和 PSZ Goblin; adapter 继续与职业无甲防御比较并选择最高可用公式.
+- 天生攻击覆盖原有 19 条定义, 包含 CON 攻击、固定伤害和 Naga 双攻击; adapter 只计算属性调整值、熟练加值和其他专长附加说明.
+- EulCauDnD 从已应用的精确 `race key + source + feature` 识别共享规则, 删除本地固定 AC 特判和 `NATURAL_ATTACKS` 重复表.
+- 测试覆盖来源隔离、多攻击、固定公式和返回值防御性复制; 完整起源审计验证最终 AC 与攻击条目没有行为回归.
+
+提交:
+
+```text
+refactor(rules): share origin combat traits
+```
 
 ###### R4.3c-3 起源专长和起源法术升级刷新
 
 - 状态: 待完成.
 
-提交:
+R4.3c 最终清理提交:
 
 ```text
 refactor(rules): share origin advancement rules

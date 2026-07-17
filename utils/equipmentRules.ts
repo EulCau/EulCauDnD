@@ -2,6 +2,11 @@ import { Attack, AttackWeaponSnapshot, CharacterData, RuleSystem } from '../type
 import { calculateModifier, calculateProficiencyBonus, formatModifier, getTotalLevel } from './dndCalculations';
 import { applyCharacterAdjustments, removeCharacterAdjustments } from './characterAdjustments';
 import type { AutoBuilderArmor, AutoBuilderContent, AutoBuilderWeapon } from './autoBuilderRules';
+import {
+  getRuleOriginArmorFormula,
+  getRuleOriginNaturalAttackDefinitions,
+  type RuleOriginNaturalAttackDefinition,
+} from '../packages/rules-core/src/index';
 
 const RULE_SOURCE: Record<RuleSystem, 'PHB' | 'XPHB'> = {
   '5e': 'PHB',
@@ -54,18 +59,10 @@ type MagicWeaponEquipOptions = {
   isTemplate: boolean;
   baseWeaponId?: string;
 };
-type NaturalAttackDefinition = {
-  raceKey: string;
-  raceSource: string;
-  featureNames: string[];
-  sourceName: string;
-  attackKey: string;
-  name: string;
-  ability?: 'STR' | 'CON';
-  die: string;
-  damageType: string;
-  fixedDamage?: string;
-  notes: string;
+type AppliedRaceOrigin = {
+  key: string;
+  source: string;
+  featureNames: Set<string>;
 };
 
 const toAttackWeaponSnapshot = (weapon: AutoBuilderWeapon): AttackWeaponSnapshot => ({
@@ -211,17 +208,30 @@ const hasFeatKey = (character: CharacterData, key: string): boolean => (
   character.featureEntries.some(feature => feature.sourceId.startsWith(`auto-feat-${key}-`))
 );
 
-const hasOriginFeature = (
-  character: CharacterData,
-  raceKey: string,
-  raceSource: string,
-  names: string[],
-): boolean => (
-  character.featureEntries.some(feature => (
-    feature.sourceId === `auto-race-${raceKey}-${raceSource}`
-    && names.includes(feature.name)
-  ))
-);
+const getAppliedRaceOrigins = (character: CharacterData): AppliedRaceOrigin[] => {
+  const origins = new Map<string, AppliedRaceOrigin>();
+  for (const feature of character.featureEntries) {
+    if (!feature.sourceId.startsWith('auto-race-')) continue;
+    const identity = feature.sourceId.slice('auto-race-'.length);
+    const sourceSeparator = identity.lastIndexOf('-');
+    if (sourceSeparator <= 0 || sourceSeparator === identity.length - 1) continue;
+    const key = identity.slice(0, sourceSeparator);
+    const source = identity.slice(sourceSeparator + 1);
+    const origin = origins.get(feature.sourceId) ?? {
+      key,
+      source,
+      featureNames: new Set<string>(),
+    };
+    origin.featureNames.add(feature.name);
+    origins.set(feature.sourceId, origin);
+  }
+  return [...origins.values()];
+};
+
+const hasRequiredOriginFeature = (
+  origin: AppliedRaceOrigin,
+  featureNames: readonly string[],
+): boolean => featureNames.some(name => origin.featureNames.has(name));
 
 const hasDuelingStyle = (character: CharacterData): boolean => hasFeature(character, ['对决', 'Dueling']);
 const hasThrownWeaponStyle = (character: CharacterData): boolean => hasFeature(character, ['投掷武器战斗', 'Thrown Weapon Fighting']);
@@ -349,210 +359,6 @@ const getMobileAttackNotes = (character: CharacterData, meleeAttack = false): st
   if (!meleeAttack || !hasPhbMobile(character)) return [];
   return ['灵活移动: 对目标发动近战攻击后, 本回合不引发该目标的借机攻击'];
 };
-
-const NATURAL_ATTACKS: NaturalAttackDefinition[] = [
-  {
-    raceKey: 'Aarakocra',
-    raceSource: 'EEPC',
-    featureNames: ['禽爪', 'Talons'],
-    sourceName: '禽爪',
-    attackKey: 'aarakocra-eepc-talons',
-    name: '禽爪',
-    die: '1d4',
-    damageType: '挥砍',
-    notes: '天然武器: 可用力量进行徒手打击.',
-  },
-  {
-    raceKey: 'Aarakocra',
-    raceSource: 'MPMM',
-    featureNames: ['禽爪', 'Talons'],
-    sourceName: '禽爪',
-    attackKey: 'aarakocra-mpmm-talons',
-    name: '禽爪',
-    die: '1d6',
-    damageType: '挥砍',
-    notes: '天然武器: 可用力量进行徒手打击.',
-  },
-  {
-    raceKey: 'Centaur',
-    raceSource: 'GGR',
-    featureNames: ['蹄击', 'Hooves'],
-    sourceName: '蹄击',
-    attackKey: 'centaur-ggr-hooves',
-    name: '蹄击',
-    die: '1d4',
-    damageType: '钝击',
-    notes: '天然武器: 可用力量进行徒手打击. 冲锋后可用附赠动作蹄击.',
-  },
-  {
-    raceKey: 'Centaur',
-    raceSource: 'MPMM',
-    featureNames: ['蹄击', 'Hooves'],
-    sourceName: '蹄击',
-    attackKey: 'centaur-mpmm-hooves',
-    name: '蹄击',
-    die: '1d6',
-    damageType: '钝击',
-    notes: '天然武器: 可用力量进行徒手打击. 冲锋后可用附赠动作蹄击.',
-  },
-  {
-    raceKey: 'Dhampir',
-    raceSource: 'RHW',
-    featureNames: ['吸血啃咬', 'Vampiric Bite'],
-    sourceName: '吸血啃咬',
-    attackKey: 'dhampir-rhw-vampiric-bite',
-    name: '吸血啃咬',
-    ability: 'CON',
-    die: '1d4',
-    damageType: '穿刺',
-    notes: '天然武器: 可用体质进行徒手打击. 命中非构装和非亡灵生物时可消耗增幅次数, 恢复等同伤害的生命值, 或让下一次属性检定或攻击检定获得等同伤害的加值.',
-  },
-  {
-    raceKey: 'Dhampir',
-    raceSource: 'VRGR',
-    featureNames: ['吸血啃咬', 'Vampiric Bite'],
-    sourceName: '吸血啃咬',
-    attackKey: 'dhampir-vrgr-vampiric-bite',
-    name: '吸血啃咬',
-    ability: 'CON',
-    die: '1d4',
-    damageType: '穿刺',
-    notes: '天然武器: 可用体质进行徒手打击. 生命值不高于一半时攻击检定具有优势. 命中非构装和非亡灵生物时可消耗强化次数, 恢复等同伤害的生命值, 或让下一次属性检定或攻击检定获得等同伤害的加值.',
-  },
-  {
-    raceKey: 'Vampire',
-    raceSource: 'PSZ',
-    featureNames: ['嗜血', 'Blood Thirst'],
-    sourceName: '嗜血',
-    attackKey: 'vampire-psz-blood-thirst',
-    name: '嗜血',
-    die: '1d6',
-    damageType: '暗蚀',
-    fixedDamage: '1 穿刺 + 1d6 暗蚀',
-    notes: '种族攻击: 对自愿, 受擒, 失能或束缚的生物进行近战攻击. 命中时目标最大生命值降低等同暗蚀伤害, 你恢复等量生命值.',
-  },
-  {
-    raceKey: 'Lizardfolk',
-    raceSource: 'MPMM',
-    featureNames: ['啃咬', 'Bite'],
-    sourceName: '啃咬',
-    attackKey: 'lizardfolk-mpmm-bite',
-    name: '啃咬',
-    die: '1d6',
-    damageType: '挥砍',
-    notes: '天然武器: 可用力量进行徒手打击. 饥渴之喉可用该攻击触发额外效果.',
-  },
-  {
-    raceKey: 'Lizardfolk',
-    raceSource: 'VGM',
-    featureNames: ['啃咬', 'Bite'],
-    sourceName: '啃咬',
-    attackKey: 'lizardfolk-vgm-bite',
-    name: '啃咬',
-    die: '1d6',
-    damageType: '穿刺',
-    notes: '天然武器: 可用力量进行徒手打击. 饥渴之喉可用该攻击触发额外效果.',
-  },
-  {
-    raceKey: 'Minotaur',
-    raceSource: 'GGR',
-    featureNames: ['角击', 'Horns'],
-    sourceName: '角击',
-    attackKey: 'minotaur-ggr-horns',
-    name: '角击',
-    die: '1d6',
-    damageType: '穿刺',
-    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击. 角锤: 命中后可用附赠动作迫使目标进行力量豁免, DC = 8 + 熟练加值 + 力量调整值, 失败则推离 10 尺.',
-  },
-  {
-    raceKey: 'Minotaur',
-    raceSource: 'MPMM',
-    featureNames: ['角击', 'Horns'],
-    sourceName: '角击',
-    attackKey: 'minotaur-mpmm-horns',
-    name: '角击',
-    die: '1d6',
-    damageType: '穿刺',
-    notes: '天然武器: 可用力量进行徒手打击. 猛抵冲撞可用附赠动作角击. 角锤: 命中后可用附赠动作迫使目标进行力量豁免, DC = 8 + 熟练加值 + 力量调整值, 失败则推离 10 尺.',
-  },
-  {
-    raceKey: 'Naga',
-    raceSource: 'PSA',
-    featureNames: ['天生武器', 'Natural Weapons'],
-    sourceName: '天生武器',
-    attackKey: 'naga-psa-bite',
-    name: '咬击',
-    die: '1d4',
-    damageType: '穿刺',
-    notes: '天然武器: 可用力量进行徒手打击. 命中时目标进行体质豁免, DC = 8 + 熟练加值 + 体质调整值, 失败则额外受到 1d4 毒素伤害.',
-  },
-  {
-    raceKey: 'Naga',
-    raceSource: 'PSA',
-    featureNames: ['天生武器', 'Natural Weapons'],
-    sourceName: '天生武器',
-    attackKey: 'naga-psa-constrict',
-    name: '紧束',
-    die: '1d6',
-    damageType: '钝击',
-    notes: '天然武器: 可用力量进行徒手打击. 命中时目标受擒并陷入束缚, 逃脱 DC = 8 + 熟练加值 + 力量调整值. 紧束期间不能紧束另一个目标.',
-  },
-  {
-    raceKey: 'Satyr',
-    raceSource: 'MOT',
-    featureNames: ['攻城槌', 'Ram'],
-    sourceName: '攻城槌',
-    attackKey: 'satyr-mot-ram',
-    name: '攻城槌',
-    die: '1d4',
-    damageType: '钝击',
-    notes: '天然武器: 可用力量进行徒手打击.',
-  },
-  {
-    raceKey: 'Satyr',
-    raceSource: 'MPMM',
-    featureNames: ['攻城槌', 'Ram'],
-    sourceName: '攻城槌',
-    attackKey: 'satyr-mpmm-ram',
-    name: '攻城槌',
-    die: '1d6',
-    damageType: '穿刺',
-    notes: '天然武器: 可用力量进行徒手打击.',
-  },
-  {
-    raceKey: 'Tabaxi',
-    raceSource: 'MPMM',
-    featureNames: ['猫之利爪', "Cat's Claws"],
-    sourceName: '猫之利爪',
-    attackKey: 'tabaxi-mpmm-cats-claws',
-    name: '猫之利爪',
-    die: '1d6',
-    damageType: '挥砍',
-    notes: '天然武器: 可用力量进行徒手打击.',
-  },
-  {
-    raceKey: 'Tabaxi',
-    raceSource: 'VGM',
-    featureNames: ['猫之利爪', "Cat's Claws"],
-    sourceName: '猫之利爪',
-    attackKey: 'tabaxi-vgm-cats-claws',
-    name: '猫之利爪',
-    die: '1d4',
-    damageType: '挥砍',
-    notes: '天然武器: 可用力量进行徒手打击.',
-  },
-  {
-    raceKey: 'Tortle',
-    raceSource: 'MPMM',
-    featureNames: ['爪击', 'Claws'],
-    sourceName: '爪击',
-    attackKey: 'tortle-mpmm-claws',
-    name: '爪击',
-    die: '1d6',
-    damageType: '挥砍',
-    notes: '天然武器: 可用力量进行徒手打击.',
-  },
-];
 
 const getClassLevel = (character: CharacterData, classNames: string[]): number => (
   character.classes.find(cls => classNames.includes(cls.name))?.level || 0
@@ -1046,20 +852,21 @@ const getUnarmoredDefenseBase = (character: CharacterData): { value: number; lab
   const isDanceBard = character.classes.some(cls => (
     (cls.name === 'Bard' || cls.name === '吟游诗人') && cls.subclass.includes('舞')
   ));
-  const raceName = `${character.race} ${character.subrace}`;
-  const hasNaturalArmorFeature = (names: string[]): boolean => (
-    character.featureEntries.some(feature => names.includes(feature.name))
-  );
+  const originArmorOptions = getAppliedRaceOrigins(character).flatMap((origin) => {
+    const formula = getRuleOriginArmorFormula(origin);
+    if (!formula || !hasRequiredOriginFeature(origin, formula.featureNames)) return [];
+    const abilityModifier = formula.ability === 'DEX'
+      ? dexMod
+      : formula.ability === 'CON'
+        ? conMod
+        : 0;
+    return [{ value: formula.base + abilityModifier, label: formula.label }];
+  });
   const options = [
     hasUnarmoredDefense(character) && isBarbarian ? { value: 10 + dexMod + conMod, label: '野蛮人无甲防御: 10 + 敏捷调整值 + 体质调整值' } : null,
     hasUnarmoredDefense(character) && isMonk ? { value: 10 + dexMod + wisMod, label: '武僧无甲防御: 10 + 敏捷调整值 + 感知调整值' } : null,
     hasUnarmoredDefense(character) && isDanceBard ? { value: 10 + dexMod + chaMod, label: '舞蹈学院无甲防御: 10 + 敏捷调整值 + 魅力调整值' } : null,
-    hasNaturalArmorFeature(['装甲外壳', 'Armored Casing']) ? { value: 13 + dexMod, label: '自动侏儒装甲外壳: 13 + 敏捷调整值' } : null,
-    hasNaturalArmorFeature(['变色甲壳', 'Chameleon Carapace']) ? { value: 13 + dexMod, label: '螳螂人变色甲壳: 13 + 敏捷调整值' } : null,
-    raceName.includes('蜥蜴人') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 13 + dexMod, label: '蜥蜴人天生护甲: 13 + 敏捷调整值' } : null,
-    raceName.includes('象族') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 12 + conMod, label: '象族天生护甲: 12 + 体质调整值' } : null,
-    raceName.includes('龟人') && hasNaturalArmorFeature(['天生护甲', 'Natural Armor']) ? { value: 17, label: '龟人天生护甲: 17' } : null,
-    raceName.includes('地精') && hasNaturalArmorFeature(['坚毅']) ? { value: 11 + dexMod, label: '地精坚毅: 11 + 敏捷调整值' } : null,
+    ...originArmorOptions,
   ].filter((option): option is { value: number; label: string } => Boolean(option));
   return options.sort((a, b) => b.value - a.value)[0] || null;
 };
@@ -1382,7 +1189,7 @@ const removeAutomaticStyleAttacks = (character: CharacterData): CharacterData =>
 };
 
 const createNaturalAttack = (
-  definition: NaturalAttackDefinition,
+  definition: RuleOriginNaturalAttackDefinition,
   character: CharacterData,
   abilityMod: number,
   profBonus: number,
@@ -1414,19 +1221,21 @@ export const refreshAutomaticStyleAttacks = (character: CharacterData): Characte
   const strMod = calculateModifier(next.abilities.STR);
   const conMod = calculateModifier(next.abilities.CON);
 
-  for (const definition of NATURAL_ATTACKS) {
-    if (!hasOriginFeature(next, definition.raceKey, definition.raceSource, definition.featureNames)) continue;
-    const sourceId = `auto-race-attack-${definition.attackKey}`;
-    const abilityMod = definition.ability === 'CON' ? conMod : strMod;
-    const attack = createNaturalAttack(definition, next, abilityMod, profBonus);
-    next = applyCharacterAdjustments(next, {
-      id: sourceId,
-      sourceId,
-      sourceName: definition.sourceName,
-      operations: [
-        { type: 'addAttack', attack },
-      ],
-    });
+  for (const origin of getAppliedRaceOrigins(next)) {
+    for (const definition of getRuleOriginNaturalAttackDefinitions(origin)) {
+      if (!hasRequiredOriginFeature(origin, definition.featureNames)) continue;
+      const sourceId = `auto-race-attack-${definition.attackKey}`;
+      const abilityMod = definition.ability === 'CON' ? conMod : strMod;
+      const attack = createNaturalAttack(definition, next, abilityMod, profBonus);
+      next = applyCharacterAdjustments(next, {
+        id: sourceId,
+        sourceId,
+        sourceName: definition.sourceName,
+        operations: [
+          { type: 'addAttack', attack },
+        ],
+      });
+    }
   }
 
   if (hasUnarmedFightingStyle(next)) {
