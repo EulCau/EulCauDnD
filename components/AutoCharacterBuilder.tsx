@@ -273,11 +273,13 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const classToolChoiceOptions = selectedClass
     ? (isNewMulticlass ? getMulticlassToolChoiceOptions(selectedClass) : (!isLevelUpMode ? getClassToolChoiceOptions(selectedClass) : []))
     : [];
+  const selectedSubclass = subclassOptions.find(subclass => subclass.id === subclassId)
+    || subclassOptions.find(subclass => existingClass?.subclass && subclass.name === existingClass.subclass);
   const fightingStyleChoiceState = content && selectedClass
     ? getFightingStyleFeatChoiceOptions(content, ruleSystem, data, selectedClass, targetClassLevel)
     : null;
   const fightingStyleFeatureChoiceState = content && selectedClass
-    ? getFightingStyleFeatureChoiceOptions(content, ruleSystem, data, selectedClass, targetClassLevel)
+    ? getFightingStyleFeatureChoiceOptions(content, ruleSystem, data, selectedClass, targetClassLevel, selectedSubclass)
     : null;
   const selectedFightingStyleFeat = fightingStyleChoiceState?.from.find(feat => (
     `${feat.key}|${feat.source}` === classFeatureChoices.fightingStyle?.featId
@@ -402,8 +404,6 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       )
     : null;
   const needsSubclassChoice = Boolean(subclassAdvancementState?.group);
-  const selectedSubclass = subclassOptions.find(subclass => subclass.id === subclassId)
-    || subclassOptions.find(subclass => existingClass?.subclass && subclass.name === existingClass.subclass);
   const activeSpellSubclass = needsSubclassChoice || existingClass?.subclass ? selectedSubclass : undefined;
   const selectedSpellProfileId = selectedClass
     ? `auto-${selectedClass.key.toLowerCase()}-${selectedClass.source.toLowerCase()}-spellcasting`
