@@ -68,6 +68,33 @@ test('builds and strictly validates class expertise choices', async () => {
   );
 });
 
+
+test('returns 2014 College of Swords fighting style options', async () => {
+  const catalog = await loadCatalog();
+  const bard = findClass(catalog, 'Bard', 'PHB');
+  const swords = catalog.subclasses.find((entry) => (
+    entry.key === 'College of Swords'
+    && entry.source === 'XGE'
+    && entry.classSource === 'PHB'
+  ));
+  assert.ok(swords);
+  const state = createRuleFightingStyleAdvancementState(
+    context(catalog, '5e'),
+    bard,
+    2,
+    3,
+    [],
+    swords,
+  );
+  assert.equal(state.ok, true);
+  if (!state.ok) return;
+  assert.equal(state.value.mode, 'feature');
+  assert.deepEqual(
+    state.value.group?.options.map(({ key }) => key).sort(),
+    ['Dueling', 'Two-Weapon Fighting'],
+  );
+});
+
 test('returns authorized 2014 fighting style features', async () => {
   const catalog = await loadCatalog();
   const ruleClass = findClass(catalog, 'Fighter', 'PHB');

@@ -1054,6 +1054,7 @@ export const getFightingStyleFeatureChoiceOptions = (
   character: CharacterData,
   cls: AutoBuilderClass | undefined,
   level: number,
+  subclass?: AutoBuilderSubclass,
 ): { from: AutoBuilderFightingStyle[]; count: number } | null => {
   if (!cls || ruleSystem !== '5e') return null;
   const knownIds = content.fightingStyles
@@ -1068,6 +1069,7 @@ export const getFightingStyleFeatureChoiceOptions = (
     Math.max(0, level - 1),
     level,
     knownIds,
+    subclass,
   );
   if (!result.ok) throwRuleResultError(result, cls.key);
   if (result.value.mode !== 'feature' || !result.value.group) return null;
@@ -3716,6 +3718,7 @@ const createFightingStyleFeatureOperations = (
   oldClassLevel: number,
   newClassLevel: number,
   styleId?: string,
+  subclass?: AutoBuilderSubclass,
 ): AdjustmentOperation[] => {
   const knownIds = content.fightingStyles
     .filter(style => character.featureEntries.some(feature => (
@@ -3729,6 +3732,7 @@ const createFightingStyleFeatureOperations = (
     oldClassLevel,
     newClassLevel,
     knownIds,
+    subclass,
   );
   if (!state.ok) throwRuleResultError(state, cls.key);
   if (state.value.mode === 'feat') return [];
@@ -4641,6 +4645,7 @@ export const buildLevelUpCharacter = (
     currentLevel,
     newLevel,
     options.classFeatureChoices?.fightingStyleFeatureId,
+    selectedSubclass,
   );
   const metamagicOperations = createMetamagicOperations(
     content,

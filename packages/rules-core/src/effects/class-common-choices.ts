@@ -3,6 +3,7 @@ import type {
   RuleFeatCatalogEntry,
   RuleFightingStyle,
   RuleSpell,
+  RuleSubclass,
   RuleWeapon,
 } from '../catalog/model.js';
 import type { RuleChoiceGroup, RuleOptionSummary } from '../model/choice.js';
@@ -106,10 +107,14 @@ export function createRuleFightingStyleAdvancementState(
   oldClassLevel: number,
   newClassLevel: number,
   knownIds: readonly string[],
+  subclass?: RuleSubclass,
 ): RuleResult<RuleFightingStyleAdvancementState> {
   const checked = validateClassAdvancement(context, ruleClass, oldClassLevel, newClassLevel);
   if (!checked.ok) return checked;
-  const count = checked.value.levelFeatures.filter((feature) => (
+  const count = [
+    ...checked.value.levelFeatures,
+    ...(subclass?.features ?? []),
+  ].filter((feature) => (
     feature.level !== undefined
     && feature.level > oldClassLevel
     && feature.level <= newClassLevel
@@ -141,7 +146,7 @@ export function createRuleFightingStyleAdvancementState(
     }));
     return styleState(checked.value, oldClassLevel, newClassLevel, 'feat', count, options);
   }
-  const featureTypes = fightingStyleFeatureTypes(checked.value);
+  const featureTypes = fightingStyleFeatureTypes(checked.value, subclass);
   const options = dedupeRuleEntitiesByNameAndSourcePriority(
     'fighting-style',
     context.catalog.fightingStyles.filter((style) => (
@@ -357,11 +362,18 @@ function validateSingleGroup(
   return result.ok ? success([...selectedIds]) : result;
 }
 
-function fightingStyleFeatureTypes(ruleClass: RuleClass): Set<string> {
-  if (ruleClass.key === 'Fighter') return new Set(['FS:F']);
-  if (ruleClass.key === 'Paladin') return new Set(['FS:P']);
-  if (ruleClass.key === 'Ranger') return new Set(['FS:R']);
-  return new Set();
+function fightingStyleFeatureTypes(ruleClass: RuleClass, subclass?: RuleSubclass): Set<string> {
+  const types = new Set<string>();
+  if (ruleClass.key === 'Fighter') types.add('FS:F');
+  if (ruleClass.key === 'Paladin') types.add('FS:P');
+  if (ruleClass.key === 'Ranger') types.add('FS:R');
+  if (
+    ruleClass.key === 'Bard'
+    && (subclass?.key === 'College of Swords' || subclass?.name === '剑舞学院')
+  ) {
+    types.add('FS:B');
+  }
+  return types;
 }
 
 function weaponMasteryLimit(ruleClass: RuleClass, level: number): number {
