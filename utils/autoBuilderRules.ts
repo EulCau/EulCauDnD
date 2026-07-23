@@ -260,6 +260,7 @@ export type AutoBuilderExistingOriginSpellChoiceState = {
 export type AutoBuilderRaceChoice = {
   resistance?: string;
   abilities?: AbilityName[];
+  abilityChoice?: AutoBuilderAbilityChoice;
   skills?: string[];
   size?: string;
   featureChoices?: AutoBuilderOriginFeatureChoiceSelection;
@@ -501,9 +502,9 @@ export const isCharacterClassForDefinition = (item: CharacterData['classes'][num
   return !item.source || item.source === cls.source;
 };
 
-export const getBackgroundAbilityOptions = (background: AutoBuilderOrigin | undefined): AbilityName[] => {
-  if (!background?.ability?.length) return [];
-  const weighted = background.ability
+const getOriginWeightedAbilityOptions = (origin: AutoBuilderOrigin | undefined): AbilityName[] => {
+  if (!origin?.ability?.length) return [];
+  const weighted = origin.ability
     .map(entry => ('choose' in entry ? entry.choose : undefined))
     .map(choose => (choose as { weighted?: { from?: string[] } } | undefined)?.weighted?.from)
     .find(from => Array.isArray(from) && from.length > 0);
@@ -511,6 +512,19 @@ export const getBackgroundAbilityOptions = (background: AutoBuilderOrigin | unde
     .map(ability => ABILITY_MAP[ability])
     .filter((ability): ability is AbilityName => Boolean(ability));
 };
+
+export const getBackgroundAbilityOptions = (background: AutoBuilderOrigin | undefined): AbilityName[] => (
+  getOriginWeightedAbilityOptions(background)
+);
+
+export const getRaceWeightedAbilityOptions = (
+  race: AutoBuilderOrigin | undefined,
+  subrace?: AutoBuilderOrigin,
+): AbilityName[] => (
+  getOriginWeightedAbilityOptions(subrace).length > 0
+    ? getOriginWeightedAbilityOptions(subrace)
+    : getOriginWeightedAbilityOptions(race)
+);
 
 export const getBackgroundFeats = (
   content: AutoBuilderContent,
@@ -2387,11 +2401,15 @@ const addClassFeatureSpellsToSpellcasting = (
   choices?: AutoBuilderClassFeatureChoice,
 ): { profiles: SpellcastingProfile[]; legacy: CharacterData['spellcasting'] } => {
   const selectedIds = choices?.fightingStyleCantrips || [];
-  const selectedStyle = content.feats.find((feat) => (
-    feat.id === choices?.fightingStyle?.featId
-    || feat.key === choices?.fightingStyle?.featId
-    || `${feat.key}|${feat.source}` === choices?.fightingStyle?.featId
-  )) ?? content.fightingStyles.find(({ id }) => id === choices?.fightingStyleFeatureId);
+  const selectedFeatId = choices?.fightingStyle?.featId;
+  const selectedStyle = (selectedFeatId
+    ? content.feats.find((feat) => (
+        feat.id === selectedFeatId
+        || feat.key === selectedFeatId
+        || `${feat.key}|${feat.source}` === selectedFeatId
+      ))
+    : undefined)
+    ?? content.fightingStyles.find(({ id }) => id === choices?.fightingStyleFeatureId);
   if (!selectedStyle) return spellcasting;
   const ruleSystem: RuleSystem = selectedStyle.source === 'XPHB' ? '5r' : '5e';
   const state = createRuleFightingStyleCantripChoiceState(
@@ -4345,8 +4363,32 @@ export const buildLevelOneCharacter = (
       type: 'setSpellcasting',
       value: nextSpellcasting,
     },
-    ...createOriginOperations(content, options.race, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices, options.raceChoices),
-    ...(options.subrace ? createOriginOperations(content, options.subrace, 'race', options.ruleSystem, undefined, undefined, 1, options.raceChoices?.featureChoices, options.raceChoices) : []),
+    ...createOriginOperations(
+      content,
+      options.race,
+      'race',
+      options.ruleSystem,
+      getOriginWeightedAbilityOptions(options.race).length > 0
+        ? options.raceChoices?.abilityChoice
+        : undefined,
+      undefined,
+      1,
+      options.raceChoices?.featureChoices,
+      options.raceChoices,
+    ),
+    ...(options.subrace ? createOriginOperations(
+      content,
+      options.subrace,
+      'race',
+      options.ruleSystem,
+      getOriginWeightedAbilityOptions(options.subrace).length > 0
+        ? options.raceChoices?.abilityChoice
+        : undefined,
+      undefined,
+      1,
+      options.raceChoices?.featureChoices,
+      options.raceChoices,
+    ) : []),
     ...createRaceChoiceOperations(
       content,
       character,
