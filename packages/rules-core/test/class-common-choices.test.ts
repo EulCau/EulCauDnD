@@ -12,11 +12,28 @@ import {
   createRuleWeaponMasteryAdvancementEffects,
   createRuleWeaponMasteryAdvancementState,
   parseRuleCatalog,
+  parseRuleClassSkillChoiceGroups,
   type RuleCatalog,
   type RuleClass,
   type RuleContext,
   type RuleSystem,
 } from '../src/index.ts';
+
+
+test('parses 2014 Bard any skill choices', async () => {
+  const catalog = await loadCatalog();
+  const bard = findClass(catalog, 'Bard', 'PHB');
+  const groups = parseRuleClassSkillChoiceGroups(
+    bard.startingProficiencies,
+    `class-${bard.key}-${bard.source}`,
+  );
+  assert.equal(groups.ok, true);
+  if (!groups.ok) return;
+  assert.equal(groups.value[0]?.id, 'class-Bard-PHB-skill-0-any');
+  assert.equal(groups.value[0]?.count, 3);
+  assert.ok(groups.value[0]?.from.includes('Performance'));
+  assert.ok(groups.value[0]?.from.includes('Stealth'));
+});
 
 test('builds and strictly validates class expertise choices', async () => {
   const catalog = await loadCatalog();
