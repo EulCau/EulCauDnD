@@ -102,6 +102,51 @@ assert(
   'Blessed Warrior cantrips should be added to the Paladin spellcasting profile',
 );
 
+const fighterLevel3PaladinLevel1 = character({
+  abilities: { ...INITIAL_CHARACTER.abilities, CHA: 12 },
+  classes: [
+    {
+      id: 'class-paladin-phb',
+      name: 'Paladin',
+      level: 1,
+      subclass: '',
+      source: 'PHB',
+    },
+    {
+      id: 'class-fighter-phb',
+      name: 'Fighter',
+      level: 3,
+      subclass: '勇士',
+      source: 'PHB',
+    },
+  ],
+  resources: [{
+    id: 'auto-resource-Paladin-PHB-divine-sense',
+    sourceId: 'auto-resource-Paladin-PHB-divine-sense',
+    sourceName: '圣武士 PHB',
+    name: '神圣感知',
+    current: 2,
+    max: 2,
+    reset: 'longRest',
+    ruleSystem: '5e',
+  }],
+});
+const fighterLevel4PaladinLevel1 = buildLevelUpCharacter(fighterLevel3PaladinLevel1, content, fighter5e, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'plus2',
+    plus2: 'CHA',
+  },
+});
+const refreshedDivineSense = fighterLevel4PaladinLevel1.resources.find(
+  resource => resource.id === 'auto-resource-Paladin-PHB-divine-sense',
+);
+assert(
+  refreshedDivineSense?.max === 3,
+  \`leveling Fighter and increasing Charisma should refresh Paladin Divine Sense uses, got \${refreshedDivineSense?.max}\`,
+);
+
 const mastery = getWeaponMasteryChoiceState(content, fighter5r, character({}), 1);
 assert(mastery?.needed === 3, '5r Fighter level 1 should require three weapon masteries');
 
@@ -145,6 +190,7 @@ export default {
   fightingStyles5e: style5e?.from.length,
   fightingStyleFeats5r: style5r?.from.length,
   blessedWarriorCantrips: blessedWarriorCantripIds.length,
+  refreshedDivineSenseUses: refreshedDivineSense?.max,
   weaponMasteries: mastery?.needed,
   invocations5e: invocations5e.needed,
   invocations5r: invocations5r.needed,
@@ -185,6 +231,7 @@ console.log(JSON.stringify({
     'class expertise includes only proficient non-expertise options',
     '2014 fighting styles and 2024 fighting style feats use authorized candidates',
     'Blessed Warrior cantrips are added to the Paladin spellcasting profile',
+    'level-up refreshes ability-dependent resources from other existing classes',
     'weapon mastery, invocation, maneuver, and metamagic counts follow progression',
     'feat and fighting-style grants remain additional to class progression',
   ],

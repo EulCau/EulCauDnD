@@ -2394,6 +2394,25 @@ const createClassResourceOperations = (
   return operations;
 };
 
+const createAllClassResourceOperations = (
+  content: AutoBuilderContent,
+  classes: CharacterData['classes'],
+  ruleSystem: RuleSystem,
+  character: CharacterData,
+  characterLevel: number,
+): AdjustmentOperation[] => classes.flatMap(characterClass => {
+  const definition = getClassDefinitionForCharacterClass(content, characterClass);
+  return definition
+    ? createClassResourceOperations(
+        definition,
+        ruleSystem,
+        characterClass.level,
+        character,
+        characterLevel,
+      )
+    : [];
+});
+
 const addClassFeatureSpellsToSpellcasting = (
   spellcasting: { profiles: SpellcastingProfile[]; legacy: CharacterData['spellcasting'] },
   content: AutoBuilderContent,
@@ -4764,10 +4783,10 @@ export const buildLevelUpCharacter = (
     newTotalLevel,
     options.existingOriginSpellChoices,
   );
-  const classResourceOperations = createClassResourceOperations(
-    cls,
+  const classResourceOperations = createAllClassResourceOperations(
+    content,
+    classes,
     options.ruleSystem,
-    newLevel,
     characterWithAbilityDeltas(character, [...operations, ...abilityScoreImprovementOperations], classes),
     newTotalLevel,
   );
