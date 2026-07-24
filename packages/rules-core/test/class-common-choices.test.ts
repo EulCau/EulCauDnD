@@ -12,11 +12,28 @@ import {
   createRuleWeaponMasteryAdvancementEffects,
   createRuleWeaponMasteryAdvancementState,
   parseRuleCatalog,
+  parseRuleClassSkillChoiceGroups,
   type RuleCatalog,
   type RuleClass,
   type RuleContext,
   type RuleSystem,
 } from '../src/index.ts';
+
+
+test('parses 2014 Bard any skill choices', async () => {
+  const catalog = await loadCatalog();
+  const bard = findClass(catalog, 'Bard', 'PHB');
+  const groups = parseRuleClassSkillChoiceGroups(
+    bard.startingProficiencies,
+    `class-${bard.key}-${bard.source}`,
+  );
+  assert.equal(groups.ok, true);
+  if (!groups.ok) return;
+  assert.equal(groups.value[0]?.id, 'class-Bard-PHB-skill-0-any');
+  assert.equal(groups.value[0]?.count, 3);
+  assert.ok(groups.value[0]?.from.includes('Performance'));
+  assert.ok(groups.value[0]?.from.includes('Stealth'));
+});
 
 test('builds and strictly validates class expertise choices', async () => {
   const catalog = await loadCatalog();
@@ -48,6 +65,33 @@ test('builds and strictly validates class expertise choices', async () => {
   assert.equal(
     createRuleExpertiseAdvancementEffects(state.value, ['Stealth', 'forged']).ok,
     false,
+  );
+});
+
+
+test('returns 2014 College of Swords fighting style options', async () => {
+  const catalog = await loadCatalog();
+  const bard = findClass(catalog, 'Bard', 'PHB');
+  const swords = catalog.subclasses.find((entry) => (
+    entry.key === 'College of Swords'
+    && entry.source === 'XGE'
+    && entry.classSource === 'PHB'
+  ));
+  assert.ok(swords);
+  const state = createRuleFightingStyleAdvancementState(
+    context(catalog, '5e'),
+    bard,
+    2,
+    3,
+    [],
+    swords,
+  );
+  assert.equal(state.ok, true);
+  if (!state.ok) return;
+  assert.equal(state.value.mode, 'feature');
+  assert.deepEqual(
+    state.value.group?.options.map(({ key }) => key).sort(),
+    ['Dueling', 'Two-Weapon Fighting'],
   );
 });
 

@@ -263,6 +263,32 @@ const getSenseDistance = (entity, key) => {
   return senseEntry?.[key];
 };
 
+const FLEXIBLE_LINEAGE_ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+
+const normalizeOriginAbility = entity => (
+  entity.ability
+  ?? (entity.lineage === 'VRGR'
+    ? [
+        {
+          choose: {
+            weighted: {
+              from: FLEXIBLE_LINEAGE_ABILITIES,
+              weights: [2, 1],
+            },
+          },
+        },
+        {
+          choose: {
+            weighted: {
+              from: FLEXIBLE_LINEAGE_ABILITIES,
+              weights: [1, 1, 1],
+            },
+          },
+        },
+      ]
+    : undefined)
+);
+
 const normalizeFeatForAutoBuilder = feat => ({
   key: feat.ENG_name || feat.name,
   name: feat.name,
@@ -301,7 +327,7 @@ const normalizeEntityForAutoBuilder = entity => ({
   source: entity.source,
   ruleSystem: entity.source === 'XPHB' ? '5r' : '5e',
   edition: entity.edition,
-  ability: entity.ability,
+  ability: normalizeOriginAbility(entity),
   speed: entity.speed,
   size: entity.size,
   darkvision: entity.darkvision,

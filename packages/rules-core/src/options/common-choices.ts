@@ -284,19 +284,33 @@ export function parseRuleClassSkillChoiceGroups(
   const groups: RuleStringChoiceGroup[] = [];
   const issues: RuleIssue[] = [];
   value.skills.forEach((entry, index) => {
-    if (!isRecord(entry) || !('choose' in entry)) {
+    if (!isRecord(entry)) {
       issues.push(issue([sourceId, 'skills', index], 'choice_entry_unsupported'));
       return;
     }
-    const choose = parseChoose(entry.choose, [sourceId, 'skills', index, 'choose'], issues);
-    if (choose === undefined) return;
-    pushGroup(groups, issues, {
-      id: `${sourceId}-skill-${index}-choose`,
-      kind: 'skill',
-      label: 'choose',
-      from: choose.from.map(normalizeRuleSkillName),
-      count: choose.count ?? 1,
-    }, [sourceId, 'skills', index]);
+    if ('choose' in entry) {
+      const choose = parseChoose(entry.choose, [sourceId, 'skills', index, 'choose'], issues);
+      if (choose === undefined) return;
+      pushGroup(groups, issues, {
+        id: `${sourceId}-skill-${index}-choose`,
+        kind: 'skill',
+        label: 'choose',
+        from: choose.from.map(normalizeRuleSkillName),
+        count: choose.count ?? 1,
+      }, [sourceId, 'skills', index]);
+      return;
+    }
+    if (typeof entry.any === 'number') {
+      pushGroup(groups, issues, {
+        id: `${sourceId}-skill-${index}-any`,
+        kind: 'skill',
+        label: 'any',
+        from: [...ruleSkillNames],
+        count: entry.any,
+      }, [sourceId, 'skills', index, 'any']);
+      return;
+    }
+    issues.push(issue([sourceId, 'skills', index], 'choice_entry_unsupported'));
   });
   return issues.length > 0 ? { ok: false, issues } : success(groups);
 }

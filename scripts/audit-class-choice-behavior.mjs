@@ -10,10 +10,12 @@ const projectImport = relativePath => path.join(ROOT, relativePath).replaceAll(p
 const entrySource = `
 import { INITIAL_CHARACTER } from '${projectImport('types.ts')}';
 import {
+  buildLevelUpCharacter,
   getAutoBuilderClass,
   getAutoBuilderSubclassAdvancementState,
   getAutoBuilderSubclasses,
   getClassExpertiseChoiceOptions,
+  getFightingStyleCantripChoiceState,
   getFightingStyleFeatChoiceOptions,
   getFightingStyleFeatureChoiceOptions,
   getInvocationChoiceState,
@@ -63,6 +65,88 @@ const style5r = getFightingStyleFeatChoiceOptions(content, '5r', character({}), 
 assert(style5e?.count === 1 && style5e.from.length > 0, '5e Fighter should select one fighting style feature');
 assert(style5r?.count === 1 && style5r.from.every(feat => feat.source === 'XPHB'), '5r Fighter should select one XPHB fighting style feat');
 
+const paladin5e = getClass('Paladin', '5e');
+const paladinLevel1 = character({
+  classes: [{
+    id: 'class-paladin-phb',
+    name: 'Paladin',
+    level: 1,
+    subclass: '',
+    source: 'PHB',
+  }],
+  spellcastingProfiles: [],
+  spellcasting: {
+    ...INITIAL_CHARACTER.spellcasting,
+    spells: [],
+  },
+});
+const paladinStyles = getFightingStyleFeatureChoiceOptions(content, '5e', paladinLevel1, paladin5e, 2);
+const blessedWarrior = paladinStyles?.from.find(style => style.key === 'Blessed Warrior');
+assert(blessedWarrior, 'missing 5e Blessed Warrior fighting style');
+const blessedWarriorCantrips = getFightingStyleCantripChoiceState(content, blessedWarrior, '5e');
+const blessedWarriorCantripIds = blessedWarriorCantrips?.from.slice(0, 2).map(spell => spell.id) || [];
+assert(blessedWarriorCantripIds.length === 2, 'Blessed Warrior should offer two cantrip choices');
+const paladinLevel2 = buildLevelUpCharacter(paladinLevel1, content, paladin5e, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  classFeatureChoices: {
+    fightingStyleFeatureId: blessedWarrior.id,
+    fightingStyleCantrips: blessedWarriorCantripIds,
+  },
+});
+const paladinSpellProfile = paladinLevel2.spellcastingProfiles.find(
+  profile => profile.classId === paladinLevel1.classes[0].id,
+);
+assert(
+  blessedWarriorCantripIds.every(id => paladinSpellProfile?.spells.some(spell => spell.id === id)),
+  'Blessed Warrior cantrips should be added to the Paladin spellcasting profile',
+);
+
+const fighterLevel3PaladinLevel1 = character({
+  abilities: { ...INITIAL_CHARACTER.abilities, CHA: 12 },
+  classes: [
+    {
+      id: 'class-paladin-phb',
+      name: 'Paladin',
+      level: 1,
+      subclass: '',
+      source: 'PHB',
+    },
+    {
+      id: 'class-fighter-phb',
+      name: 'Fighter',
+      level: 3,
+      subclass: '勇士',
+      source: 'PHB',
+    },
+  ],
+  resources: [{
+    id: 'auto-resource-Paladin-PHB-divine-sense',
+    sourceId: 'auto-resource-Paladin-PHB-divine-sense',
+    sourceName: '圣武士 PHB',
+    name: '神圣感知',
+    current: 2,
+    max: 2,
+    reset: 'longRest',
+    ruleSystem: '5e',
+  }],
+});
+const fighterLevel4PaladinLevel1 = buildLevelUpCharacter(fighterLevel3PaladinLevel1, content, fighter5e, {
+  ruleSystem: '5e',
+  spellChoices: { cantrips: [], leveled: [] },
+  abilityScoreImprovementChoice: {
+    mode: 'plus2',
+    plus2: 'CHA',
+  },
+});
+const refreshedDivineSense = fighterLevel4PaladinLevel1.resources.find(
+  resource => resource.id === 'auto-resource-Paladin-PHB-divine-sense',
+);
+assert(
+  refreshedDivineSense?.max === 3,
+  \`leveling Fighter and increasing Charisma should refresh Paladin Divine Sense uses, got \${refreshedDivineSense?.max}\`,
+);
+
 const mastery = getWeaponMasteryChoiceState(content, fighter5r, character({}), 1);
 assert(mastery?.needed === 3, '5r Fighter level 1 should require three weapon masteries');
 
@@ -105,6 +189,8 @@ export default {
   expertise: expertise[0]?.count,
   fightingStyles5e: style5e?.from.length,
   fightingStyleFeats5r: style5r?.from.length,
+  blessedWarriorCantrips: blessedWarriorCantripIds.length,
+  refreshedDivineSenseUses: refreshedDivineSense?.max,
   weaponMasteries: mastery?.needed,
   invocations5e: invocations5e.needed,
   invocations5r: invocations5r.needed,
@@ -144,6 +230,8 @@ console.log(JSON.stringify({
     '2014 and 2024 subclass thresholds use shared advancement state',
     'class expertise includes only proficient non-expertise options',
     '2014 fighting styles and 2024 fighting style feats use authorized candidates',
+    'Blessed Warrior cantrips are added to the Paladin spellcasting profile',
+    'level-up refreshes ability-dependent resources from other existing classes',
     'weapon mastery, invocation, maneuver, and metamagic counts follow progression',
     'feat and fighting-style grants remain additional to class progression',
   ],

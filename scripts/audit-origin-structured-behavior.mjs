@@ -20,6 +20,7 @@ import {
   getExistingOriginSpellLevelUpChoiceStates,
   getOriginSpellChoiceState,
   getOriginWeaponChoiceOptions,
+  getRaceWeightedAbilityOptions,
   getRaceFeatureChoiceOptions,
   getRaceResistanceOptions,
   getSpellChoiceState,
@@ -154,6 +155,7 @@ const chromaticDragonborn = content.races.find(item => item.key === 'Dragonborn 
 const gemDragonborn = content.races.find(item => item.key === 'Dragonborn (Gem)' && item.source === 'FTD');
 const metallicDragonborn = content.races.find(item => item.key === 'Dragonborn (Metallic)' && item.source === 'FTD');
 const eladrin = content.races.find(item => item.key === 'Eladrin' && item.source === 'MPMM');
+const duergar = content.races.find(item => item.key === 'Duergar' && item.source === 'MPMM');
 const dwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'PHB');
 const xphbDwarf = content.races.find(item => item.key === 'Dwarf' && item.source === 'XPHB');
 const xphbElf = content.races.find(item => item.key === 'Elf' && item.source === 'XPHB');
@@ -243,6 +245,7 @@ assert(xphbGoliath, 'missing XPHB Goliath fixture');
 assert(mpmmHarengon, 'missing MPMM Harengon fixture');
 assert(wbtwHarengon, 'missing WBtW Harengon fixture');
 assert(kender, 'missing DSotDQ Kender fixture');
+assert(duergar, 'missing MPMM Duergar fixture');
 assert(kenku, 'missing MPMM Kenku fixture');
 assert(mpmmKobold, 'missing MPMM Kobold fixture');
 assert(vgmKobold, 'missing VGM Kobold fixture');
@@ -309,6 +312,65 @@ const levelToFive = (character, cls, ruleSystem) => {
   }
   return nextCharacter;
 };
+
+const duergarAbilityOptions = getRaceWeightedAbilityOptions(duergar);
+const flexibleRaceCount = content.races.filter(
+  race => getRaceWeightedAbilityOptions(race).length === 6,
+).length;
+assert(
+  duergarAbilityOptions.length === 6,
+  \`MPMM Duergar should offer all six flexible ability options, got \${duergarAbilityOptions.join(', ')}\`,
+);
+assert(flexibleRaceCount >= 46, \`expected at least 46 flexible lineage races, got \${flexibleRaceCount}\`);
+const charismaticDuergar = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: duergar,
+  raceChoices: {
+    abilityChoice: {
+      mode: 'plus2plus1',
+      plus2: 'CHA',
+      plus1: 'CON',
+    },
+  },
+});
+const wiseDuergar = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: duergar,
+  raceChoices: {
+    abilityChoice: {
+      mode: 'plus2plus1',
+      plus2: 'WIS',
+      plus1: 'INT',
+    },
+  },
+});
+const versatileDuergar = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
+  ...baseOptions,
+  race: duergar,
+  raceChoices: {
+    abilityChoice: {
+      mode: 'plus1three',
+      plus1a: 'DEX',
+      plus1b: 'CON',
+      plus1c: 'CHA',
+    },
+  },
+});
+assert(
+  charismaticDuergar.abilities.CHA - wiseDuergar.abilities.CHA === 2
+  && charismaticDuergar.abilities.CON - wiseDuergar.abilities.CON === 1
+  && wiseDuergar.abilities.WIS - charismaticDuergar.abilities.WIS === 2
+  && wiseDuergar.abilities.INT - charismaticDuergar.abilities.INT === 1,
+  'MPMM Duergar should apply the selected +2/+1 ability increases',
+);
+assert(
+  versatileDuergar.abilities.DEX - wiseDuergar.abilities.DEX === 1
+  && versatileDuergar.abilities.CON - wiseDuergar.abilities.CON === 1
+  && versatileDuergar.abilities.CHA - wiseDuergar.abilities.CHA === 1
+  && wiseDuergar.abilities.WIS - versatileDuergar.abilities.WIS === 2
+  && wiseDuergar.abilities.INT - versatileDuergar.abilities.INT === 1,
+  'MPMM Duergar should apply three distinct selected +1 ability increases',
+);
 
 const aasimarCharacter = buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
   ...baseOptions,
@@ -1443,6 +1505,13 @@ for (const item of naturalAttackCases) {
   const character = refreshAutomaticStyleAttacks(buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
     ...baseOptions,
     race: item.race,
+    raceChoices: {
+      abilityChoice: {
+        mode: 'plus2plus1',
+        plus2: 'CHA',
+        plus1: 'INT',
+      },
+    },
   }));
   const attack = getAttack(character, item.sourceId);
   assert(attack?.name === item.name, \`\${item.race.key} should add natural attack \${item.name}\`);
@@ -1464,6 +1533,13 @@ const leveledAarakocraAttack = getAttack(
   refreshAutomaticStyleAttacks(levelToFive(buildLevelOneCharacter(INITIAL_CHARACTER, content, fighter, {
     ...baseOptions,
     race: aarakocra,
+    raceChoices: {
+      abilityChoice: {
+        mode: 'plus2plus1',
+        plus2: 'CHA',
+        plus1: 'INT',
+      },
+    },
   }), fighter, '5r')),
   'auto-race-attack-aarakocra-mpmm-talons',
 );
@@ -1505,9 +1581,11 @@ const removedVerdanLevelFive = removeCharacterAdjustments(verdanCharacter, 'auto
 assert(removedVerdanLevelFive.bodyType === '小型', 'removing level 5 adjustment should restore AI Verdan Small size');
 
 export default {
+  flexibleRaceCount,
   races: [aasimar.name, xphbAasimar.name, astralElf.name, dragonborn.name, xphbDragonborn.name, chromaticDragonborn.name, gemDragonborn.name, metallicDragonborn.name, eladrin.name, dwarf.name, xphbDwarf.name, xphbElf.name, xphbOrc.name, mpmmOrc.name, halfOrc.name, erlwBugbear.name, mpmmBugbear.name, vgmBugbear.name, mpmmGoliath.name, vgmGoliath.name, xphbGoliath.name, mpmmHarengon.name, wbtwHarengon.name, kender.name, kenku.name, mpmmKobold.name, vgmKobold.name, rhwReborn.name, vrgrReborn.name, shadarKai.name, mpmmFirbolg.name, vgmFirbolg.name, mpmmGoblin.name, vgmGoblin.name, mpmmHobgoblin.name, hobgoblin.name, mpmmLizardfolk.name, vgmLizardfolk.name, rhwDhampir.name, vrgrDhampir.name, vampire.name, rhwHexblood.name, vrgrHexblood.name, deepGnome.name, hadozee.name, giff.name, efaShifter.name, erlwShifter.name, mpmmShifter.name, autognome.name, yuanTi.name, aarakocra.name, mpmmCentaur.name, mpmmMinotaur.name, naga.name, mpmmTabaxi.name, vgmTabaxi.name, leonin.name, lupin.name, khoravar.name, loxodon.name, vedalken.name, verdan.name, xphbHuman.name, mpmmSatyr.name, xphbTiefling.name, tortle.name, warforged.name],
   checks: [
     'fixed race darkvision adds reversible structured sense',
+    'VRGR-lineage races expose and apply flexible ability increases',
     'fixed race resistances add reversible structured resistances',
     'Healing Hands adds reversible long-rest race resource',
     'Aasimar Celestial Revelation adds level-gated long-rest race resource',

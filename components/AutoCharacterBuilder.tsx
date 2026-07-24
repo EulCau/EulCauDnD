@@ -66,6 +66,7 @@ import {
   getMulticlassToolChoiceOptions,
   getOriginFixedSkillProficiencies,
   getRaceFeatChoiceOptions,
+  getRaceWeightedAbilityOptions,
   getSpellChoiceState,
   getSkillChoiceOptions,
   getWeaponMasteryChoiceState,
@@ -211,6 +212,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         count: raceOriginChoiceGroups.ability[0].count,
       }
     : null;
+  const raceWeightedAbilityOptions = getRaceWeightedAbilityOptions(selectedRace, selectedSubrace);
   const raceSkillChoiceState = raceOriginChoiceGroups?.skill[0]
     ? {
         from: raceOriginChoiceGroups.skill[0].from,
@@ -273,11 +275,13 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const classToolChoiceOptions = selectedClass
     ? (isNewMulticlass ? getMulticlassToolChoiceOptions(selectedClass) : (!isLevelUpMode ? getClassToolChoiceOptions(selectedClass) : []))
     : [];
+  const selectedSubclass = subclassOptions.find(subclass => subclass.id === subclassId)
+    || subclassOptions.find(subclass => existingClass?.subclass && subclass.name === existingClass.subclass);
   const fightingStyleChoiceState = content && selectedClass
     ? getFightingStyleFeatChoiceOptions(content, ruleSystem, data, selectedClass, targetClassLevel)
     : null;
   const fightingStyleFeatureChoiceState = content && selectedClass
-    ? getFightingStyleFeatureChoiceOptions(content, ruleSystem, data, selectedClass, targetClassLevel)
+    ? getFightingStyleFeatureChoiceOptions(content, ruleSystem, data, selectedClass, targetClassLevel, selectedSubclass)
     : null;
   const selectedFightingStyleFeat = fightingStyleChoiceState?.from.find(feat => (
     `${feat.key}|${feat.source}` === classFeatureChoices.fightingStyle?.featId
@@ -402,8 +406,6 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       )
     : null;
   const needsSubclassChoice = Boolean(subclassAdvancementState?.group);
-  const selectedSubclass = subclassOptions.find(subclass => subclass.id === subclassId)
-    || subclassOptions.find(subclass => existingClass?.subclass && subclass.name === existingClass.subclass);
   const activeSpellSubclass = needsSubclassChoice || existingClass?.subclass ? selectedSubclass : undefined;
   const selectedSpellProfileId = selectedClass
     ? `auto-${selectedClass.key.toLowerCase()}-${selectedClass.source.toLowerCase()}-spellcasting`
@@ -495,10 +497,21 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
       ? getAutoBuilderOriginChoiceGroups(content, ruleSystem, selectedRace, selectedSubrace)
       : null;
     const featChoice = content ? getRaceFeatChoiceOptions(content, ruleSystem, data, selectedRace, selectedSubrace) : null;
+    const weightedAbilities = getRaceWeightedAbilityOptions(selectedRace, selectedSubrace);
     setRaceChoices({
       resistance: originChoiceGroups?.resistance[0]?.from[0],
       size: originChoiceGroups?.size[0]?.from[0],
       featId: featChoice?.from[0] ? `${featChoice.from[0].key}|${featChoice.from[0].source}` : undefined,
+      abilityChoice: weightedAbilities.length > 0
+        ? {
+            mode: 'plus2plus1',
+            plus2: weightedAbilities[0],
+            plus1: weightedAbilities.find(ability => ability !== weightedAbilities[0]),
+            plus1a: weightedAbilities[0],
+            plus1b: weightedAbilities[1],
+            plus1c: weightedAbilities[2],
+          }
+        : undefined,
     });
   }, [content, data, ruleSystem, selectedRace, selectedSubrace]);
 
@@ -847,6 +860,17 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     setBackgroundAbilityChoice(prev => ({ ...prev, ...patch }));
   };
 
+  const updateRaceAbilityChoice = (patch: Partial<AutoBuilderAbilityChoice>) => {
+    setRaceChoices(prev => ({
+      ...prev,
+      abilityChoice: {
+        mode: prev.abilityChoice?.mode || 'plus2plus1',
+        ...prev.abilityChoice,
+        ...patch,
+      },
+    }));
+  };
+
   const renderAbilityOption = (ability: AbilityName) => <option key={ability} value={ability}>{ability}</option>;
   const updateAbilityScoreImprovementChoice = (patch: Partial<AutoBuilderAbilityScoreImprovementChoice>) => {
     setAbilityScoreImprovementChoice(prev => ({ ...prev, ...patch }));
@@ -1182,6 +1206,26 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 	  const isRaceChoiceComplete = isLevelUpMode
 	    || (
 	      (!raceOriginChoiceGroups || areAutoBuilderOriginChoicesComplete(raceOriginChoiceGroups, raceChoices))
+	      && (
+	        raceWeightedAbilityOptions.length === 0
+	        || (
+	          raceChoices.abilityChoice?.mode === 'plus2plus1'
+	          && Boolean(raceChoices.abilityChoice.plus2)
+	          && Boolean(raceChoices.abilityChoice.plus1)
+	          && raceChoices.abilityChoice.plus2 !== raceChoices.abilityChoice.plus1
+	        )
+	        || (
+	          raceChoices.abilityChoice?.mode === 'plus1three'
+	          && Boolean(raceChoices.abilityChoice.plus1a)
+	          && Boolean(raceChoices.abilityChoice.plus1b)
+	          && Boolean(raceChoices.abilityChoice.plus1c)
+	          && new Set([
+	            raceChoices.abilityChoice.plus1a,
+	            raceChoices.abilityChoice.plus1b,
+	            raceChoices.abilityChoice.plus1c,
+	          ]).size === 3
+	        )
+	      )
 	      && (!raceFeatChoiceState || (
 	        Boolean(raceChoices.featId ?? raceFeatChoiceState.from[0] ? `${raceFeatChoiceState.from[0].key}|${raceFeatChoiceState.from[0].source}` : undefined)
 	        && (raceFeatAbilityOptions.length === 0 || Boolean(raceChoices.featAbility))
@@ -1351,7 +1395,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         ruleSystem,
         race: selectedRace,
         subrace: selectedSubrace,
-        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceFeatureChoiceOptions.length || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length || raceOriginSpellChoiceState) ? raceChoices : undefined,
+        raceChoices: (raceResistanceOptions.length || raceSizeOptions.length || raceFeatureChoiceOptions.length || raceAbilityChoiceState || raceWeightedAbilityOptions.length || raceSkillChoiceState || raceFeatChoiceState || raceToolChoiceOptions.length || raceLanguageChoiceOptions.length || raceOriginSpellChoiceState) ? raceChoices : undefined,
         background: selectedBackground,
         subclass: needsSubclassChoice ? selectedSubclass : undefined,
         decoupleOriginFromBackground: isOriginDecoupled,
@@ -1531,7 +1575,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
             </div>
           )}
 
-          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceFeatureChoiceOptions.length > 0 || raceAbilityChoiceState || raceSkillChoiceState || raceFeatChoiceState || raceOriginSpellChoiceState) && (
+          {!isLevelUpMode && (raceResistanceOptions.length > 0 || raceSizeOptions.length > 0 || raceFeatureChoiceOptions.length > 0 || raceAbilityChoiceState || raceWeightedAbilityOptions.length > 0 || raceSkillChoiceState || raceFeatChoiceState || raceOriginSpellChoiceState) && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
               <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.raceChoices')}</h3>
               <div className="grid grid-cols-1 gap-3">
@@ -1603,6 +1647,67 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                         </label>
                       ))}
                     </div>
+                  </div>
+                )}
+                {raceWeightedAbilityOptions.length > 0 && raceChoices.abilityChoice && (
+                  <div>
+                    <div className="text-[10px] text-gray-500 uppercase font-bold mb-2">
+                      {t('auto.raceAbilities')}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <label className="flex flex-col gap-1 text-xs">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold">{t('auto.abilityMode')}</span>
+                        <select
+                          value={raceChoices.abilityChoice.mode}
+                          onChange={event => updateRaceAbilityChoice({ mode: event.target.value as AutoBuilderAbilityChoice['mode'] })}
+                          className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+                        >
+                          <option value="plus2plus1">{t('auto.abilityPlus2Plus1')}</option>
+                          <option value="plus1three">{t('auto.abilityPlus1Three')}</option>
+                        </select>
+                      </label>
+                      {raceChoices.abilityChoice.mode === 'plus2plus1' && (
+                        <>
+                          <label className="flex flex-col gap-1 text-xs">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold">+2</span>
+                            <select
+                              value={raceChoices.abilityChoice.plus2 || ''}
+                              onChange={event => updateRaceAbilityChoice({ plus2: event.target.value as AbilityName })}
+                              className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+                            >
+                              {raceWeightedAbilityOptions.map(renderAbilityOption)}
+                            </select>
+                          </label>
+                          <label className="flex flex-col gap-1 text-xs">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold">+1</span>
+                            <select
+                              value={raceChoices.abilityChoice.plus1 || ''}
+                              onChange={event => updateRaceAbilityChoice({ plus1: event.target.value as AbilityName })}
+                              className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+                            >
+                              {raceWeightedAbilityOptions.map(renderAbilityOption)}
+                            </select>
+                          </label>
+                        </>
+                      )}
+                    </div>
+                    {raceChoices.abilityChoice.mode === 'plus1three' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+                        {(['plus1a', 'plus1b', 'plus1c'] as const).map(field => (
+                          <label key={field} className="flex flex-col gap-1 text-xs">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold">+1</span>
+                            <select
+                              value={raceChoices.abilityChoice?.[field] || ''}
+                              onChange={event => updateRaceAbilityChoice({ [field]: event.target.value as AbilityName })}
+                              className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
+                            >
+                              <option value="">{t('auto.chooseAbility')}</option>
+                              {raceWeightedAbilityOptions.map(renderAbilityOption)}
+                            </select>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 {raceSkillChoiceState && (
