@@ -34,6 +34,10 @@ export const FloatingDiceRoller: React.FC = () => {
       ? { width: Math.min(PANEL_WIDTH, window.innerWidth - INITIAL_OFFSET * 2), height: Math.min(PANEL_HEIGHT, window.innerHeight - INITIAL_OFFSET * 2) }
       : { width: BUTTON_SIZE, height: BUTTON_SIZE }
   ), [isOpen]);
+  const chronologicalHistory = useMemo(
+    () => [...state.history].sort((left, right) => left.timestamp - right.timestamp),
+    [state.history],
+  );
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -53,7 +57,7 @@ export const FloatingDiceRoller: React.FC = () => {
     }
   }, [isOpen]);
 
-  const newestHistoryId = state.history[0]?.id;
+  const newestHistoryId = chronologicalHistory.at(-1)?.id;
   useEffect(() => {
     if (!isOpen || newestHistoryId === undefined) return;
     const animationFrame = window.requestAnimationFrame(() => {
@@ -160,7 +164,7 @@ export const FloatingDiceRoller: React.FC = () => {
       role={isOpen ? 'dialog' : 'button'}
       aria-label={isOpen ? '骰子工具' : '打开骰子工具'}
       tabIndex={isOpen ? -1 : 0}
-      className={`fixed z-[60] flex overflow-hidden border shadow-xl transition-[width,height,border-radius,background-color,box-shadow,transform] duration-200 ${
+      className={`fixed z-[60] flex overflow-hidden border shadow-xl transition-[left,top,width,height,border-radius,background-color,box-shadow,transform] duration-200 ${
         isOpen
           ? 'flex-col rounded-xl border-gray-300 bg-white shadow-2xl'
           : 'h-14 w-14 items-center justify-center rounded-full border-red-900 bg-dnd-red text-xl font-bold text-white hover:scale-105'
@@ -192,7 +196,7 @@ export const FloatingDiceRoller: React.FC = () => {
               <div className="text-sm text-gray-400">输入 /help 查看骰子语法。</div>
             ) : (
               <div className="flex flex-col gap-2">
-                {[...state.history].reverse().map(entry => (
+                {chronologicalHistory.map(entry => (
                   <div key={entry.id} className="rounded border border-gray-200 bg-gray-50 p-2 text-sm">
                     <div className="break-words font-mono text-xs text-gray-500">{entry.input}</div>
                     <div className="mt-1 font-bold text-gray-900">{entry.output}</div>
