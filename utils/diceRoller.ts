@@ -3,6 +3,7 @@ export type DiceRollEntry = {
   input: string;
   output: string;
   detail?: string;
+  pools?: { values: number[]; total: number }[];
   timestamp: number;
 };
 
@@ -50,6 +51,7 @@ const HELP_TEXT = [
   'Successes: 2d4cs=4, 2d4cs<2, 2d4cs<=2, 2d4cs>2, 2d4cs>=3',
   'Margin: 2d4ms=4',
   'Pools: {2d8, 1d6}, {1d20+7, 10}kh1',
+  'D&D: dndk (e.g. dnd3), k = 1..1000 pools of six 4d6dl1 scores; result = highest total, avg = expected highest total',
   'Functions: floor(1.5), ceil(1.5), round(1.5), avg(8d6), dmax(8d6), dmin(8d6), sign(1d6-3), abs(1d6-3)',
   'Labels: Fireball: 8d6',
   'Macros: /macro list, /macro add myName 1d2+3, /macro remove myName, #myName',
@@ -71,9 +73,9 @@ export function runDiceRollerCommand(rawInput: string, state: DiceRollerState): 
   const input = rawInput.trim();
   if (!input) return state;
 
-  const pushEntry = (output: string, detail?: string): DiceRollerState => ({
+  const pushEntry = (output: string, detail?: string, pools?: DiceRollEntry['pools']): DiceRollerState => ({
     ...state,
-    history: [createDiceRollerEntry(input, output, detail), ...state.history],
+    history: [{ ...createDiceRollerEntry(input, output, detail), ...(pools ? { pools } : {}) }, ...state.history],
     inputHistory: [input, ...state.inputHistory.filter(item => item !== input)].slice(0, 100),
   });
 
@@ -130,6 +132,23 @@ export function runDiceRollerCommand(rawInput: string, state: DiceRollerState): 
     }
 
     const { label, expression } = splitLabel(input);
+    if (/^dnd/i.test(expression)) {
+      const countText = /^dnd(\d+)$/i.exec(expression)?.[1];
+      const count = Number(countText);
+      if (!Number.isInteger(count) || count < 1 || count > 1000) {
+        throw new Error('Use dndk with an integer k from 1 to 1000, e.g. dnd3.');
+      }
+      const pools = Array.from({ length: count }, () => {
+        const values = Array.from({ length: 6 }, () => evaluate(DND_SCORE).value).sort((a, b) => b - a);
+        return { values, total: values.reduce((sum, value) => sum + value, 0) };
+      });
+      const maximum = Math.max(...pools.map(pool => pool.total));
+      return pushEntry(
+        `${label ? `${label}: ` : ''}${maximum}, avg ${formatNumber(averageDndMaximum(count))}`,
+        pools.map(pool => `pool: [${pool.values.join(', ')}] total = ${pool.total}`).join('\n'),
+        pools,
+      );
+    }
     const result = rollExpression(expression);
     const avg = averageExpression(expression);
     const avgText = avg.ok ? `, avg ${formatNumber(avg.value)}` : '';
@@ -137,6 +156,39 @@ export function runDiceRollerCommand(rawInput: string, state: DiceRollerState): 
   } catch (error) {
     return pushEntry('Error', error instanceof Error ? error.message : String(error));
   }
+}
+
+const DND_SCORE: Extract<Node, { type: 'dice' }> = {
+  type: 'dice', count: 4, sides: 6, modifiers: [{ kind: 'drop', order: 'lowest', count: 1 }],
+};
+let dndTotalProbabilities: number[] | undefined;
+
+function averageDndMaximum(count: number): number {
+  if (!dndTotalProbabilities) {
+    const scoreDistribution = exactDistribution(DND_SCORE);
+    if (!scoreDistribution.ok) throw new Error(scoreDistribution.reason);
+    let totals = [1];
+    // Enumerate all 6^4 equally likely rolls, then convolve six independent scores.
+    for (let i = 0; i < 6; i += 1) {
+      const next = new Array<number>(totals.length + 18).fill(0);
+      totals.forEach((probability, total) => {
+        for (const [score, frequency] of scoreDistribution.values) {
+          next[total + score] += probability * (frequency / 6 ** 4);
+        }
+      });
+      totals = next;
+    }
+    dndTotalProbabilities = totals;
+  }
+  // For M = max(S_1, ..., S_k), P(M <= t) = P(S <= t)^k.
+  // E[M] = 18 + sum_{t=18}^{107} (1 - P(S <= t)^k).
+  let cumulative = 0;
+  let expectation = 18;
+  for (let total = 18; total < 108; total += 1) {
+    cumulative += dndTotalProbabilities[total];
+    expectation += 1 - Math.min(1, cumulative) ** count;
+  }
+  return expectation;
 }
 
 export function rollExpression(source: string): EvalResult {

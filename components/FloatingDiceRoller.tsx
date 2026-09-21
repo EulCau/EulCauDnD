@@ -74,7 +74,8 @@ export const FloatingDiceRoller: React.FC = () => {
   const submit = () => {
     const nextInput = input.trim();
     if (!nextInput) return;
-    setState(prev => runDiceRollerCommand(nextInput, prev));
+    // Draw once per submission; React may invoke state updater functions twice in StrictMode.
+    setState(runDiceRollerCommand(nextInput, state));
     setInput('');
     setInputHistoryIndex(-1);
   };
@@ -195,8 +196,19 @@ export const FloatingDiceRoller: React.FC = () => {
                 {[...state.history].reverse().map(entry => (
                   <div key={entry.id} className="rounded border border-gray-200 bg-gray-50 p-2 text-sm">
                     <div className="break-words font-mono text-xs text-gray-500">{entry.input}</div>
-                    <div className="mt-1 font-bold text-gray-900">{entry.output}</div>
-                    {entry.detail && <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-xs text-gray-600">{entry.detail}</pre>}
+                    <div className={`mt-1 font-bold text-gray-900 ${entry.pools ? 'text-lg' : ''}`}>{entry.output}</div>
+                    {entry.pools ? (
+                      <div className="mt-1 overflow-x-auto font-mono text-xs text-gray-600">
+                        <div className="grid min-w-max grid-cols-[1fr_auto] gap-x-3 gap-y-1">
+                          {entry.pools.map((pool, index) => (
+                            <React.Fragment key={index}>
+                              <span className="whitespace-nowrap">pool: [{pool.values.join(', ')}]</span>
+                              <span className="whitespace-nowrap text-right">total = {pool.total}</span>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    ) : entry.detail && <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-xs text-gray-600">{entry.detail}</pre>}
                   </div>
                 ))}
               </div>
