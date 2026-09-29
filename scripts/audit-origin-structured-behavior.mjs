@@ -1490,8 +1490,8 @@ const naturalAttackCases = [
   {
     race: mpmmSatyr,
     sourceId: 'auto-race-attack-satyr-mpmm-ram',
-    name: '攻城槌',
-    damage: '1d6 穿刺',
+    name: '顶撞',
+    damage: '1d6 钝击',
   },
   {
     race: tortle,

@@ -52,6 +52,29 @@ test('projects an initial feat spell profile with strict block and spell choices
   }).ok, false);
 });
 
+test('accepts English and legacy Chinese inherited spell abilities', async () => {
+  const catalog = await loadCatalog();
+  const original = findFeat(catalog.feats, 'Telepathic', 'XPHB');
+  for (const ability of ['inherit', '继承']) {
+    const feat = {
+      ...original,
+      additionalSpells: [{ ability, innate: { _: { daily: { '1': ['侦测思想|XPHB'] } } } }],
+    };
+    const state = createRuleFeatSpellChoiceState(catalog, '5r', feat, 4);
+    assert.ok(state.ok && state.value);
+    const result = createRuleFeatSpellEffects(catalog, '5r', feat, 4, {
+      blockId: state.value.blocks[0]!.id,
+      ability: 'WIS',
+    });
+    assert.ok(result.ok);
+    assert.ok(result.value.some(effect => (
+      effect.type === 'spell.profile.upsert'
+      && effect.profile.ability === 'WIS'
+      && effect.profile.spells.length === 1
+    )));
+  }
+});
+
 test('adds XPHB Ritual Caster milestone choices to an existing profile', async () => {
   const catalog = await loadCatalog();
   const feat = findFeat(catalog.feats, 'Ritual Caster', 'XPHB');

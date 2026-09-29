@@ -243,7 +243,7 @@ function parseAbility(
   path: readonly (string | number)[],
   issues: RuleIssue[],
 ): { fixed?: RuleAbilityName; options: RuleAbilityName[] } {
-  if (value === undefined || value === '继承') return { options: [] };
+  if (value === undefined || value === 'inherit' || value === '继承') return { options: [] };
   if (typeof value === 'string') {
     const fixed = abilityMap[value.toLocaleLowerCase('en-US')];
     if (fixed === undefined) issues.push(issue(path, 'spell_ability_invalid'));

@@ -906,6 +906,7 @@ assert(telepathicResource?.max === 1, \`XPHB Telepathic should add one Detect Th
 assert(telepathicResource?.reset === 'longRest', \`XPHB Telepathic Detect Thoughts should recover on long rest, got \${telepathicResource?.reset}\`);
 assert(telepathicResource?.note?.includes('无需法术成分'), \`XPHB Telepathic resource note should mention no components, got \${telepathicResource?.note}\`);
 const telepathicProfile = telepathicCharacter.spellcastingProfiles.find(profile => profile.id === 'auto-feat-Telepathic-XPHB-spells');
+assert(telepathicProfile?.ability === 'INT', 'Telepathic spellcasting should inherit the selected feat ability');
 assert(
   telepathicProfile?.spells.some(spell => spell.name === '侦测思想' && spell.prepared),
   'XPHB Telepathic should add prepared Detect Thoughts feat spell',
