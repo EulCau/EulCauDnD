@@ -69,6 +69,8 @@ export interface AttackWeaponSnapshot {
 	}
 
 export interface Spell {
+  countsAgainstKnownLimit?: boolean;
+  grantSource?: string;
 	  id: string;
 	  level: number;
 	  name: string;
@@ -214,6 +216,7 @@ export type AdjustmentOperation =
 	    };
 
 export interface CharacterFeatureEntry {
+  featSelection?: { spellBlockId?: string; damageType?: string };
   id: string;
   sourceId: string;
   sourceName: string;
@@ -261,6 +264,8 @@ export interface ClassItem {
   name: string;
   level: number;
   subclass: string;
+  subclassSource?: string;
+  subclassSpellBlock?: string;
   source?: string;
 }
 
@@ -352,6 +357,8 @@ export interface CharacterData {
     officialExtensionsEnabled: boolean;
     active: boolean;
     originDecoupled?: boolean;
+    campaigns?: string[];
+    originFeatureChoices?: Record<string, string>;
   };
 
   // Spellcasting

@@ -7,7 +7,7 @@ import type {
 } from '../catalog/model.js';
 import type { RuleEffect } from '../model/effect.js';
 import type { RuleIssue, RuleResult } from '../model/issue.js';
-import { createRuleOriginChoiceGroups } from '../options/origin-choices.js';
+import { createRuleOriginChoiceGroups, applyRuleOriginFeatureChoices } from '../options/origin-choices.js';
 import { normalizeRuleSkillName } from '../options/common-choices.js';
 import { validateRuleChoiceSelections } from '../validation/common.js';
 
@@ -32,6 +32,8 @@ export function createRuleOriginBaseEffects(
   origin: RuleOrigin,
   selections: RuleOriginEffectSelections = {},
 ): RuleResult<RuleEffect[]> {
+  const featureSelections = Object.fromEntries(Object.entries(selections.choices ?? {}).flatMap(([key, values]) => values[0] ? [[key, values[0]]] : []));
+  origin = applyRuleOriginFeatureChoices(origin, featureSelections);
   const choiceState = createRuleOriginChoiceGroups(catalog, ruleSystem, [origin]);
   if (!choiceState.ok) return choiceState;
   const validated = validateRuleChoiceSelections(

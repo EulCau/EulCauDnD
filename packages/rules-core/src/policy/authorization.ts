@@ -18,7 +18,7 @@ export function isRuleEntityAuthorized(
   policy: RuleAuthorizationPolicy,
 ): boolean {
   const allowedSources = policy.allowedSources[kind] ?? [];
-  if (allowedSources.includes(entity.source)) return true;
+  if (allowedSources.includes('*') || allowedSources.includes(entity.source)) return true;
   const allowedIds = policy.allowedEntityIds?.[kind] ?? [];
   return authorizationEntityIds(kind, entity).some((id) => allowedIds.includes(id));
 }

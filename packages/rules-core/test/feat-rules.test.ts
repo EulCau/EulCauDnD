@@ -126,7 +126,7 @@ test('classifies every catalog feat prerequisite without unknown fields', async 
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
   const feats = parsed.value.feats.filter(({ prerequisite }) => prerequisite?.length);
-  assert.equal(feats.length, 205);
+  assert.equal(feats.length, 224);
   for (const feat of feats) {
     for (const prerequisite of feat.prerequisite ?? []) {
       const result = evaluateFeatPrerequisite(
@@ -182,14 +182,14 @@ test('filters authorized feats and applies source priority without leaking denie
     character,
     4,
     { allowedSources: ['PHB', 'XPHB'], sourcePriority: ['XPHB', 'PHB'] },
-  ).map(({ source }) => source), ['XPHB']);
+  ).map(({ source }) => source), ['PHB', 'XPHB']);
   assert.deepEqual(getEligibleAbilityScoreImprovementFeats(
     feats,
     '5e',
     character,
     4,
     { allowedSources: ['PHB', 'XPHB'], sourcePriority: ['PHB', 'XPHB'] },
-  ).map(({ source }) => source), ['PHB']);
+  ).map(({ source }) => source), ['PHB', 'XPHB']);
   assert.deepEqual(getEligibleAbilityScoreImprovementFeats(
     [{ key: 'Alert', name: 'Alert', source: 'XPHB' }],
     '5r',
@@ -234,7 +234,7 @@ test('filters catalog feat options through caller authorization', () => {
     getRuleFeatOptions(context, { ...character, knownFeats: [] }, 4)
       .map(({ key, source }) => `${key}|${source}`)
       .sort(),
-    ['Allowed|TEST', 'Athlete|XPHB'],
+    ['Allowed|TEST', 'Athlete|PHB', 'Athlete|XPHB'],
   );
   assert.deepEqual(
     getRuleFeatOptions(context, {

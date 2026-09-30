@@ -264,12 +264,13 @@ function parseAbility(
   return { options: [...new Set(options)] };
 }
 
-function getSpellOptionsForFilter(
+export function getSpellOptionsForFilter(
   catalog: RuleCatalog,
   ruleSystem: RuleSystem,
   filter: string,
 ): RuleResult<RuleSpell[]> {
   let levels: Set<number> | undefined;
+  let sources: Set<string> | undefined;
   let classNames: string[] | undefined;
   let schools: Set<string> | undefined;
   let ritual: boolean | undefined;
@@ -289,6 +290,9 @@ function getSpellOptionsForFilter(
         return invalid([], 'spell_filter_level_invalid');
       }
       levels = new Set(parsed);
+    } else if (key === 'source') {
+      sources = new Set(value.split(';').map(entry => normalize(entry.trim())).filter(Boolean));
+      if (sources.size === 0) return invalid([], 'spell_filter_source_invalid');
     } else if (key === 'class') {
       classNames = value.split(';').map((entry) => entry.trim()).filter(Boolean);
       if (classNames.length === 0) return invalid([], 'spell_filter_class_invalid');
@@ -324,7 +328,7 @@ function getSpellOptionsForFilter(
   const priority = spellSourcePriority(catalog, ruleSystem);
   const byName = new Map<string, RuleSpell>();
   catalog.spells
-    .filter(({ source }) => priority.includes(source))
+    .filter((spell) => sources === undefined || sources.has(normalize(spell.source)))
     .filter((spell) => levels === undefined || levels.has(spell.level))
     .filter((spell) => schools === undefined || Boolean(spell.school && schools.has(spell.school)))
     .filter((spell) => classKeys === undefined || spell.classKeys.some((key) => classKeys.has(key)))
@@ -333,7 +337,7 @@ function getSpellOptionsForFilter(
       spellAttacks?.has(attack.toUpperCase())
     )))
     .forEach((spell) => {
-      const key = spell.englishName || spell.name;
+      const key = spell.id;
       const existing = byName.get(key);
       if (
         existing === undefined
@@ -348,7 +352,7 @@ function getSpellOptionsForFilter(
   return success(options);
 }
 
-function resolveSpellRef(
+export function resolveSpellRef(
   catalog: RuleCatalog,
   ref: string,
   ruleSystem: RuleSystem,

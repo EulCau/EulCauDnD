@@ -38,7 +38,7 @@ test('parses every catalog origin additionalSpells shape at milestone levels', a
       if (level === 20 && result.ok && result.value) parsedOwners += 1;
     }
   }
-  assert.equal(parsedOwners, 77);
+  assert.equal(parsedOwners, 95);
 });
 
 test('builds every catalog origin spell level-up delta', async () => {

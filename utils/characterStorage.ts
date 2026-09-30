@@ -56,6 +56,8 @@ const normalizeClasses = (raw: Partial<CharacterData>): ClassItem[] => {
       name: cls.name || 'Fighter',
       level: normalizeClassLevel(cls.level),
       subclass: cls.subclass || '',
+      subclassSource: cls.subclassSource,
+      subclassSpellBlock: cls.subclassSpellBlock,
       source: cls.source,
     }));
   }

@@ -101,19 +101,12 @@ test('uses authorization and source priority for class spell pools', async () =>
   assert.ok(options.length > 0);
   const byIdentity = new Map<string, string>();
   for (const spell of options) {
-    const identity = spell.englishName || spell.key || spell.name;
+    const identity = spell.id;
     assert.equal(byIdentity.has(identity), false, identity);
     byIdentity.set(identity, spell.source);
   }
-  const xphbNames = new Set(
-    catalog.spells
-      .filter((spell) => spell.source === 'XPHB')
-      .map((spell) => spell.englishName || spell.key || spell.name),
-  );
-  assert.ok(options.some((spell) => spell.source !== 'XPHB'));
-  assert.ok(options
-    .filter((spell) => xphbNames.has(spell.englishName || spell.key || spell.name))
-    .every((spell) => spell.source === 'XPHB'));
+  assert.ok(options.some(spell => spell.source === 'XPHB'));
+  assert.ok(options.some(spell => spell.source === 'PHB'));
 });
 
 test('rejects forged classes and invalid advancement ranges', async () => {

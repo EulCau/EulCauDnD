@@ -211,7 +211,7 @@ export function parseRuleAbilityChoiceGroups(
   value: unknown,
   sourceId: string,
 ): RuleResult<RuleStringChoiceGroup[]> {
-  if (value === undefined) return success([]);
+  if (value == null) return success([]);
   if (!Array.isArray(value)) return invalid([sourceId], 'choice_entries_not_array');
   const groups: RuleStringChoiceGroup[] = [];
   const issues: RuleIssue[] = [];
@@ -250,7 +250,7 @@ export function parseRuleTextChoiceGroups(
   kind: 'resistance' | 'proficiency',
   label: string,
 ): RuleResult<RuleStringChoiceGroup[]> {
-  if (value === undefined) return success([]);
+  if (value == null) return success([]);
   if (!Array.isArray(value)) return invalid([sourceId], 'choice_entries_not_array');
   const groups: RuleStringChoiceGroup[] = [];
   const issues: RuleIssue[] = [];
@@ -277,7 +277,7 @@ export function parseRuleClassSkillChoiceGroups(
   value: unknown,
   sourceId: string,
 ): RuleResult<RuleStringChoiceGroup[]> {
-  if (value === undefined) return success([]);
+  if (value == null) return success([]);
   if (!isRecord(value)) return invalid([sourceId], 'class_proficiencies_not_object');
   if (value.skills === undefined) return success([]);
   if (!Array.isArray(value.skills)) return invalid([sourceId, 'skills'], 'choice_entries_not_array');
@@ -321,7 +321,7 @@ export function parseRuleWeaponChoiceGroups(
   sourceId: string,
   ruleSystem: RuleSystem,
 ): RuleResult<RuleStringChoiceGroup[]> {
-  if (value === undefined) return success([]);
+  if (value == null) return success([]);
   if (!Array.isArray(value)) return invalid([sourceId], 'choice_entries_not_array');
   const groups: RuleStringChoiceGroup[] = [];
   const issues: RuleIssue[] = [];
@@ -402,7 +402,7 @@ function parseProficiencyChoiceGroups(
     numbersAreChoices?: boolean;
   },
 ): RuleResult<RuleStringChoiceGroup[]> {
-  if (value === undefined) return success([]);
+  if (value == null) return success([]);
   if (!Array.isArray(value)) return invalid([sourceId], 'choice_entries_not_array');
   const groups: RuleStringChoiceGroup[] = [];
   const issues: RuleIssue[] = [];
@@ -678,4 +678,31 @@ function issue(path: readonly (string | number)[], reason: string): RuleIssue {
     path,
     detail: { reason },
   };
+}
+
+/** A single shared budget across skills and tools (e.g. Skilled). */
+export function parseRuleMixedProficiencyChoiceGroups(
+  value: unknown, sourceId: string, existing: readonly string[] = [],
+): RuleResult<RuleStringChoiceGroup[]> {
+  if (value == null) return success([]);
+  if (!Array.isArray(value)) return invalid([sourceId], 'choice_entries_not_array');
+  const groups: RuleStringChoiceGroup[] = [];
+  const issues: RuleIssue[] = [];
+  value.forEach((entry, index) => {
+    if (!isRecord(entry) || !Array.isArray(entry.choose)) {
+      issues.push(issue([sourceId, index], 'mixed_proficiency_choice_invalid')); return;
+    }
+    entry.choose.forEach((choice, choiceIndex) => {
+      if (!isRecord(choice) || !Array.isArray(choice.from)) {
+        issues.push(issue([sourceId, index, choiceIndex], 'mixed_proficiency_choice_invalid')); return;
+      }
+      const from = choice.from.flatMap((kind: unknown) => kind === '任意技能' || kind === 'anySkill'
+        ? [...ruleSkillNames] : kind === '任意工具' || kind === 'anyTool'
+          ? allTools.map(tool => `tool:${tool}`) : []);
+      pushGroup(groups, issues, { id: `${sourceId}-mixed-${index}-${choiceIndex}`, kind: 'proficiency',
+        label: '技能或工具', from: from.filter(option => !existing.includes(option)), count: Number(choice.count ?? 1),
+      }, [sourceId, index, choiceIndex]);
+    });
+  });
+  return issues.length ? { ok: false, issues } : success(groups);
 }

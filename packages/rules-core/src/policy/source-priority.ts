@@ -24,6 +24,9 @@ export function dedupeRuleEntitiesByNameAndSourcePriority<T extends RuleNamedSou
   entities: readonly T[],
   policy: RuleAuthorizationPolicy,
 ): T[] {
+  if (kind === 'spell' && policy.allowedSources[kind]?.includes('*')) {
+    return [...new Map(entities.map(entity => [entity.id ?? `${entity.key ?? entity.name}|${entity.source}`, entity])).values()];
+  }
   const byName = new Map<string, T>();
   for (const entity of entities) {
     const identity = normalizedDisplayIdentity(entity);

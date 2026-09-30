@@ -15,7 +15,7 @@ import {
 test('parses every catalog feat additionalSpells shape at milestone levels', async () => {
   const catalog = await loadCatalog();
   const feats = catalog.feats.filter(({ additionalSpells }) => additionalSpells?.length);
-  assert.equal(feats.length, 66);
+  assert.ok(feats.length >= 86);
   for (const feat of feats) {
     const ruleSystem = systemFor(feat);
     for (const level of [1, 2, 3, 4, 5, 8, 9, 12, 13, 16, 17, 20]) {

@@ -56,6 +56,8 @@ export interface RuleSpellcastingProfile {
 }
 
 export interface RuleSpellRef extends RuleEntityRef {
+  countsAgainstKnownLimit?: boolean;
+  grantSource?: string;
   prepared?: boolean;
   alwaysPrepared?: boolean;
 }

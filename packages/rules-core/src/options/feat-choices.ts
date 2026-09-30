@@ -12,6 +12,7 @@ import {
   parseRuleLanguageChoiceGroups,
   parseRuleSavingThrowChoiceGroups,
   parseRuleSkillChoiceGroups,
+  parseRuleMixedProficiencyChoiceGroups,
   parseRuleTextChoiceGroups,
   parseRuleToolChoiceGroups,
   parseRuleWeaponChoiceGroups,
@@ -42,6 +43,9 @@ export function createRuleFeatChoiceGroups(
 ): RuleResult<RuleFeatChoiceGroups> {
   const sourceId = `feat-${feat.key}-${feat.source}`;
   const skill = parseRuleSkillChoiceGroups(feat.skillProficiencies, sourceId);
+  const mixed = parseRuleMixedProficiencyChoiceGroups(feat.skillToolLanguageProficiencies, sourceId, context.proficientSkills);
+  if (!mixed.ok) return mixed;
+  if (skill.ok) skill.value.push(...mixed.value);
   const fixedSkills = (feat.skillProficiencies ?? []).flatMap((entry) => (
     Object.entries(entry).flatMap(([key, value]) => (
       value === true ? [normalizeRuleSkillName(key)] : []

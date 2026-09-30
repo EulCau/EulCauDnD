@@ -72,6 +72,8 @@ export interface RuleClassProficiencies {
 }
 
 export interface RuleSubclass extends RuleEntity {
+  additionalSpells?: unknown[];
+  selectedSpellBlock?: string;
   id: string;
   shortName: string;
   className: string;
@@ -82,6 +84,7 @@ export interface RuleSubclass extends RuleEntity {
 }
 
 export interface RuleOrigin extends RuleEntity {
+  overwrite?: Record<string, boolean>;
   ruleSystem: RuleSystem;
   ability?: Array<Record<string, number> | { choose?: unknown }>;
   speed?: number | Record<string, number | boolean>;
@@ -107,6 +110,8 @@ export interface RuleOrigin extends RuleEntity {
 }
 
 export interface RuleFeatCatalogEntry extends RuleEntity {
+  repeatable?: boolean;
+  skillToolLanguageProficiencies?: unknown[];
   category?: string;
   prerequisite?: unknown[];
   ability?: Array<Record<string, number> | { choose?: unknown }>;

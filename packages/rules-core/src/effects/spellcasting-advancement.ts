@@ -10,6 +10,7 @@ import type { RuleEffect } from '../model/effect.js';
 import type { RuleIssue, RuleResult } from '../model/issue.js';
 import { isRuleEntityAuthorized } from '../policy/authorization.js';
 import { dedupeRuleEntitiesByNameAndSourcePriority } from '../policy/source-priority.js';
+import { getRuleSubclassSpells, getRuleSubclassSpellBlocks } from '../options/subclass-spells.js';
 import { validateRuleChoiceSelections } from '../validation/common.js';
 
 export type RuleSpellcastingMode = 'preparedAll' | 'knownSelection' | 'spellbook';
@@ -63,6 +64,7 @@ export interface RuleSpellcastingAdvancementState {
   automaticSpells: RuleSpell[];
   fixedLeveledGroups: RuleFixedSpellChoiceGroup[];
   magicalSecretGroups: RuleChoiceGroup<RuleSpell>[];
+  subclassSpellGroups: RuleChoiceGroup<RuleSpell>[];
   groups: RuleChoiceGroup<RuleSpell>[];
 }
 
@@ -149,6 +151,7 @@ export function createRuleSpellcastingAdvancementState(
   newClassLevel: number,
   existingSpellIds: readonly string[] = [],
   subclass?: RuleSubclass,
+  bonusSpellIds: readonly string[] = [],
 ): RuleResult<RuleSpellcastingAdvancementState | null> {
   const checked = validateInput(
     context,
@@ -170,6 +173,8 @@ export function createRuleSpellcastingAdvancementState(
     authorizedSubclass,
   );
   const existing = new Set(existingSpellIds);
+  const subclassSpells = getRuleSubclassSpells(context, authorizedSubclass, newClassLevel, maxSpellLevel, bonusSpellIds);
+  if (subclassSpells.issues.length) return { ok: false, issues: subclassSpells.issues };
   const automaticIds = new Set(getAutomaticPreparedSpells(
     context,
     authorizedClass,
@@ -182,6 +187,8 @@ export function createRuleSpellcastingAdvancementState(
     newClassLevel,
     authorizedSubclass,
   );
+  automaticSpells.push(...subclassSpells.automatic.filter(spell => !automaticIds.has(spell.id)));
+  for (const spell of automaticSpells) automaticIds.add(spell.id);
   const limits = knownSpellLimits(authorizedClass, newClassLevel);
   const fixedLeveledGroups = fixedSpellGroups(
     context,
@@ -193,20 +200,18 @@ export function createRuleSpellcastingAdvancementState(
     (total, group) => total + Math.max(0, group.count - group.selected),
     0,
   );
-  const existingCantrips = options.filter((spell) => (
-    spell.level === 0 && existing.has(spell.id)
-  )).length;
-  const existingLeveled = options.filter((spell) => (
-    spell.level > 0 && existing.has(spell.id) && !automaticIds.has(spell.id)
-  )).length;
+  const countedExisting = context.catalog.spells.filter(spell => existing.has(spell.id)
+    && !automaticIds.has(spell.id) && !bonusSpellIds.includes(spell.id));
+  const existingCantrips = countedExisting.filter(spell => spell.level === 0).length;
+  const existingLeveled = countedExisting.filter(spell => spell.level > 0).length;
   const needed = {
     cantrips: Math.max(0, limits.cantrips - existingCantrips),
     leveled: mode === 'preparedAll'
       ? 0
       : Math.max(0, limits.leveled - existingLeveled - fixedNeeded),
   };
-  const cantrips = options.filter((spell) => spell.level === 0);
-  const leveled = options.filter((spell) => spell.level > 0);
+  const cantrips = options.filter((spell) => spell.level === 0 && !automaticIds.has(spell.id));
+  const leveled = options.filter((spell) => spell.level > 0 && !automaticIds.has(spell.id));
   const magicalSecretGroups = magicalSecretsGroups(
     context,
     authorizedClass,
@@ -214,7 +219,12 @@ export function createRuleSpellcastingAdvancementState(
     newClassLevel,
     maxSpellLevel,
     existing,
+    authorizedSubclass,
   );
+  // Regular PHB secrets consume known-spell slots; Lore's level-six secrets do not.
+  const regularSecrets = magicalSecretGroups.filter(group => !group.id.includes('-6-magical-secrets'));
+  needed.leveled = Math.max(0, needed.leveled - regularSecrets.reduce((count, group) => count + group.min, 0));
+  const subclassSpellGroups = subclassSpells.choices;
   const groups = [
     ...(needed.cantrips > 0
       ? [choiceGroup(authorizedClass, newClassLevel, 'cantrips', needed.cantrips, cantrips)]
@@ -224,6 +234,7 @@ export function createRuleSpellcastingAdvancementState(
       : []),
     ...fixedLeveledGroups.flatMap(({ group }) => group ? [group] : []),
     ...magicalSecretGroups,
+    ...subclassSpellGroups,
   ];
   if (groups.some((group) => group.min > group.options.length)) {
     return invalid('choice_count_invalid', ['spellcasting'], 'spell_options_insufficient');
@@ -242,6 +253,7 @@ export function createRuleSpellcastingAdvancementState(
     automaticSpells,
     fixedLeveledGroups,
     magicalSecretGroups,
+    subclassSpellGroups,
     groups,
   });
 }
@@ -326,9 +338,15 @@ export function createRuleSpellcastingAdvancementEffects(
   const classId = existing?.classId;
   const sourceId = profileId;
   const spells = new Map(existingById);
+  const subclassPrefix = state.subclass ? `subclass:${state.subclass.id}:` : undefined;
+  const subclassGrant = subclassPrefix ? `${subclassPrefix}${state.subclass?.selectedSpellBlock ?? '0'}` : undefined;
+  if (subclassPrefix) for (const [id, spell] of spells) {
+    if (spell.grantSource?.startsWith(subclassPrefix) && spell.grantSource !== subclassGrant) spells.delete(id);
+  }
+  const subclassAutomatic = new Set(getRuleSubclassSpells(context, state.subclass, state.newClassLevel, state.maxSpellLevel).automatic.map(spell => spell.id));
 
   const projected = state.mode === 'preparedAll'
-    ? [...state.cantrips.filter(({ id }) => selectedIds.includes(id)), ...state.leveled]
+    ? [...selected, ...state.leveled]
     : selected;
   for (const spell of [...projected, ...state.automaticSpells]) {
     const alwaysPrepared = automaticIds.has(spell.id)
@@ -340,6 +358,12 @@ export function createRuleSpellcastingAdvancementEffects(
       source: spell.source,
       prepared: alwaysPrepared,
       alwaysPrepared,
+      grantSource: subclassAutomatic.has(spell.id) || state.subclassSpellGroups.some(group =>
+        (options.selections?.[group.id] ?? []).includes(spell.id)) ? subclassGrant : undefined,
+      countsAgainstKnownLimit: !automaticIds.has(spell.id) && !state.subclassSpellGroups.some(group =>
+        (options.selections?.[group.id] ?? []).includes(spell.id))
+        && !state.magicalSecretGroups.some(group => group.id.includes('-6-magical-secrets') &&
+          (options.selections?.[group.id] ?? []).includes(spell.id)),
     });
   }
 
@@ -408,6 +432,7 @@ function spellOptionsForLevel(
       ...getRuleClassSpellOptions(context, ruleClass, maxSpellLevel),
       ...subclassSpells,
       ...expanded,
+      ...getRuleSubclassSpells(context, subclass, classLevel, maxSpellLevel).expanded,
       ...magicalSecretExpansion,
     ],
     context.authorization,
@@ -432,7 +457,7 @@ function getAutomaticPreparedSpells(
 function additionalSpellRefs(ruleClass: RuleClass, subclass?: RuleSubclass) {
   return [
     ...(ruleClass.additionalPreparedSpells ?? []),
-    ...(subclass?.additionalPreparedSpells ?? []),
+    ...(subclass?.additionalSpells?.length ? [] : subclass?.additionalPreparedSpells ?? []),
   ];
 }
 
@@ -526,11 +551,12 @@ function magicalSecretsGroups(
   newClassLevel: number,
   maxSpellLevel: number,
   existing: ReadonlySet<string>,
+  subclass?: RuleSubclass,
 ): RuleChoiceGroup<RuleSpell>[] {
   if (ruleClass.key !== 'Bard' || ruleClass.source !== 'PHB') return [];
   const pool = getRuleMagicalSecretSpellOptions(context, maxSpellLevel)
     .filter(({ id }) => !existing.has(id));
-  return [10, 14, 18]
+  return [...(subclass?.key === 'College of Lore' ? [6] : []), 10, 14, 18]
     .filter((level) => oldClassLevel < level && level <= newClassLevel)
     .map((level) => choiceGroup(ruleClass, level, 'magical-secrets', 2, pool));
 }
@@ -544,7 +570,7 @@ export function getRuleMagicalSecretSpellOptions(
     'spell',
     context.catalog.spells.filter((spell) => (
       spell.level <= maxSpellLevel
-      && spell.classKeys.some((key) => classKeys.has(key))
+      && (context.ruleSystem === '5e' || spell.classKeys.some((key) => classKeys.has(key)))
       && isRuleEntityAuthorized('spell', spell, context.authorization)
     )),
     context.authorization,
@@ -662,7 +688,9 @@ function validateInput(
     && isRuleEntityAuthorized('subclass', candidate, context.authorization)
   ));
   return authorizedSubclass
-    ? success({ ruleClass: authorizedClass, subclass: authorizedSubclass })
+    ? (subclass.selectedSpellBlock !== undefined && !getRuleSubclassSpellBlocks(authorizedSubclass).some(block => block.id === subclass.selectedSpellBlock)
+      ? invalid('choice_not_available', ['subclass', 'selectedSpellBlock'], 'subclass_spell_block_not_available')
+      : success({ ruleClass: authorizedClass, subclass: { ...authorizedSubclass, selectedSpellBlock: subclass.selectedSpellBlock } }))
     : invalid('entity_not_authorized', ['subclass'], 'subclass_not_authorized');
 }
 

@@ -64,6 +64,7 @@ import {
   getRuleFeatOptions,
   getRuleRaceOptions,
   getRuleClassSpellOptions,
+  getRuleSubclassSpellBlocks,
   getRuleClassSpellSlots,
   getRuleMagicalSecretSpellOptions,
   getRuleMaxSpellLevel,
@@ -77,10 +78,13 @@ import {
   parseRuleAbilityChoiceGroups,
   parseRuleClassSkillChoiceGroups,
   parseRuleCatalog,
+  resolveRuleOriginInheritance,
+  applyRuleOriginFeatureChoices,
   parseRuleExpertiseChoiceGroups,
   parseRuleLanguageChoiceGroups,
   parseRuleSavingThrowChoiceGroups,
   parseRuleSkillChoiceGroups,
+  parseRuleMixedProficiencyChoiceGroups,
   parseRuleTextChoiceGroups,
   parseRuleToolChoiceGroups,
   parseRuleWeaponChoiceGroups,
@@ -150,6 +154,7 @@ type AutoBuilderOrigin = RuleOrigin;
 export type AutoBuilderContent = RuleCatalog;
 
 export type AutoBuilderSpellChoice = {
+  subclassSpells?: Record<string, string[]>;
   cantrips: string[];
   leveled: string[];
 };
@@ -189,6 +194,7 @@ export type AutoBuilderAbilityScoreImprovementChoice = {
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
   featSpellBlockId?: string;
+  featDamageType?: string;
   featSpellAbility?: AbilityName;
   featSpellChoices?: AutoBuilderSkillChoiceSelection;
   featFightingStyleFeatureId?: string;
@@ -208,6 +214,7 @@ export type AutoBuilderFeatChoice = {
   featLanguageChoices?: AutoBuilderLanguageChoiceSelection;
   featSavingThrowChoices?: AutoBuilderSkillChoiceSelection;
   featSpellBlockId?: string;
+  featDamageType?: string;
   featSpellAbility?: AbilityName;
   featSpellChoices?: AutoBuilderSkillChoiceSelection;
   featSpellReplaceRemoveId?: string;
@@ -421,6 +428,8 @@ export const getAutoBuilderClasses = (
   ruleSystem: RuleSystem,
 ): AutoBuilderClass[] => getRuleClassOptions(getAutoBuilderRuleContext(content, ruleSystem));
 
+export { applyRuleOriginFeatureChoices };
+
 export const getAutoBuilderRaces = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
@@ -459,11 +468,12 @@ export const getAutoBuilderSubclassAdvancementState = (
   oldClassLevel: number,
   newClassLevel: number,
   existingSubclassName?: string,
+  existingSubclassSource?: string,
 ): RuleSubclassAdvancementState => {
   const existingSubclassId = existingSubclassName === undefined
     ? undefined
     : getAutoBuilderSubclasses(content, cls)
-        .find(({ name }) => name === existingSubclassName)?.id;
+        .find(({ name, source }) => name === existingSubclassName && (!existingSubclassSource || source === existingSubclassSource))?.id;
   if (existingSubclassName !== undefined && existingSubclassId === undefined) {
     throw new Error(
       `Existing subclass is not authorized for ${cls.key}: ${existingSubclassName}`,
@@ -525,6 +535,12 @@ export const getRaceWeightedAbilityOptions = (
     ? getOriginWeightedAbilityOptions(subrace)
     : getOriginWeightedAbilityOptions(race)
 );
+
+export const getBackgroundFeatChoiceOptions = (content: AutoBuilderContent, background: AutoBuilderOrigin | undefined) => {
+  const result = createRuleOriginFeatChoiceState(background, content.feats);
+  if (!result.ok) throw new Error(`Invalid background feats: ${background?.key}`);
+  return result.value ? { from: result.value.options, count: result.value.count, ruleState: result.value } : null;
+};
 
 export const getBackgroundFeats = (
   content: AutoBuilderContent,
@@ -681,8 +697,13 @@ export const getMulticlassToolChoiceOptions = (
 
 export const getFeatSkillChoiceOptions = (
   feat: AutoBuilderFeat | undefined,
+  character?: CharacterData,
 ): Array<{ id: string; label: string; from: string[]; count: number }> => (
-  feat ? getSkillChoiceGroupsFromProficiencies(feat.skillProficiencies, `feat-${feat.key}-${feat.source}`) : []
+  feat ? [
+    ...getSkillChoiceGroupsFromProficiencies(feat.skillProficiencies, `feat-${feat.key}-${feat.source}`),
+    ...requireRuleChoiceGroups(parseRuleMixedProficiencyChoiceGroups(feat.skillToolLanguageProficiencies,
+      `feat-${feat.key}-${feat.source}`, character ? [...character.proficiencies] : [])),
+  ] : []
 );
 
 export const getFeatToolChoiceOptions = (
@@ -901,8 +922,19 @@ const getOfficialFeatOptions = (
     getAutoBuilderRuleContext(content, ruleSystem),
     toRuleCharacterSnapshot(content, character),
     level,
-  ).filter(predicate);
+  ).filter(predicate).filter(feat => {
+    if (feat.key === 'Elemental Adept' && feat.repeatable) return getFeatDamageTypeOptions(feat, character).length > 0;
+    if (feat.key === 'Magic Initiate' && feat.repeatable) return Boolean(getFeatSpellChoiceState(content, feat, ruleSystem, level, character)?.blocks.length);
+    return true;
+  });
 };
+
+export const getAutoBuilderCampaignOptions = (content: AutoBuilderContent): string[] => uniqueStrings(
+  content.feats.flatMap(feat => (feat.prerequisite ?? []).flatMap(entry => {
+    const campaign = (entry as { campaign?: unknown }).campaign;
+    return Array.isArray(campaign) ? campaign.filter((value): value is string => typeof value === 'string') : [];
+  })),
+).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
 
 const toRuleCharacterSnapshot = (
   content: AutoBuilderContent,
@@ -913,7 +945,8 @@ const toRuleCharacterSnapshot = (
   subrace: character.subrace,
   size: character.bodyType,
   background: character.background,
-  campaigns: [],
+  campaigns: character.automation.campaigns ?? getAutoBuilderCampaignOptions(content),
+  classes: character.classes,
   proficiencies: [...character.proficiencies],
   features: character.featureEntries.flatMap(feature => [
     feature.name,
@@ -942,6 +975,40 @@ const toRuleCharacterSnapshot = (
   )),
 });
 
+export const getLevelOnePrerequisiteCharacter = (
+  content: AutoBuilderContent, character: CharacterData, cls: AutoBuilderClass,
+  race?: AutoBuilderOrigin, subrace?: AutoBuilderOrigin, choices?: AutoBuilderRaceChoice,
+  background?: AutoBuilderOrigin, backgroundAbilityChoice?: AutoBuilderAbilityChoice,
+): CharacterData => {
+  const origins = resolveRuleOriginInheritance([race, subrace]);
+  const operations = origins.flatMap(origin => getOriginBaseEffects(
+    content, origin, cls.ruleSystem, getOriginWeightedAbilityOptions(origin).length ? choices?.abilityChoice : undefined,
+    undefined, undefined, choices?.featureChoices, choices,
+  ).flatMap(originEffectToAdjustmentOperations));
+  if (background) operations.push(...getOriginBaseEffects(content, background, cls.ruleSystem,
+    getOriginWeightedAbilityOptions(background).length ? backgroundAbilityChoice : undefined).flatMap(originEffectToAdjustmentOperations));
+  const preview = applyCharacterAdjustments(character, {
+    id: 'prerequisite-preview', sourceId: 'prerequisite-preview', sourceName: '建卡条件', operations,
+  });
+  const snapshot = { ...preview, race: race?.name ?? '', subrace: subrace?.name ?? '',
+    background: background?.name ?? '', classes: [{ id: 'preview', name: cls.key, source: cls.source, level: 1, subclass: '' }],
+    proficiencies: new Set(preview.proficiencies),
+  };
+  for (const [kind, entries] of [['armor', cls.startingProficiencies?.armor], ['weapon', cls.startingProficiencies?.weapons]] as const) {
+    for (const entry of entries ?? []) snapshot.proficiencies.add(`${kind}:${typeof entry === 'string' ? entry : entry.proficiency ?? entry.full}`);
+  }
+  // The level-one class feature exists before the origin feat is chosen.
+  snapshot.featureEntries = [...preview.featureEntries, ...cls.levelOneFeatures.map(feature => ({
+    id: `preview-${feature.name}`, sourceId: 'prerequisite-preview', sourceName: cls.name,
+    name: feature.name, description: feature.description, level: 1, ruleSystem: cls.ruleSystem,
+  }))];
+  if (cls.spellcastingAbility && getRuleMaxSpellLevel(cls, 1) >= 0) {
+    snapshot.spellcastingProfiles = [{ id: 'preview', className: cls.name, ability: 'INT', preparationMode: 'manual',
+      saveDCOverride: '', attackBonusOverride: '', slots: {}, spells: [] }];
+  }
+  return snapshot;
+};
+
 export const getRaceFeatChoiceOptions = (
   content: AutoBuilderContent,
   ruleSystem: RuleSystem,
@@ -956,7 +1023,7 @@ export const getRaceFeatChoiceOptions = (
       ruleSystem,
       character,
       1,
-      feat => !feat.prerequisite?.length,
+      () => true,
     );
     const result = createRuleOriginFeatChoiceState(origin, eligible);
     if (!result.ok) {
@@ -1263,6 +1330,7 @@ export const getFeatSpellChoiceState = (
   feat: AutoBuilderFeat | undefined,
   ruleSystem: RuleSystem,
   characterLevel = Number.POSITIVE_INFINITY,
+  character?: CharacterData,
 ): { blocks: AutoBuilderFeatSpellBlockChoice[] } | null => {
   if (!feat) return null;
   const result = createRuleFeatSpellChoiceState(
@@ -1271,7 +1339,12 @@ export const getFeatSpellChoiceState = (
     feat,
     characterLevel,
   );
-  if (result.ok) return result.value;
+  if (result.ok) {
+    if (!result.value || !character || feat.key !== 'Magic Initiate' || !feat.repeatable) return result.value;
+    const used = new Set(character.featureEntries.filter(entry => entry.sourceId === `auto-feat-${feat.key}-${feat.source}`)
+      .map(entry => entry.featSelection?.spellBlockId).filter(Boolean));
+    return { ...result.value, blocks: result.value.blocks.filter(block => !used.has(block.id)) };
+  }
   const first = result.issues[0];
   throw new Error(
     `Unsupported feat spell shape at ${first?.path.join('.') || feat.key}: `
@@ -1481,9 +1554,11 @@ export const getClassSpellOptions = (
 	};
 
 /** Returns the levels at which a Bard gains Magical Secrets (2 spells each) */
-export const getMagicalSecretLevels = (cls: AutoBuilderClass): number[] => {
+export { getRuleSubclassSpellBlocks };
+
+export const getMagicalSecretLevels = (cls: AutoBuilderClass, subclass?: AutoBuilderSubclass): number[] => {
   if (cls.englishName !== 'Bard') return [];
-  if (cls.source === 'PHB') return [10, 14, 18];
+  if (cls.source === 'PHB') return [...(subclass?.key === 'College of Lore' ? [6] : []), 10, 14, 18];
   if (cls.source === 'XPHB') return [10];
   return [];
 };
@@ -1535,6 +1610,7 @@ export const getSpellChoiceState = (
   cantrips: AutoBuilderSpell[];
   leveled: AutoBuilderSpell[];
   fixedLeveledGroups: AutoBuilderFixedSpellChoiceGroup[];
+  subclassSpellGroups: RuleChoiceGroup<AutoBuilderSpell>[];
 } => {
   const result = createRuleSpellcastingAdvancementState(
     getAutoBuilderRuleContext(content, cls.source === 'XPHB' ? '5r' : '5e'),
@@ -1543,6 +1619,7 @@ export const getSpellChoiceState = (
     level,
     existingSpells.map(({ id }) => id),
     subclass,
+    existingSpells.filter(spell => spell.countsAgainstKnownLimit === false).map(spell => spell.id),
   );
   if (!result.ok) {
     const first = result.issues[0];
@@ -1557,6 +1634,7 @@ export const getSpellChoiceState = (
       cantrips: [],
       leveled: [],
       fixedLeveledGroups: [],
+      subclassSpellGroups: [],
     };
   }
 
@@ -1575,6 +1653,7 @@ export const getSpellChoiceState = (
     cantrips: state.cantrips,
     leveled: uniqueSpells([...state.leveled, ...magicalSecretExpansion]),
     fixedLeveledGroups: state.fixedLeveledGroups,
+    subclassSpellGroups: state.subclassSpellGroups,
   };
 };
 
@@ -2064,6 +2143,7 @@ const projectRuleSpellcastingProfile = (
     newLevel,
     existing?.spells.map(({ id }) => id) || [],
     subclass,
+    existing?.spells.filter(spell => spell.countsAgainstKnownLimit === false).map(spell => spell.id) || [],
   );
   if (!stateResult.ok) {
     const first = stateResult.issues[0];
@@ -2077,7 +2157,7 @@ const projectRuleSpellcastingProfile = (
     group.id,
     group.options
       .filter(({ id }) => (
-        group.id.endsWith('-magical-secrets') ? magicalIds.has(id) : regularIds.has(id)
+        group.id.startsWith('subclass-spells-') ? choices.subclassSpells?.[group.id]?.includes(id) : group.id.endsWith('-magical-secrets') ? magicalIds.has(id) : regularIds.has(id)
       ))
       .map(({ id }) => id),
   ]));
@@ -2096,6 +2176,8 @@ const projectRuleSpellcastingProfile = (
             source: catalogSpell?.source || cls.source,
             prepared: spell.prepared,
             alwaysPrepared: spell.prepared,
+            countsAgainstKnownLimit: spell.countsAgainstKnownLimit,
+            grantSource: spell.grantSource,
           };
         }),
         slots: toRuleSlots(existing.slots),
@@ -2115,7 +2197,7 @@ const projectRuleSpellcastingProfile = (
   const previousById = new Map(existing?.spells.map((spell) => [spell.id, spell]) || []);
   const spells = effect.profile.spells.flatMap((ref): Spell[] => {
     const catalogSpell = content.spells.find(({ id }) => id === ref.id);
-    if (catalogSpell) return [toCharacterSpell(catalogSpell, ref.prepared ?? false)];
+    if (catalogSpell) return [{ ...toCharacterSpell(catalogSpell, ref.prepared ?? false), countsAgainstKnownLimit: ref.countsAgainstKnownLimit, grantSource: ref.grantSource }];
     const previous = previousById.get(ref.id);
     return previous ? [{ ...previous, prepared: ref.prepared ?? previous.prepared }] : [];
   });
@@ -2489,6 +2571,7 @@ const createSubclassFeatureOperations = (
     oldClassLevel,
     newClassLevel,
     existingSubclassName,
+    subclass?.source,
   );
   const result = createRuleSubclassAdvancementEffects(
     state,
@@ -3322,6 +3405,16 @@ const createOriginOperations = (
   );
   const operations: AdjustmentOperation[] = [
     ...createEntityFeatureOperations(entity, kind, ruleSystem),
+    ...getAutoBuilderOriginChoiceGroups(content, ruleSystem, entity).feature.flatMap(group => {
+      const selected = group.options.find(option => option.id === featureChoices?.[group.id]);
+      if (!selected) return [];
+      return [{ type: 'addFeature' as const, feature: {
+        id: `auto-${kind}-${entity.key}-${entity.source}-${group.id}`, sourceId: `auto-${kind}-${entity.key}-${entity.source}`,
+        sourceName: `${entity.name} ${entity.source}`, name: `${group.label}: ${selected.name}`,
+        description: `已选择 ${selected.name}. ${group.id === 'celestial-revelation' ? '3 级起生效.' : '具体效果见对应种族特性.'}`,
+        level: group.id === 'celestial-revelation' ? 3 : characterLevel, ruleSystem,
+      } }];
+    }),
     ...createOriginStructuredFeatureOperations(entity, kind, ruleSystem, characterLevel, false),
     ...createSharedOriginResourceOperations(entity, kind, ruleSystem, characterLevel, featureChoices),
     ...baseEffects.flatMap(originEffectToAdjustmentOperations),
@@ -3534,6 +3627,39 @@ const createRaceChoiceOperations = (
   return operations;
 };
 
+export const getFeatDamageTypeOptions = (feat: AutoBuilderFeat | undefined, character: CharacterData): string[] => {
+  if (feat?.key !== 'Elemental Adept') return [];
+  const used = new Set(character.featureEntries.filter(entry => entry.sourceId === `auto-feat-${feat.key}-${feat.source}`)
+    .map(entry => entry.featSelection?.damageType));
+  return ['强酸', '寒冷', '火焰', '闪电', '雷鸣'].filter(type => !used.has(type));
+};
+
+const createFeatInstanceOperations = (
+  operations: AdjustmentOperation[], feat: AutoBuilderFeat, character: CharacterData, choice: AutoBuilderFeatChoice,
+): AdjustmentOperation[] => {
+  const sourceId = `auto-feat-${feat.key}-${feat.source}`;
+  const existing = character.featureEntries.filter(entry => entry.sourceId === sourceId && entry.name === feat.name);
+  const suffix = existing.length ? `-instance-${existing.length + 1}` : '';
+  const damageType = feat.key === 'Elemental Adept'
+    ? choice.featDamageType ?? getFeatDamageTypeOptions(feat, character)[0] : undefined;
+  if (feat.key === 'Elemental Adept' && (!damageType || !getFeatDamageTypeOptions(feat, character).includes(damageType))) {
+    throw new Error('元素掌控必须选择尚未选取的伤害类型.');
+  }
+  if (feat.key === 'Magic Initiate' && feat.repeatable && existing.some(entry => entry.featSelection?.spellBlockId === choice.featSpellBlockId)) {
+    throw new Error('魔法学徒必须选择不同的职业法术列表.');
+  }
+  return operations.map(operation => {
+    if (operation.type === 'addFeature') return { ...operation, feature: { ...operation.feature,
+      id: operation.feature.id + suffix,
+      ...(operation.feature.sourceId === sourceId ? { featSelection: { spellBlockId: choice.featSpellBlockId, damageType },
+        description: operation.feature.description + (damageType ? `\n已选择伤害类型: ${damageType}.` : '') } : {}),
+    } };
+    if (operation.type === 'upsertSpellcastingProfile') return { ...operation, profile: { ...operation.profile, id: operation.profile.id + suffix } };
+    if (operation.type === 'upsertResource') return { ...operation, resource: { ...operation.resource, id: operation.resource.id + suffix } };
+    return operation;
+  });
+};
+
 const createChosenFeatOperations = (
   content: AutoBuilderContent,
   character: CharacterData,
@@ -3547,12 +3673,12 @@ const createChosenFeatOperations = (
   let selectedFeatId = choices.featId;
   if (originFeatState) {
     const selected = originFeatState.options.find(item => (
-      item.key === choices.featId || `${item.key}|${item.source}` === choices.featId
+      item.key === selectedFeatId || `${item.key}|${item.source}` === selectedFeatId
     ));
     if (!selected) return [];
     const result = createRuleOriginFeatEffects(
       originFeatState,
-      [`${selected.key}|${selected.source}`],
+      originFeatState.mode === 'fixed' ? [] : [`${selected.key}|${selected.source}`],
     );
     if (!result.ok) return [];
     const effect = result.value.find(item => item.type === 'feat.add');
@@ -3563,13 +3689,19 @@ const createChosenFeatOperations = (
     item.key === selectedFeatId || `${item.key}|${item.source}` === selectedFeatId
   ));
   if (!feat) return [];
+  const availableSpellState = getFeatSpellChoiceState(content, feat, ruleSystem, characterLevel, character);
+  choices = { ...choices, featSpellBlockId: choices.featSpellBlockId ??
+    (availableSpellState?.blocks.length === 1 ? availableSpellState.blocks[0]?.id : undefined) };
+  if (feat.repeatable && feat.key === 'Magic Initiate' && !availableSpellState?.blocks.some(block => block.id === choices?.featSpellBlockId)) {
+    throw new Error('魔法学徒必须选择不同的职业法术列表.');
+  }
 
   const abilitiesAfterPreviousOperations = ABILITY_OPTIONS.reduce<CharacterData['abilities']>((abilities, ability) => ({
     ...abilities,
     [ability]: abilities[ability] + getAbilityDeltaFromOperations(previousOperations, ability),
   }), { ...character.abilities });
 
-  return [
+  return createFeatInstanceOperations([
     ...createFeatOperations([feat], ruleSystem, characterLevel),
     ...createSharedFeatOperations(
       content,
@@ -3591,7 +3723,7 @@ const createChosenFeatOperations = (
       choices,
       characterLevel,
     ),
-  ];
+  ], feat, character, choices);
 };
 
 export const getAutoBuilderFeatChoiceGroups = (
@@ -4195,20 +4327,7 @@ const createAbilityScoreImprovementOperations = (
   }
 
   if (choice.mode === 'feat' && choice.featId) {
-    const feat = content.feats.find(item => item.key === choice.featId || `${item.key}|${item.source}` === choice.featId);
-    return feat ? [
-      ...createFeatOperations([feat], ruleSystem, characterLevel),
-      ...createSharedFeatOperations(content, ruleSystem, feat, character, choice),
-      ...createFeatSpellOperations(content, ruleSystem, feat, choice, characterLevel),
-      ...createSpecializedFeatOperations(
-        content,
-        character,
-        ruleSystem,
-        feat,
-        choice,
-        characterLevel,
-      ),
-    ] : [];
+    return createChosenFeatOperations(content, character, ruleSystem, choice, [], characterLevel);
   }
 
   return [];
@@ -4301,6 +4420,11 @@ export const buildLevelOneCharacter = (
     invocationChoices?: AutoBuilderInvocationChoice;
   },
 ): CharacterData => {
+  const [resolvedRace, resolvedSubrace] = resolveRuleOriginInheritance([options.race, options.subrace])
+    .map(origin => applyRuleOriginFeatureChoices(origin, options.raceChoices?.featureChoices));
+  options = { ...options, race: resolvedRace!, subrace: resolvedSubrace };
+  const prerequisiteCharacter = getLevelOnePrerequisiteCharacter(content, character, cls, options.race,
+    options.subrace, options.raceChoices, options.background, options.backgroundAbilityChoice);
   validateFightingStyleFeatChoice(
     content,
     cls,
@@ -4311,7 +4435,7 @@ export const buildLevelOneCharacter = (
     options.classFeatureChoices?.fightingStyle,
   );
   const mainClassId = createRuleClassInstanceId(cls);
-  const classes = [{ id: mainClassId, name: cls.key, level: 1, subclass: options.subclass?.name || '', source: cls.source }];
+  const classes = [{ id: mainClassId, name: cls.key, level: 1, subclass: options.subclass?.name || '', subclassSource: options.subclass?.source, subclassSpellBlock: options.subclass?.selectedSpellBlock, source: cls.source }];
   const spellcastingProfile = createSpellcastingProfile(content, cls, options.spellChoices, 1, options.subclass, mainClassId);
   const classFeatureSpellcasting = addClassFeatureSpellsToSpellcasting(
     {
@@ -4339,7 +4463,7 @@ export const buildLevelOneCharacter = (
     options.classFeatureChoices,
   );
   const spellcastingProfiles = applySharedSpellSlotsToProfiles(content, classes, classFeatureSpellcasting.profiles);
-  const backgroundFeats = options.decoupleOriginFromBackground ? [] : getBackgroundFeats(content, options.background);
+  const backgroundFeats = options.decoupleOriginFromBackground || options.originFeatChoice?.featId ? [] : getBackgroundFeats(content, options.background);
   const skillOperations: AdjustmentOperation[] = options.skillChoices.map(skill => ({
     type: 'addProficiency',
     key: skill,
@@ -4372,6 +4496,8 @@ export const buildLevelOneCharacter = (
         officialExtensionsEnabled: true,
         active: true,
         originDecoupled: Boolean(options.decoupleOriginFromBackground),
+        campaigns: character.automation.campaigns ?? getAutoBuilderCampaignOptions(content),
+        originFeatureChoices: options.raceChoices?.featureChoices,
       },
     },
     {
@@ -4410,7 +4536,7 @@ export const buildLevelOneCharacter = (
     ) : []),
     ...createRaceChoiceOperations(
       content,
-      character,
+      prerequisiteCharacter,
       options.race,
       options.ruleSystem,
       options.raceChoices,
@@ -4453,7 +4579,7 @@ export const buildLevelOneCharacter = (
       1,
       options.decoupleOriginFromBackground
         ? getOriginFeatChoiceOptions(content, options.ruleSystem, character)?.ruleState
-        : undefined,
+        : getBackgroundFeatChoiceOptions(content, options.background)?.ruleState,
     ),
     ...createChosenFeatOperations(content, character, options.ruleSystem, options.classFeatureChoices?.fightingStyle, [], 1),
     ...createFightingStyleFeatureOperations(
@@ -4657,17 +4783,19 @@ export const buildLevelUpCharacter = (
   const existingClass = character.classes.find(item => isCharacterClassForDefinition(item, cls));
   const isNewClass = !existingClass;
   const newClassId = existingClass?.id || createRuleClassInstanceId(cls);
-  const selectedSubclass = options.subclass || content.subclasses.find(subclass => (
+  const rawSubclass = options.subclass || content.subclasses.find(subclass => (
     subclass.className === cls.name
     && subclass.classSource === cls.source
     && existingClass?.subclass
     && subclass.name === existingClass.subclass
+    && (!existingClass.subclassSource || subclass.source === existingClass.subclassSource)
   ));
+  const selectedSubclass = rawSubclass ? { ...rawSubclass, selectedSpellBlock: rawSubclass.selectedSpellBlock ?? existingClass?.subclassSpellBlock } : undefined;
   const classes = existingClass
     ? character.classes.map(item => (
-        item.id === existingClass.id ? { ...item, name: cls.key, level: newLevel, subclass: item.subclass || options.subclass?.name || '', source: cls.source } : item
+        item.id === existingClass.id ? { ...item, name: cls.key, level: newLevel, subclass: item.subclass || options.subclass?.name || '', subclassSource: selectedSubclass?.source, subclassSpellBlock: selectedSubclass?.selectedSpellBlock, source: cls.source } : item
       ))
-    : [...character.classes, { id: newClassId, name: cls.key, level: 1, subclass: options.subclass?.name || '', source: cls.source }];
+    : [...character.classes, { id: newClassId, name: cls.key, level: 1, subclass: options.subclass?.name || '', subclassSource: options.subclass?.source, subclassSpellBlock: options.subclass?.selectedSpellBlock, source: cls.source }];
   const oldTotalLevel = character.classes.reduce((total, item) => total + (item.level || 0), 0);
   const newTotalLevel = Math.max(1, classes.reduce((total, item) => total + (item.level || 0), 0));
 	  const spellcasting = addClassFeatureSpellsToSpellcasting(

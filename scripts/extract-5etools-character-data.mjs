@@ -25,15 +25,10 @@ const OFFICIAL_EXTENSION_SPELL_SOURCES = [
   'TCE',
   'XGE',
 ];
-const AUTO_BUILDER_SPELL_SOURCES = [...CORE_SPELL_SOURCES, ...OFFICIAL_EXTENSION_SPELL_SOURCES];
+const AUTO_BUILDER_SPELL_SOURCES = [...new Set([...CORE_SPELL_SOURCES, ...OFFICIAL_EXTENSION_SPELL_SOURCES, ...Object.keys(JSON.parse(fs.readFileSync(path.join(DATA_ROOT, 'spells/index.json'), 'utf8')))])];
 const AUTO_BUILDER_SPELL_SOURCE_BY_LOWER = Object.fromEntries(
   AUTO_BUILDER_SPELL_SOURCES.map(source => [source.toLowerCase(), source]),
 );
-const AUTO_BUILDER_INVOCATION_SOURCES = ['PHB', 'XPHB', 'XGE', 'TCE'];
-const AUTO_BUILDER_FIGHTING_STYLE_SOURCES = ['PHB', 'TCE'];
-const AUTO_BUILDER_METAMAGIC_SOURCES = ['PHB', 'XPHB', 'TCE'];
-const AUTO_BUILDER_MANEUVER_SOURCES = ['PHB', 'XPHB', 'TCE'];
-const OFFICIAL_SUBCLASS_EXCLUDED_SOURCES = new Set(['UA', 'UAWGE']);
 const AUTO_BUILDER_RACE_SOURCE_PRIORITY_5E = [
   'PHB',
   'MPMM',
@@ -67,28 +62,6 @@ const AUTO_BUILDER_RACE_SOURCE_PRIORITY_5R = [
   'XPHB',
   ...AUTO_BUILDER_RACE_SOURCE_PRIORITY_5E,
 ];
-const AUTO_BUILDER_RACE_SOURCES = new Set(AUTO_BUILDER_RACE_SOURCE_PRIORITY_5R);
-const AUTO_BUILDER_FEAT_SOURCES = new Set([
-  'ABH',
-  'BGG',
-  'BMT',
-  'DSotDQ',
-  'EFA',
-  'ERLW',
-  'FRHoF',
-  'FTD',
-  'LFL',
-  'MTF',
-  'PHB',
-  'PSK',
-  'PSX',
-  'RHW',
-  'SatO',
-  'SCC',
-  'TCE',
-  'XGE',
-  'XPHB',
-]);
 
 const readJson = relativePath => JSON.parse(fs.readFileSync(path.join(DATA_ROOT, relativePath), 'utf8'));
 
@@ -295,6 +268,8 @@ const normalizeFeatForAutoBuilder = feat => ({
   englishName: feat.ENG_name,
   source: feat.source,
   category: feat.category,
+  repeatable: feat.repeatable,
+  skillToolLanguageProficiencies: feat.skillToolLanguageProficiencies,
   prerequisite: feat.prerequisite,
   ability: feat.ability,
   skillProficiencies: feat.skillProficiencies,
@@ -327,6 +302,7 @@ const normalizeEntityForAutoBuilder = entity => ({
   source: entity.source,
   ruleSystem: entity.source === 'XPHB' ? '5r' : '5e',
   edition: entity.edition,
+  overwrite: entity.overwrite,
   ability: normalizeOriginAbility(entity),
   speed: entity.speed,
   size: entity.size,
@@ -609,7 +585,7 @@ const coreData = {
   rules: {
     '5e': {
       primarySources: ['PHB'],
-      spellSources: ['PHB', ...OFFICIAL_EXTENSION_SPELL_SOURCES],
+      spellSources: [...AUTO_BUILDER_SPELL_SOURCES],
       invocationSources: ['PHB', 'XGE', 'TCE'],
       fightingStyleSources: ['PHB', 'TCE'],
       metamagicSources: ['PHB', 'TCE'],
@@ -619,7 +595,7 @@ const coreData = {
     },
     '5r': {
       primarySources: ['XPHB'],
-      spellSources: ['XPHB', 'PHB', ...OFFICIAL_EXTENSION_SPELL_SOURCES],
+      spellSources: ['XPHB', ...AUTO_BUILDER_SPELL_SOURCES.filter(source => source !== 'XPHB')],
       invocationSources: ['XPHB', 'PHB', 'XGE', 'TCE'],
       fightingStyleSources: ['XPHB', 'PHB', 'TCE'],
       metamagicSources: ['XPHB', 'PHB', 'TCE'],
@@ -840,8 +816,6 @@ const autoBuilderSubclasses = Object.values(classIndex)
       .filter(subclass => (
         (subclass.classSource === 'PHB' || subclass.classSource === 'XPHB')
         && subclass.source
-        && !OFFICIAL_SUBCLASS_EXCLUDED_SOURCES.has(subclass.source)
-        && !String(subclass.source).startsWith('UA')
       ))
       .map(subclass => {
         const directAdditionalSpells = normalizeAdditionalPreparedSpells(subclass, {
@@ -869,6 +843,7 @@ const autoBuilderSubclasses = Object.values(classIndex)
           classSource: subclass.classSource,
           features: normalizeSubclassFeatureEntries(data.subclassFeature || [], subclass),
           maneuverProgression: normalizeOptionalFeatureProgression(fallbackSubclass || subclass, 'MV:B'),
+          additionalSpells: (fallbackSubclass || subclass).additionalSpells,
           additionalPreparedSpells: fallbackSubclass
             ? normalizeAdditionalPreparedSpells(fallbackSubclass, { skipNamedBlocks: true, preferredSource: subclass.classSource })
             : directAdditionalSpells,
@@ -931,39 +906,35 @@ const autoBuilderData = {
   classes: autoBuilderClasses,
   subclasses: autoBuilderSubclasses,
   races: (races.race || [])
-    .filter(race => AUTO_BUILDER_RACE_SOURCES.has(race.source))
     .map(normalizeEntityForAutoBuilder),
   subraces: (races.subrace || [])
-    .filter(subrace => AUTO_BUILDER_RACE_SOURCES.has(subrace.source) && subrace.ENG_name && subrace.name)
+    .filter(subrace => subrace.name)
     .map(subrace => ({
       ...normalizeEntityForAutoBuilder(subrace),
       raceName: subrace.raceName,
       raceSource: subrace.raceSource,
     })),
   backgrounds: (backgrounds.background || [])
-    .filter(background => background.source === 'PHB' || background.source === 'XPHB')
     .map(normalizeEntityForAutoBuilder),
   feats: (feats.feat || [])
-    .filter(feat => AUTO_BUILDER_FEAT_SOURCES.has(feat.source))
     .map(normalizeFeatForAutoBuilder),
   invocations: (optionalFeatures.optionalfeature || [])
-    .filter(feature => feature.featureType?.includes('EI') && AUTO_BUILDER_INVOCATION_SOURCES.includes(feature.source))
+    .filter(feature => feature.featureType?.includes('EI'))
     .map(normalizeInvocation)
     .filter(invocation => invocation.description)
     .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN')),
   fightingStyles: (optionalFeatures.optionalfeature || [])
     .filter(feature => feature.featureType?.some(type => ['FS:F', 'FS:P', 'FS:R'].includes(type)))
-    .filter(feature => AUTO_BUILDER_FIGHTING_STYLE_SOURCES.includes(feature.source))
     .map(normalizeFightingStyle)
     .filter(style => style.description)
     .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN')),
   metamagics: (optionalFeatures.optionalfeature || [])
-    .filter(feature => feature.featureType?.includes('MM') && AUTO_BUILDER_METAMAGIC_SOURCES.includes(feature.source))
+    .filter(feature => feature.featureType?.includes('MM'))
     .map(normalizeMetamagic)
     .filter(metamagic => metamagic.description)
     .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN')),
   maneuvers: (optionalFeatures.optionalfeature || [])
-    .filter(feature => feature.featureType?.includes('MV:B') && AUTO_BUILDER_MANEUVER_SOURCES.includes(feature.source))
+    .filter(feature => feature.featureType?.includes('MV:B'))
     .map(normalizeManeuver)
     .filter(maneuver => maneuver.description)
     .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN')),

@@ -30,6 +30,16 @@ export function createRuleOriginFeatChoiceState(
     return invalid(['origin', origin.key, 'feats'], 'origin_feats_not_array');
   }
 
+  // Entries in the upstream feats array are alternatives, not cumulative grants.
+  if (origin.feats.length > 1) {
+    const alternatives = origin.feats.map(entry => createRuleOriginFeatChoiceState({ ...origin, feats: [entry] }, availableFeats));
+    const failed = alternatives.find(result => !result.ok);
+    if (failed && !failed.ok) return failed;
+    const states = alternatives.flatMap(result => result.ok && result.value ? [result.value] : []);
+    if (states.some(state => state.count !== 1)) return invalid(['origin', origin.key, 'feats'], 'origin_feat_alternative_count_unsupported');
+    const options = uniqueFeats(states.flatMap(state => state.options));
+    return success({ id: `origin-${origin.key}-${origin.source}-feat`, count: 1, mode: 'choice', options });
+  }
   const fixed: RuleFeatCatalogEntry[] = [];
   const choices: Array<{ count: number; options: RuleFeatCatalogEntry[] }> = [];
   const issues: RuleIssue[] = [];
@@ -48,7 +58,7 @@ export function createRuleOriginFeatChoiceState(
       }
       choices.push({
         count,
-        options: availableFeats.filter((feat) => !feat.prerequisite?.length),
+        options: [...availableFeats],
       });
       return;
     }
@@ -81,7 +91,6 @@ export function createRuleOriginFeatChoiceState(
         options: availableFeats.filter((feat) => (
           feat.category !== undefined
           && allowedCategories.has(feat.category)
-          && !feat.prerequisite?.length
         )),
       });
       return;

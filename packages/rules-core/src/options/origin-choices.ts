@@ -48,7 +48,7 @@ export function createRuleOriginChoiceGroups(
   ruleSystem: RuleSystem,
   values: readonly (RuleOrigin | undefined)[],
 ): RuleResult<RuleOriginChoiceGroups> {
-  const origins = values.filter((origin): origin is RuleOrigin => origin !== undefined);
+  const origins = resolveRuleOriginInheritance(values);
   const ability = collect(origins, (origin, sourceId) => (
     parseOriginAbilityChoiceGroups(origin, sourceId)
   ));
@@ -162,7 +162,25 @@ function createFeatureChoiceGroups(origins: readonly RuleOrigin[]): RuleStringCh
       && origin.features.some((feature) => (
         feature.englishName === 'Giant Ancestry' || feature.name === '巨人先祖'
       ));
-    if (!hasGiantAncestry) return [];
+    if (!hasGiantAncestry) {
+      const config = origin.key === 'Shifter' && ['MPMM', 'EFA'].includes(origin.source)
+        ? { id: 'shifting-form', label: '化形形态', options: [
+            { id: 'beasthide', name: '兽皮' }, { id: 'longtooth', name: '长牙' },
+            { id: 'swiftstride', name: '疾驰' }, { id: 'wildhunt', name: '狩猎' },
+          ] }
+        : origin.key === 'Kobold' && origin.source === 'MPMM'
+          ? { id: 'kobold-legacy', label: '狗头人遗赠', options: [
+              { id: 'craftiness', name: '机智' }, { id: 'defiance', name: '逆反' },
+              { id: 'draconic-sorcery', name: '龙族术法' },
+            ] }
+          : origin.key === 'Aasimar' && origin.source === 'MPMM'
+            ? { id: 'celestial-revelation', label: '天界启示 (3 级生效)', options: [
+                { id: 'necrotic-shroud', name: '死灵环绕' }, { id: 'radiant-consumption', name: '光辉焚化' },
+                { id: 'radiant-soul', name: '光耀之魂' },
+              ] } : undefined;
+      return config ? [{ ...config, kind: 'originFeature' as const, required: true, min: 1, max: 1,
+        from: config.options.map(option => option.id), count: 1 }] : [];
+    }
     return [{
       id: 'giant-ancestry',
       kind: 'originFeature',
@@ -228,4 +246,27 @@ function positiveIntegerArray(value: unknown): value is number[] {
   return Array.isArray(value)
     && value.length > 0
     && value.every((entry) => Number.isInteger(entry) && Number(entry) > 0);
+}
+
+/** A null field on a subrace explicitly removes the inherited parent field. */
+export function resolveRuleOriginInheritance(values: readonly (RuleOrigin | undefined)[]): RuleOrigin[] {
+  const origins = values.filter((origin): origin is RuleOrigin => origin !== undefined).map(origin => ({ ...origin }));
+  origins.forEach((origin, index) => {
+    for (const [key, value] of Object.entries(origin)) {
+      const variantHumanAbility = key === 'ability' && origin.key === 'Variant' && origin.raceName === '人类';
+      if (value !== null && origin.overwrite?.[key] !== true && !variantHumanAbility) continue;
+      for (const parent of origins.slice(0, index)) delete (parent as unknown as Record<string, unknown>)[key];
+    }
+  });
+  return origins;
+}
+
+/** Project mutually exclusive legacy branches before generating skills and spells. */
+export function applyRuleOriginFeatureChoices(origin: RuleOrigin, selections: Readonly<Record<string, string>> = {}): RuleOrigin {
+  if (origin.key !== 'Kobold' || origin.source !== 'MPMM') return origin;
+  const selected = selections['kobold-legacy'];
+  return { ...origin,
+    skillProficiencies: selected === 'craftiness' ? origin.skillProficiencies : undefined,
+    additionalSpells: selected === 'draconic-sorcery' ? origin.additionalSpells : undefined,
+  };
 }

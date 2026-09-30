@@ -43,7 +43,7 @@ export function createDefaultRuleAuthorizationPolicy(
     ?? (ruleSystem === '5r' ? ['XPHB', 'PHB', 'TCE'] : ['PHB', 'TCE']);
   const spellSources = configured?.spellSources
     ?? (ruleSystem === '5r' ? ['XPHB', 'PHB'] : ['PHB']);
-  const allowedSources: Partial<Record<RuleEntityKind, readonly string[]>> = {
+  const sourcePriority: Partial<Record<RuleEntityKind, readonly string[]>> = {
     class: classSources,
     subclass: subclassSourcePriority[ruleSystem],
     race: raceSources,
@@ -55,26 +55,14 @@ export function createDefaultRuleAuthorizationPolicy(
     metamagic: metamagicSources,
     maneuver: maneuverSources,
     weapon: [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
+    armor: [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
     'weapon-mastery': [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
     spell: spellSources,
   };
+  // Defaults order sources for display and unqualified references; they never gate content.
   return {
-    allowedSources,
-    sourcePriority: {
-      class: classSources,
-      subclass: subclassSourcePriority[ruleSystem],
-      race: raceSources,
-      subrace: subraceSources,
-      background: backgroundSourcePriority[ruleSystem],
-      feat: featSourcePriority[ruleSystem],
-      invocation: invocationSources,
-      'fighting-style': fightingStyleSources,
-      metamagic: metamagicSources,
-      maneuver: maneuverSources,
-      weapon: [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
-      'weapon-mastery': [ruleSystem === '5r' ? 'XPHB' : 'PHB'],
-      spell: spellSources,
-    },
+    allowedSources: Object.fromEntries(Object.keys(sourcePriority).map(kind => [kind, ['*']])),
+    sourcePriority,
   };
 }
 

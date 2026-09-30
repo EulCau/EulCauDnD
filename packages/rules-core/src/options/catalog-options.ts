@@ -5,7 +5,7 @@ import type {
 } from '../catalog/model.js';
 import type { RuleContext } from '../model/context.js';
 import { isRuleEntityAuthorized } from '../policy/authorization.js';
-import { dedupeRuleEntitiesByNameAndSourcePriority } from '../policy/source-priority.js';
+import { dedupeRuleEntitiesByNameAndSourcePriority, getRuleSourceRank } from '../policy/source-priority.js';
 
 export function getRuleClassOptions(context: RuleContext): RuleClass[] {
   return authorizedAndDeduped(
@@ -71,7 +71,7 @@ export function findRuleOriginOption(
   origins: readonly RuleOrigin[],
   key: string,
 ): RuleOrigin | undefined {
-  return origins.find((origin) => origin.key === key) ?? origins[0];
+  return origins.find((origin) => `${origin.key}|${origin.source}` === key) ?? origins.find((origin) => origin.key === key) ?? origins[0];
 }
 
 function authorizedAndDeduped<T extends {
@@ -85,11 +85,7 @@ function authorizedAndDeduped<T extends {
   entities: readonly T[],
   context: RuleContext,
 ): T[] {
-  return dedupeRuleEntitiesByNameAndSourcePriority(
-    kind,
-    entities.filter((entity) => (
-      isRuleEntityAuthorized(kind, entity, context.authorization)
-    )),
-    context.authorization,
-  );
+  const authorized = entities.filter(entity => isRuleEntityAuthorized(kind, entity, context.authorization));
+  if (kind === 'class') return dedupeRuleEntitiesByNameAndSourcePriority(kind, authorized, context.authorization);
+  return [...authorized].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN') || getRuleSourceRank(kind, a.source, context.authorization) - getRuleSourceRank(kind, b.source, context.authorization) || a.source.localeCompare(b.source));
 }

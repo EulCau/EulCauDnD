@@ -24,7 +24,7 @@ const normalize = value => String(value || '').toLowerCase();
 const assertNoDuplicateNames = (items, label) => {
   const seen = new Set();
   for (const item of items) {
-    const key = normalize(item.englishName || item.key || item.name);
+    const key = normalize((item.englishName || item.key || item.name) + '|' + item.source);
     assert(!seen.has(key), \`\${label} contains duplicate option \${key}\`);
     seen.add(key);
   }
@@ -34,7 +34,7 @@ const backgrounds5e = getAutoBuilderBackgrounds(content, '5e');
 const backgrounds5r = getAutoBuilderBackgrounds(content, '5r');
 assertNoDuplicateNames(backgrounds5e, '5e backgrounds');
 assertNoDuplicateNames(backgrounds5r, '5r backgrounds');
-assert(backgrounds5e.every(background => background.source !== 'XPHB'), '5e backgrounds should not include XPHB');
+assert(backgrounds5e.some(background => background.source === 'XPHB'), '5e backgrounds should allow XPHB with all sources enabled');
 assert(
   backgrounds5r.find(background => background.englishName === 'Acolyte')?.source === 'XPHB',
   '5r should prefer XPHB Acolyte background',
@@ -101,9 +101,9 @@ const result = await import(pathToFileURL(path.join(outDir, 'audit-source-priori
 console.log(JSON.stringify({
   ...result.default,
   checks: [
-    '5e backgrounds exclude XPHB and have no duplicate names',
-    '5r backgrounds prefer XPHB but keep PHB-only backgrounds',
-    '5e subclasses exclude XPHB and have no duplicate names',
+    'all background sources remain available with unique source-qualified identities',
+    '5r background ordering prefers XPHB and retains other versions',
+    'subclasses match their parent class version and preserve source variants',
     '5r subclasses prefer XPHB but keep 5e-era extension subclasses',
   ],
 }, null, 2));

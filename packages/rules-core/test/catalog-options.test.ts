@@ -23,14 +23,14 @@ test('returns authorized class and origin options with stable source priority', 
 
   assert.ok(getRuleClassOptions(context5e).every(({ source }) => source === 'PHB'));
   assert.ok(getRuleClassOptions(context5r).every(({ source }) => source === 'XPHB'));
-  assertNoDuplicateNames(getRuleRaceOptions(context5e));
-  assertNoDuplicateNames(getRuleRaceOptions(context5r));
+  assertNoDuplicateIdentities(getRuleRaceOptions(context5e));
+  assertNoDuplicateIdentities(getRuleRaceOptions(context5r));
 
   const backgrounds5e = getRuleBackgroundOptions(context5e);
   const backgrounds5r = getRuleBackgroundOptions(context5r);
-  assertNoDuplicateNames(backgrounds5e);
-  assertNoDuplicateNames(backgrounds5r);
-  assert.ok(backgrounds5e.every(({ source }) => source !== 'XPHB'));
+  assertNoDuplicateIdentities(backgrounds5e);
+  assertNoDuplicateIdentities(backgrounds5r);
+  assert.ok(backgrounds5e.some(({ source }) => source === 'XPHB'));
   assert.equal(
     backgrounds5r.find(({ englishName }) => englishName === 'Acolyte')?.source,
     'XPHB',
@@ -49,8 +49,8 @@ test('scopes subclass and subrace options to an authorized parent', async () => 
 
   const subclasses5e = getRuleSubclassOptions(context5e, fighter5e);
   const subclasses5r = getRuleSubclassOptions(context5r, fighter5r);
-  assertNoDuplicateNames(subclasses5e);
-  assertNoDuplicateNames(subclasses5r);
+  assertNoDuplicateIdentities(subclasses5e);
+  assertNoDuplicateIdentities(subclasses5r);
   assert.ok(subclasses5e.every(({ source }) => source !== 'XPHB'));
   assert.equal(
     subclasses5r.find(({ englishName }) => englishName === 'Battle Master')?.source,
@@ -61,7 +61,7 @@ test('scopes subclass and subrace options to an authorized parent', async () => 
   const elf = getRuleRaceOptions(context5e).find(({ key }) => key === 'Elf');
   assert.ok(elf);
   const subraces = getRuleSubraceOptions(context5e, elf);
-  assertNoDuplicateNames(subraces);
+  assertNoDuplicateIdentities(subraces);
   assert.ok(subraces.every((entry) => (
     entry.raceName === elf.name && entry.raceSource === elf.source
   )));
@@ -114,11 +114,11 @@ function defaultContext(
   };
 }
 
-function assertNoDuplicateNames(
-  entries: readonly { name: string; englishName?: string; key?: string }[],
+function assertNoDuplicateIdentities(
+  entries: readonly { name: string; source: string; englishName?: string; key?: string }[],
 ): void {
   const identities = entries.map((entry) => (
-    entry.englishName || entry.key || entry.name
+    `${entry.englishName || entry.key || entry.name}|${entry.source}`
   ).normalize('NFKC').toLocaleLowerCase('en-US'));
   assert.equal(new Set(identities).size, identities.length);
 }

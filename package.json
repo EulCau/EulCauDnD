@@ -10,6 +10,7 @@
 	    "extract:magic-items": "node scripts/extract-magic-items.mjs",
 	    "extract:bestiary": "node scripts/extract-bestiary-metadata.mjs",
     "extract:search-index": "node scripts/extract-5etools-search-index.mjs",
+    "audit:auto-builder-availability": "node --import tsx scripts/audit-auto-builder-availability.mts",
     "audit:character-data": "node scripts/audit-character-data.mjs",
     "audit:spell-behavior": "node scripts/audit-spell-behavior.mjs",
     "audit:spell-levelup-behavior": "node scripts/audit-spell-levelup-behavior.mjs",

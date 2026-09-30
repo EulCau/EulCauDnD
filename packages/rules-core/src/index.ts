@@ -30,6 +30,7 @@ export * from './model/context.js';
 export * from './model/effect.js';
 export * from './model/issue.js';
 export * from './options/catalog-options.js';
+export * from './options/subclass-spells.js';
 export * from './options/additional-spells.js';
 export * from './options/common-choices.js';
 export * from './options/feat-choices.js';
@@ -59,6 +60,7 @@ export interface RuleCharacterSnapshot {
   size?: string;
   background: string;
   campaigns?: readonly string[];
+  classes?: readonly { name: string; level: number }[];
   proficiencies: readonly string[];
   features?: readonly string[];
   knownFeats: readonly {
@@ -80,6 +82,7 @@ export interface RuleFeat {
   source: string;
   id?: string;
   prerequisite?: readonly unknown[];
+  repeatable?: boolean;
   ability?: readonly (Record<string, number> | { choose?: unknown })[];
   abilityChoices?: readonly RuleAbilityName[];
 }
@@ -163,6 +166,7 @@ export function evaluateFeatPrerequisite(
     entry,
     character,
     level,
+    feat,
   ));
   if (alternatives.some(({ eligible }) => eligible)) return { eligible: true, failures: [] };
   return {
@@ -181,9 +185,8 @@ export function getEligibleAbilityScoreImprovementFeats<T extends RuleFeat>(
   const allowedSources = new Set(policy.allowedSources);
   const byName = new Map<string, T>();
   for (const feat of feats) {
-    if (!allowedSources.has(feat.source)) continue;
-    if (ruleSystem === '5e' && feat.source === 'XPHB') continue;
-    if (character.knownFeats.some((knownFeat) => (
+    if (!allowedSources.has('*') && !allowedSources.has(feat.source)) continue;
+    if (!feat.repeatable && character.knownFeats.some((knownFeat) => (
       knownFeat.id === `${feat.key}|${feat.source}`
       || knownFeat.key === feat.key
       || knownFeat.name === feat.key
@@ -191,7 +194,7 @@ export function getEligibleAbilityScoreImprovementFeats<T extends RuleFeat>(
       || knownFeat.name === feat.englishName
     ))) continue;
     if (!evaluateFeatPrerequisite(feat, character, level).eligible) continue;
-    const key = feat.englishName || feat.name;
+    const key = `${feat.englishName || feat.name}|${feat.source}`;
     const existing = byName.get(key);
     const currentPriority = sourceRank(policy.sourcePriority, feat.source);
     const existingPriority = existing === undefined
@@ -298,12 +301,18 @@ function evaluatePrerequisiteAlternative(
   value: unknown,
   character: RuleCharacterSnapshot,
   level: number,
+  feat?: RuleFeat,
 ): FeatPrerequisiteEvaluation {
   if (!isRecord(value)) return { eligible: false, failures: ['unsupported'] };
   const failures: FeatPrerequisiteFailure[] = [];
   for (const [key, requirement] of Object.entries(value)) {
     if (key === 'level') {
-      if (typeof requirement !== 'number' || level < requirement) failures.push('level');
+      if (typeof requirement === 'number') {
+        if (level < requirement) failures.push('level');
+      } else if (isRecord(requirement) && typeof requirement.level === 'number' && isRecord(requirement.class)) {
+        const names = [requirement.class.name, requirement.class.ENG_name];
+        if (!(character.classes ?? []).some(entry => names.includes(entry.name) && entry.level >= Number(requirement.level))) failures.push('level');
+      } else failures.push('level');
     } else if (key === 'ability') {
       if (!isAbilityPrerequisiteMet(character, requirement)) failures.push('ability');
     } else if (key === 'spellcasting' || key === 'spellcasting2020') {
@@ -337,7 +346,10 @@ function evaluatePrerequisiteAlternative(
         failures.push('feat_category');
       }
     } else if (key === 'other' || key === 'otherSummary') {
-      failures.push('manual_review');
+      if (key === 'other' && feat?.key === 'Aberrant Dragonmark' && feat.source === 'ERLW') {
+        if ([character.race, character.subrace].some(name => name.includes('龙纹')) || character.knownFeats.some(known =>
+          known.category === 'D' || /Dragonmark|Mark of /i.test(known.key ?? '') || known.name.includes('龙纹'))) failures.push('feat');
+      } else failures.push('manual_review');
     } else {
       failures.push('unsupported');
     }

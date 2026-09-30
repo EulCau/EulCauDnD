@@ -63,7 +63,7 @@ const fighter5r = getClass('Fighter', '5r');
 const style5e = getFightingStyleFeatureChoiceOptions(content, '5e', character({}), fighter5e, 1);
 const style5r = getFightingStyleFeatChoiceOptions(content, '5r', character({}), fighter5r, 1);
 assert(style5e?.count === 1 && style5e.from.length > 0, '5e Fighter should select one fighting style feature');
-assert(style5r?.count === 1 && style5r.from.every(feat => feat.source === 'XPHB'), '5r Fighter should select one XPHB fighting style feat');
+assert(style5r?.count === 1 && style5r.from.some(feat => feat.source === 'XPHB'), '5r Fighter should select one fighting style feat including XPHB options');
 
 const paladin5e = getClass('Paladin', '5e');
 const paladinLevel1 = character({
