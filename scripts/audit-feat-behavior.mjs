@@ -91,14 +91,20 @@ const buildLevelUpCharacter = (character, builderContent, cls, options) => {
   const cantrips = [
     ...(options.spellChoices?.cantrips || []),
     ...state.cantrips
-      .filter(({ id }) => !selected.has(id))
+      .filter(({ id }) => !selected.has(id) && !state.knownSpellIds.includes(id))
+      .filter((spell, index, spells) => spells.findIndex(candidate => (
+        (candidate.englishName || candidate.key || candidate.name) === (spell.englishName || spell.key || spell.name)
+      )) === index)
       .slice(0, state.needed.cantrips)
       .map(({ id }) => id),
   ];
   const leveled = [
     ...(options.spellChoices?.leveled || []),
     ...state.leveled
-      .filter(({ id }) => !selected.has(id))
+      .filter(({ id }) => !selected.has(id) && !state.knownSpellIds.includes(id))
+      .filter((spell, index, spells) => spells.findIndex(candidate => (
+        (candidate.englishName || candidate.key || candidate.name) === (spell.englishName || spell.key || spell.name)
+      )) === index)
       .slice(0, state.needed.leveled)
       .map(({ id }) => id),
     ...state.fixedLeveledGroups.flatMap(({ group }) => (

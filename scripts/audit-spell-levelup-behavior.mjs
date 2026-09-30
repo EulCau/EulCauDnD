@@ -58,10 +58,14 @@ const baseOptions = {
   skillChoices: [],
 };
 
-const chooseFirst = (items, count, exclude = new Set()) => items
-  .filter(item => !exclude.has(item.id))
-  .slice(0, count)
-  .map(item => item.id);
+const spellIdentity = spell => spell.englishName || spell.key || spell.name;
+const chooseFirst = (items, count, exclude = new Set()) => {
+  const knownNames = new Set(content.spells.filter(spell => exclude.has(spell.id)).map(spellIdentity));
+  return [...new Map(items.filter(item => !knownNames.has(spellIdentity(item)))
+    .map(item => [spellIdentity(item), item])).values()]
+    .slice(0, count)
+    .map(item => item.id);
+};
 
 const chooseSpellState = (state, existingIds = new Set()) => {
   const fixedIds = new Set(state.fixedLeveledGroups.flatMap(group => group.options.map(spell => spell.id)));

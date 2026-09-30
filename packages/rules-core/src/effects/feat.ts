@@ -12,11 +12,18 @@ import {
   type RuleFeatChoiceGroups,
 } from '../options/feat-choices.js';
 import { normalizeRuleSkillName } from '../options/common-choices.js';
+import { createRuleSpecializedFeatChoiceState, createRuleSpecializedFeatEffects } from '../options/feat-specialized.js';
 import { validateRuleChoiceSelections } from '../validation/common.js';
 
 export interface RuleFeatEffectCharacter {
   abilities: Readonly<Record<RuleAbilityName, number>>;
   proficiencies: readonly string[];
+  knownFeatureIds?: readonly string[];
+  knownFeatureNames?: readonly string[];
+  selectedFeatureIds?: readonly string[];
+  knownSpellIds?: readonly string[];
+  selectedSpellIds?: readonly string[];
+  warlockLevel?: number;
 }
 
 export interface RuleFeatEffectSelections {
@@ -52,16 +59,41 @@ export function createRuleFeatEffects(
     selectedSkills,
   });
   if (!state.ok) return state;
+  const specializedContext = {
+    ...(character.knownFeatureIds === undefined ? {} : { knownFeatureIds: character.knownFeatureIds }),
+    ...(character.knownFeatureNames === undefined ? {} : { knownFeatureNames: character.knownFeatureNames }),
+    ...(character.selectedFeatureIds === undefined ? {} : { selectedFeatureIds: character.selectedFeatureIds }),
+    ...(character.knownSpellIds === undefined ? {} : { knownSpellIds: character.knownSpellIds }),
+    ...(character.selectedSpellIds === undefined ? {} : { selectedSpellIds: character.selectedSpellIds }),
+    ...(character.warlockLevel === undefined ? {} : { warlockLevel: character.warlockLevel }),
+  };
+  const specializedState = createRuleSpecializedFeatChoiceState(
+    catalog, ruleSystem, feat, specializedContext,
+  );
+  if (!specializedState.ok) return specializedState;
+  const allGroups = [...state.value.all, ...specializedState.value.groups];
   const validated = validateRuleChoiceSelections(
     selections.allowIncompleteChoices
-      ? state.value.all.filter(({ id }) => id in (selections.choices ?? {}))
-      : state.value.all,
+      ? allGroups.filter(({ id }) => id in (selections.choices ?? {}))
+      : allGroups,
     selections.choices ?? {},
   );
   if (!validated.ok) return validated;
+  const specializedIds = new Set(specializedState.value.groups.map(({ id }) => id));
+  const specializedChoices = Object.fromEntries(
+    Object.entries(selections.choices ?? {}).filter(([id]) => specializedIds.has(id)),
+  );
+  // The UI adapter applies specialized choices separately from common choices.
+  const specializedEffects: RuleResult<RuleEffect[]> = selections.allowIncompleteChoices
+    && Object.keys(specializedChoices).length === 0
+    ? { ok: true, value: [], warnings: [] }
+    : createRuleSpecializedFeatEffects(
+        catalog, ruleSystem, feat, specializedContext, specializedChoices,
+      );
+  if (!specializedEffects.ok) return specializedEffects;
 
   const sourceId = `auto-feat-${feat.key}-${feat.source}`;
-  const effects: RuleEffect[] = [];
+  const effects: RuleEffect[] = [...specializedEffects.value];
   addAbilityEffects(effects, feat, character, state.value, selections.choices, sourceId);
   addFixedProficiencies(effects, feat.skillProficiencies, '', sourceId);
   addFixedProficiencies(effects, feat.toolProficiencies, 'tool', sourceId);

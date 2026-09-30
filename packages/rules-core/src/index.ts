@@ -12,6 +12,7 @@ export * from './catalog/parse.js';
 export * from './effects/apply.js';
 export * from './effects/class-common-choices.js';
 export * from './effects/character-build.js';
+export * from './effects/class-resources.js';
 export * from './effects/feat.js';
 export * from './effects/feat-resources.js';
 export * from './effects/feat-spells.js';
@@ -246,6 +247,7 @@ export function validateBasicFeatAdvancementChoice<T extends RuleFeat>(
   level: number,
   policy: FeatAuthorizationPolicy,
   choice: { featId: string; ability?: RuleAbilityName },
+  abilityCap = 20,
 ): BasicFeatAdvancementResult<T> {
   const feat = getEligibleAbilityScoreImprovementFeats(
     feats,
@@ -261,7 +263,7 @@ export function validateBasicFeatAdvancementChoice<T extends RuleFeat>(
   const ability = basicFeatAbilityIncrease(feat, choice.ability);
   if (!ability.valid) return ability;
   if (Object.entries(ability.abilityIncreases).some(([key, increase]) => (
-    character.abilities[key as RuleAbilityName] + increase > 20
+    character.abilities[key as RuleAbilityName] + increase > abilityCap
   ))) {
     return { valid: false, error: 'feat_ability_invalid' };
   }

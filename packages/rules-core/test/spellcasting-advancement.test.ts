@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { cloneJsonValue } from '../src/model/json.ts';
 import {
   createDefaultRuleAuthorizationPolicy,
   createRuleSpellcastingAdvancementEffects,
@@ -13,6 +14,7 @@ import {
   type RuleCatalog,
   type RuleClass,
   type RuleContext,
+  type RuleSpell,
   type RuleSystem,
 } from '../src/index.ts';
 
@@ -59,8 +61,8 @@ test('calculates only the remaining cumulative spell choices', async () => {
   assert.equal(initial.ok, true);
   if (!initial.ok || !initial.value) return;
   const existing = [
-    ...initial.value.cantrips.slice(0, initial.value.limits.cantrips),
-    ...initial.value.leveled.slice(0, initial.value.limits.leveled),
+    ...distinctSpells(initial.value.cantrips).slice(0, initial.value.limits.cantrips),
+    ...distinctSpells(initial.value.leveled).slice(0, initial.value.limits.leveled),
   ].map(({ id }) => id);
   const leveled = createRuleSpellcastingAdvancementState(
     context(catalog, '5e'),
@@ -92,6 +94,46 @@ test('builds fixed-level Warlock spell groups', async () => {
   assert.ok(result.value.fixedLeveledGroups.every(({ group, spellLevel }) => (
     group?.options.every((spell) => spell.level === spellLevel)
   )));
+});
+
+test('counts one fixed-level spell across reprints and excludes every known variant', async () => {
+  const catalog = await loadCatalog();
+  const warlock = findClass(catalog, 'Warlock', 'PHB');
+  const ruleContext = context(catalog, '5e');
+  const initial = createRuleSpellcastingAdvancementState(ruleContext, warlock, 10, 11);
+  assert.ok(initial.ok && initial.value);
+  if (!initial.ok || !initial.value) return;
+  const fixed = initial.value.fixedLeveledGroups[0]!;
+  const spell = fixed.options[0]!;
+  const reprint = { ...spell, id: `${spell.id}-reprint`, source: 'REPRINT' };
+  catalog.spells.push(reprint);
+  const result = createRuleSpellcastingAdvancementState(
+    ruleContext, warlock, 10, 11, [spell.id, reprint.id],
+  );
+  assert.ok(result.ok && result.value);
+  if (!result.ok || !result.value) return;
+  const projected = result.value.fixedLeveledGroups.find(group => group.spellLevel === fixed.spellLevel)!;
+  assert.equal(projected.selected, 1);
+  assert.ok(projected.options.every(candidate => candidate.englishName !== spell.englishName));
+});
+
+test('excludes known off-class spells and their reprints from Magical Secrets', async () => {
+  const catalog = await loadCatalog();
+  const bard = findClass(catalog, 'Bard', 'PHB');
+  const spell = catalog.spells.find(candidate => candidate.level === 1
+    && candidate.classKeys.includes('Wizard') && !candidate.classKeys.includes('Bard'))!;
+  assert.ok(spell);
+  const reprint = { ...spell, id: `${spell.id}-reprint`, source: 'REPRINT' };
+  catalog.spells.push(reprint);
+  const result = createRuleSpellcastingAdvancementState(
+    context(catalog, '5e'), bard, 9, 10, [spell.id],
+  );
+  assert.ok(result.ok && result.value);
+  if (!result.ok || !result.value) return;
+  const group = result.value.magicalSecretGroups[0]!;
+  assert.equal(group.min, 2);
+  assert.ok(group.options.length > 0);
+  assert.ok(group.options.every(candidate => candidate.englishName !== spell.englishName));
 });
 
 test('uses authorization and source priority for class spell pools', async () => {
@@ -144,6 +186,7 @@ test('strictly projects initial known spells without mutating state', async () =
     { selections },
   );
   assert.equal(effects.ok, true);
+  if (effects.ok) assert.equal(cloneJsonValue(effects.value).ok, true);
   assert.deepEqual(state.value, snapshot);
   if (!effects.ok || effects.value[0]?.type !== 'spell.profile.upsert') return;
   assert.equal(effects.value[0].profile.slotSource, 'class');
@@ -229,6 +272,77 @@ test('shares PHB and XPHB Magical Secrets behavior', async () => {
   )));
 });
 
+test('counts known Wizard spellbook entries by spell identity and excludes them from new choices', async () => {
+  const catalog = await loadCatalog();
+  const ruleContext = context(catalog, '5r');
+  const wizard = findClass(catalog, 'Wizard', 'XPHB');
+  const levelOne = createRuleSpellcastingAdvancementState(ruleContext, wizard, 0, 1);
+  assert.equal(levelOne.ok, true);
+  if (!levelOne.ok || !levelOne.value) return;
+  const options = levelOne.value.groups.find(({ id }) => id.endsWith('-leveled'))?.options ?? [];
+  const equivalents = distinctSpells(options.filter(spell => spell.source === 'XPHB')).flatMap((spell) => {
+    const legacy = catalog.spells.find((candidate) => candidate.source === 'PHB'
+      && candidate.englishName === spell.englishName);
+    return legacy ? [{ spell, legacy }] : [];
+  }).slice(0, 3);
+  assert.equal(equivalents.length, 3);
+  const otherLearned = distinctSpells(options).filter(candidate => (
+    !equivalents.some(({ spell }) => spell.englishName === candidate.englishName)
+  )).slice(0, 3);
+  const learned = [...equivalents.map(({ spell }) => spell), ...otherLearned];
+  assert.equal(learned.length, 6);
+
+  const levelTwo = createRuleSpellcastingAdvancementState(
+    ruleContext,
+    wizard,
+    1,
+    2,
+    learned.map(({ id }) => id),
+  );
+  assert.equal(levelTwo.ok, true);
+  if (!levelTwo.ok || !levelTwo.value) return;
+  assert.equal(levelTwo.value.needed.leveled, 2);
+  assert.equal(levelTwo.value.groups.find(({ id }) => id.endsWith('-leveled'))?.options.length,
+    levelTwo.value.groups.find(({ id }) => id.endsWith('-leveled'))?.options.filter(({ id }) => !learned.some((spell) => spell.id === id)).length);
+
+  const mixedProfileIds = [
+    ...equivalents.map(({ legacy }) => legacy.id!),
+    ...otherLearned.map(({ id }) => id),
+  ];
+  assert.ok(equivalents.every(({ spell, legacy }) => spell.id !== legacy.id));
+  const crossSource = createRuleSpellcastingAdvancementState(
+    ruleContext,
+    wizard,
+    1,
+    2,
+    mixedProfileIds,
+  );
+  assert.equal(crossSource.ok, true);
+  assert.equal(crossSource.ok && crossSource.value?.needed.leveled, 2);
+  assert.equal(crossSource.ok && distinctSpells(catalog.spells.filter(spell => (
+    crossSource.value?.knownSpellIds.includes(spell.id)
+  ))).length, 6);
+  const duplicateSource = createRuleSpellcastingAdvancementState(
+    ruleContext, wizard, 1, 2, [...mixedProfileIds, equivalents[0]!.spell.id],
+  );
+  assert.equal(duplicateSource.ok && duplicateSource.value?.needed.leveled, 2);
+  assert.equal(crossSource.ok && crossSource.value?.groups.find(({ id }) => id.endsWith('-leveled'))
+    ?.options.some(({ id }) => crossSource.value!.knownSpellIds.includes(id)), false);
+  assert.ok(crossSource.ok && crossSource.value);
+  if (crossSource.ok && crossSource.value) {
+    const leveledGroup = crossSource.value.groups.find(({ id }) => id.endsWith('-leveled'))!;
+    const alreadyKnown = crossSource.value.knownSpellIds.find((id) => (
+      catalog.spells.find((spell) => spell.id === id)?.level
+    ))!;
+    const forged = createRuleSpellcastingAdvancementEffects(ruleContext, crossSource.value, {
+      selections: {
+        [leveledGroup.id]: [alreadyKnown, leveledGroup.options[0]!.id],
+      },
+    });
+    assert.equal(forged.ok, false);
+  }
+});
+
 async function loadCatalog(): Promise<RuleCatalog> {
   const content = await readFile(
     new URL('../../../public/data/auto-builder-core.json', import.meta.url),
@@ -257,10 +371,14 @@ function findClass(catalog: RuleCatalog, key: string, source: string): RuleClass
 }
 
 function selectFirstOptions(
-  groups: readonly { id: string; max: number; options: readonly { id: string }[] }[],
+  groups: readonly { id: string; max: number; options: readonly RuleSpell[] }[],
 ): Record<string, string[]> {
   return Object.fromEntries(groups.map((group) => [
     group.id,
-    group.options.slice(0, group.max).map(({ id }) => id),
+    distinctSpells(group.options).slice(0, group.max).map(({ id }) => id),
   ]));
+}
+
+function distinctSpells(spells: readonly RuleSpell[]): RuleSpell[] {
+  return [...new Map(spells.map(spell => [spell.englishName || spell.key || spell.name, spell])).values()];
 }

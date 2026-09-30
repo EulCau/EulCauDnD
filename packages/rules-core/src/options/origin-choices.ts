@@ -265,8 +265,9 @@ export function resolveRuleOriginInheritance(values: readonly (RuleOrigin | unde
 export function applyRuleOriginFeatureChoices(origin: RuleOrigin, selections: Readonly<Record<string, string>> = {}): RuleOrigin {
   if (origin.key !== 'Kobold' || origin.source !== 'MPMM') return origin;
   const selected = selections['kobold-legacy'];
-  return { ...origin,
-    skillProficiencies: selected === 'craftiness' ? origin.skillProficiencies : undefined,
-    additionalSpells: selected === 'draconic-sorcery' ? origin.additionalSpells : undefined,
+  const { skillProficiencies, additionalSpells, ...rest } = origin;
+  return { ...rest,
+    ...(selected === 'craftiness' && skillProficiencies !== undefined ? { skillProficiencies } : {}),
+    ...(selected === 'draconic-sorcery' && additionalSpells !== undefined ? { additionalSpells } : {}),
   };
 }

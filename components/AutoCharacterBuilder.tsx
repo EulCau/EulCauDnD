@@ -76,6 +76,7 @@ import {
   getSkillChoiceOptions,
   getWeaponMasteryChoiceState,
   isAbilityScoreImprovementLevel,
+  isEpicBoonLevel,
 	  loadAutoBuilderContent,
 	  getMagicalSecretLevels,
   getRuleSubclassSpellBlocks,
@@ -132,6 +133,16 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   loadContent = loadAutoBuilderContent,
 }) => {
   const { t } = useLanguage();
+  const featCategoryLabel = (category: string): string => {
+    switch (category) {
+      case 'O': return t('auto.originFeat');
+      case 'G': return t('auto.generalFeat');
+      case 'EB': return t('auto.epicBoonFeat');
+      case 'FS': return t('auto.fightingStyleFeat');
+      case 'FS:P': return t('auto.paladinFightingStyleFeat');
+      default: return category;
+    }
+  };
   const [ruleSystem, setRuleSystem] = useState<RuleSystem>(data.automation.ruleSystem);
   const [campaigns, setCampaigns] = useState<string[] | undefined>(data.automation.campaigns);
   const [raceKey, setRaceKey] = useState('');
@@ -350,8 +361,18 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
   const weaponMasteryChoiceState = content && selectedClass
     ? getWeaponMasteryChoiceState(content, selectedClass, data, targetClassLevel)
     : null;
-  const needsAbilityScoreImprovementChoice = isLevelUpMode && isAbilityScoreImprovementLevel(selectedClass, targetClassLevel);
-  const abilityScoreImprovementFeatOptions = content ? getAbilityScoreImprovementFeatOptions(content, ruleSystem, prerequisiteCharacter, targetCharacterLevel) : [];
+  const requiresEpicBoonChoice = isLevelUpMode && isEpicBoonLevel(selectedClass, targetClassLevel);
+  const needsAbilityScoreImprovementChoice = isLevelUpMode
+    && (isAbilityScoreImprovementLevel(selectedClass, targetClassLevel) || requiresEpicBoonChoice);
+  const abilityScoreImprovementFeatOptions = content
+    ? getAbilityScoreImprovementFeatOptions(content, ruleSystem, prerequisiteCharacter, targetCharacterLevel)
+      .filter((feat) => requiresEpicBoonChoice ? feat.category === 'EB' : feat.category !== 'EB')
+    : [];
+  useEffect(() => {
+    if (requiresEpicBoonChoice && abilityScoreImprovementChoice.mode !== 'feat') {
+      setAbilityScoreImprovementChoice({ mode: 'feat' });
+    }
+  }, [requiresEpicBoonChoice, abilityScoreImprovementChoice.mode]);
   const selectedAbilityScoreImprovementFeat = abilityScoreImprovementFeatOptions.find(feat => (
     `${feat.key}|${feat.source}` === abilityScoreImprovementChoice.featId || feat.key === abilityScoreImprovementChoice.featId
   ));
@@ -438,12 +459,15 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
         || data.spellcastingProfiles.find(profile => !profile.classId && (profile.className === selectedClass.name || profile.className === selectedClass.key))
       )
     : undefined;
-  const existingSpellIds = new Set(existingSpellProfile?.spells.map(spell => spell.id) || []);
   const spellChoiceState = content && selectedClass
     ? (isLevelUpMode
         ? getSpellChoiceState(content, selectedClass, targetClassLevel, existingSpellProfile?.spells || [], activeSpellSubclass)
         : getLevelOneSpellChoiceState(content, selectedClass, activeSpellSubclass))
     : null;
+  const existingSpellIds = new Set([
+    ...(existingSpellProfile?.spells.map(spell => spell.id) || []),
+    ...(spellChoiceState?.knownSpellIds || []),
+  ]);
   const neededSpellChoices = spellChoiceState?.needed || { cantrips: 0, leveled: 0 };
   const fixedLeveledSpellGroups = spellChoiceState?.fixedLeveledGroups || [];
   const fixedLeveledSpellIds = new Set(fixedLeveledSpellGroups.flatMap(group => group.options.map(spell => spell.id)));
@@ -2528,8 +2552,9 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
 
           {needsAbilityScoreImprovementChoice && (
             <div className="md:col-span-2 border border-gray-200 rounded p-3">
-              <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t('auto.asiChoice')}</h3>
+              <h3 className="text-[10px] text-gray-500 uppercase font-bold mb-2">{t(requiresEpicBoonChoice ? 'auto.epicBoonChoice' : 'auto.asiChoice')}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {!requiresEpicBoonChoice && (
                 <label className="flex flex-col gap-1 text-xs">
                   <span className="text-[10px] text-gray-500 uppercase font-bold">{t('auto.abilityMode')}</span>
                   <select
@@ -2542,6 +2567,7 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                     <option value="feat">{t('auto.asiFeat')}</option>
                   </select>
                 </label>
+                )}
                 {abilityScoreImprovementChoice.mode === 'plus2' && (
                   <label className="flex flex-col gap-1 text-xs">
                     <span className="text-[10px] text-gray-500 uppercase font-bold">+2</span>
@@ -2603,10 +2629,12 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
                       })}
                       className="bg-white border border-gray-300 rounded px-2 py-2 text-xs"
                     >
-                      <option value="">{t('auto.chooseFeat')}</option>
-                      {abilityScoreImprovementFeatOptions.map(feat => (
-                        <option key={`${feat.key}-${feat.source}`} value={`${feat.key}|${feat.source}`}>{feat.name}</option>
-                      ))}
+                    <option value="">{t('auto.chooseFeat')}</option>
+                    {abilityScoreImprovementFeatOptions.map(feat => (
+                        <option key={`${feat.key}-${feat.source}`} value={`${feat.key}|${feat.source}`}>
+                          {feat.name}{feat.category ? ` · ${featCategoryLabel(feat.category)}` : ''}
+                        </option>
+                    ))}
                     </select>
                   </label>
                 )}

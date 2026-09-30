@@ -70,6 +70,23 @@ test('validates and projects common feat selections into structured effects', as
   )));
 });
 
+test('allows the UI adapter to defer specialized feat choices without weakening strict submissions', async () => {
+  const catalog = await loadCatalog();
+  const feat = catalog.feats.find(entry => entry.key === 'Fighting Initiate' && entry.source === 'TCE')!;
+  assert.ok(feat);
+  const character = { abilities: { STR: 15, DEX: 14, CON: 14, INT: 10, WIS: 10, CHA: 8 }, proficiencies: [] };
+  const strict = createRuleFeatEffects(catalog, '5e', feat, character);
+  assert.equal(strict.ok, false);
+  const deferred = createRuleFeatEffects(catalog, '5e', feat, character, { allowIncompleteChoices: true });
+  assert.equal(deferred.ok, true);
+  if (deferred.ok) assert.ok(deferred.value.every(effect => effect.type !== 'feature.add'));
+  const forged = createRuleFeatEffects(catalog, '5e', feat, character, {
+    allowIncompleteChoices: true,
+    choices: { 'feat-Fighting Initiate-TCE-fightingStyle': ['FORGED'] },
+  });
+  assert.equal(forged.ok, false);
+});
+
 test('projects fixed armor, senses, resistance, and immunity fields', async () => {
   const catalog = await loadCatalog();
   const lightlyArmored = catalog.feats.find(({ key, source }) => (

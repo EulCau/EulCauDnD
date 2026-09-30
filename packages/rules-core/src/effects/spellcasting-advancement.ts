@@ -59,6 +59,8 @@ export interface RuleSpellcastingAdvancementState {
   maxSpellLevel: number;
   limits: { cantrips: number; leveled: number };
   needed: { cantrips: number; leveled: number };
+  /** Current catalog IDs corresponding to spells already present on the profile. */
+  knownSpellIds: string[];
   cantrips: RuleSpell[];
   leveled: RuleSpell[];
   automaticSpells: RuleSpell[];
@@ -175,6 +177,13 @@ export function createRuleSpellcastingAdvancementState(
   const existing = new Set(existingSpellIds);
   const subclassSpells = getRuleSubclassSpells(context, authorizedSubclass, newClassLevel, maxSpellLevel, bonusSpellIds);
   if (subclassSpells.issues.length) return { ok: false, issues: subclassSpells.issues };
+  const existingSpells = existingSpellIds.flatMap((id) => {
+    const spell = context.catalog.spells.find((candidate) => candidate.id === id);
+    return spell ? [spell] : [];
+  });
+  const knownSpellIds = options.filter((spell) => existing.has(spell.id)
+    || existingSpells.some((known) => sameSpellIdentity(known, spell))).map(({ id }) => id);
+  const known = new Set(knownSpellIds);
   const automaticIds = new Set(getAutomaticPreparedSpells(
     context,
     authorizedClass,
@@ -200,8 +209,11 @@ export function createRuleSpellcastingAdvancementState(
     (total, group) => total + Math.max(0, group.count - group.selected),
     0,
   );
-  const countedExisting = context.catalog.spells.filter(spell => existing.has(spell.id)
-    && !automaticIds.has(spell.id) && !bonusSpellIds.includes(spell.id));
+  // Reprints remain available as choices, but one known spell consumes one slot.
+  const countedExisting = existingSpells.filter((spell, index) => (
+    existingSpells.findIndex(candidate => sameSpellIdentity(candidate, spell)) === index
+    && !automaticIds.has(spell.id) && !bonusSpellIds.includes(spell.id)
+  ));
   const existingCantrips = countedExisting.filter(spell => spell.level === 0).length;
   const existingLeveled = countedExisting.filter(spell => spell.level > 0).length;
   const needed = {
@@ -227,10 +239,10 @@ export function createRuleSpellcastingAdvancementState(
   const subclassSpellGroups = subclassSpells.choices;
   const groups = [
     ...(needed.cantrips > 0
-      ? [choiceGroup(authorizedClass, newClassLevel, 'cantrips', needed.cantrips, cantrips)]
+      ? [choiceGroup(authorizedClass, newClassLevel, 'cantrips', needed.cantrips, cantrips.filter(({ id }) => !known.has(id)))]
       : []),
     ...(needed.leveled > 0
-      ? [choiceGroup(authorizedClass, newClassLevel, 'leveled', needed.leveled, leveled)]
+      ? [choiceGroup(authorizedClass, newClassLevel, 'leveled', needed.leveled, leveled.filter(({ id }) => !known.has(id)))]
       : []),
     ...fixedLeveledGroups.flatMap(({ group }) => group ? [group] : []),
     ...magicalSecretGroups,
@@ -248,6 +260,7 @@ export function createRuleSpellcastingAdvancementState(
     maxSpellLevel,
     limits,
     needed,
+    knownSpellIds,
     cantrips,
     leveled,
     automaticSpells,
@@ -358,8 +371,10 @@ export function createRuleSpellcastingAdvancementEffects(
       source: spell.source,
       prepared: alwaysPrepared,
       alwaysPrepared,
-      grantSource: subclassAutomatic.has(spell.id) || state.subclassSpellGroups.some(group =>
-        (options.selections?.[group.id] ?? []).includes(spell.id)) ? subclassGrant : undefined,
+      ...(subclassGrant !== undefined && (subclassAutomatic.has(spell.id)
+        || state.subclassSpellGroups.some(group =>
+          (options.selections?.[group.id] ?? []).includes(spell.id)))
+        ? { grantSource: subclassGrant } : {}),
       countsAgainstKnownLimit: !automaticIds.has(spell.id) && !state.subclassSpellGroups.some(group =>
         (options.selections?.[group.id] ?? []).includes(spell.id))
         && !state.magicalSecretGroups.some(group => group.id.includes('-6-magical-secrets') &&
@@ -521,8 +536,17 @@ function fixedSpellGroups(
     const count = Number(rawCount) || 0;
     const options = classOptions.filter((spell) => spell.level === numericSpellLevel);
     if (count <= 0 || options.length === 0) return [];
-    const selected = options.filter((spell) => existing.has(spell.id)).length;
+    const knownSpells = context.catalog.spells.filter(spell => existing.has(spell.id));
+    const selected = knownSpells.filter((spell, index) => (
+      options.some(candidate => sameSpellIdentity(candidate, spell))
+      && knownSpells.findIndex(candidate => sameSpellIdentity(candidate, spell)) === index
+    )).length;
     const needed = Math.max(0, count - selected);
+    const newOptions = options.filter((spell) => !existing.has(spell.id)
+      && ![...existing].some((id) => {
+        const known = context.catalog.spells.find((candidate) => candidate.id === id);
+        return known !== undefined && sameSpellIdentity(known, spell);
+      }));
     return [{
       classLevel,
       spellLevel: numericSpellLevel,
@@ -535,13 +559,24 @@ function fixedSpellGroups(
               classLevel,
               `fixed-${numericSpellLevel}`,
               needed,
-              options,
+              newOptions,
             ),
           }
         : {}),
-      options,
+      options: newOptions,
     }];
   });
+}
+
+function sameSpellIdentity(left: RuleSpell, right: RuleSpell): boolean {
+  const normalize = (spell: RuleSpell) => (String(spell.englishName || spell.key || spell.name)
+    .split('|')[0] ?? '')
+    .normalize('NFKC')
+    .trim()
+    .toLocaleLowerCase('en-US');
+  const leftName = normalize(left);
+  const rightName = normalize(right);
+  return leftName === rightName;
 }
 
 function magicalSecretsGroups(
@@ -554,8 +589,9 @@ function magicalSecretsGroups(
   subclass?: RuleSubclass,
 ): RuleChoiceGroup<RuleSpell>[] {
   if (ruleClass.key !== 'Bard' || ruleClass.source !== 'PHB') return [];
+  const knownSpells = context.catalog.spells.filter(spell => existing.has(spell.id));
   const pool = getRuleMagicalSecretSpellOptions(context, maxSpellLevel)
-    .filter(({ id }) => !existing.has(id));
+    .filter(spell => !knownSpells.some(known => sameSpellIdentity(known, spell)));
   return [...(subclass?.key === 'College of Lore' ? [6] : []), 10, 14, 18]
     .filter((level) => oldClassLevel < level && level <= newClassLevel)
     .map((level) => choiceGroup(ruleClass, level, 'magical-secrets', 2, pool));
@@ -593,6 +629,7 @@ function validateSpellReplacement(
   const add = state.leveled.find(({ id }) => (
     id === selection.addId
     && id !== selection.removeId
+    && !state.knownSpellIds.includes(id)
     && !existing.spells.some((spell) => spell.id === id)
   ));
   return remove && add
@@ -690,7 +727,9 @@ function validateInput(
   return authorizedSubclass
     ? (subclass.selectedSpellBlock !== undefined && !getRuleSubclassSpellBlocks(authorizedSubclass).some(block => block.id === subclass.selectedSpellBlock)
       ? invalid('choice_not_available', ['subclass', 'selectedSpellBlock'], 'subclass_spell_block_not_available')
-      : success({ ruleClass: authorizedClass, subclass: { ...authorizedSubclass, selectedSpellBlock: subclass.selectedSpellBlock } }))
+      : success({ ruleClass: authorizedClass, subclass: { ...authorizedSubclass,
+          ...(subclass.selectedSpellBlock === undefined ? {} : { selectedSpellBlock: subclass.selectedSpellBlock }),
+        } }))
     : invalid('entity_not_authorized', ['subclass'], 'subclass_not_authorized');
 }
 

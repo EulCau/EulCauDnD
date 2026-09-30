@@ -22,6 +22,7 @@ import {
   createDefaultRuleAuthorizationPolicy,
   createRuleAdditionalSpellChoiceState,
   createRuleClassInstanceId,
+  createRuleClassResourceEffects,
   createRuleExpertiseAdvancementEffects,
   createRuleExpertiseAdvancementState,
   createRuleFightingStyleAdvancementEffects,
@@ -1074,6 +1075,12 @@ export const isAbilityScoreImprovementLevel = (
   && (feature.name === '属性值提升' || feature.englishName === 'Ability Score Improvement')
 )));
 
+export const isEpicBoonLevel = (cls: AutoBuilderClass | undefined, level: number): boolean => (
+  cls?.ruleSystem === '5r' && cls.levelFeatures.some((feature) => (
+    feature.level === level && (feature.englishName === 'Epic Boon' || feature.name === '史诗恩惠')
+  ))
+);
+
 const getExistingWeaponMasteryIds = (character: CharacterData): Set<string> => (
   new Set(character.featureEntries
     .filter(feature => feature.sourceId.startsWith('auto-weapon-mastery-'))
@@ -1607,6 +1614,7 @@ export const getSpellChoiceState = (
   isPreparedAll: boolean;
   limits: { cantrips: number; leveled: number };
   needed: { cantrips: number; leveled: number };
+  knownSpellIds: string[];
   cantrips: AutoBuilderSpell[];
   leveled: AutoBuilderSpell[];
   fixedLeveledGroups: AutoBuilderFixedSpellChoiceGroup[];
@@ -1631,6 +1639,7 @@ export const getSpellChoiceState = (
       isPreparedAll: false,
       limits: { cantrips: 0, leveled: 0 },
       needed: { cantrips: 0, leveled: 0 },
+      knownSpellIds: [],
       cantrips: [],
       leveled: [],
       fixedLeveledGroups: [],
@@ -1650,6 +1659,7 @@ export const getSpellChoiceState = (
     isPreparedAll: state.mode === 'preparedAll',
     limits: state.limits,
     needed: state.needed,
+    knownSpellIds: state.knownSpellIds,
     cantrips: state.cantrips,
     leveled: uniqueSpells([...state.leveled, ...magicalSecretExpansion]),
     fixedLeveledGroups: state.fixedLeveledGroups,
@@ -2266,215 +2276,29 @@ const createClassFeatureOperations = (
     });
 };
 
-const classHasFeatureAtOrBeforeLevel = (
-  cls: AutoBuilderClass,
-  level: number,
-  englishName: string,
-  name: string,
-): boolean => cls.levelFeatures.some(feature => (
-  feature.level <= level
-  && (feature.englishName === englishName || feature.name === name)
-));
-
-const makeClassResource = (
-  cls: AutoBuilderClass,
-  ruleSystem: RuleSystem,
-  key: string,
-  name: string,
-  max: number,
-  reset: CharacterResource['reset'],
-  note?: string,
-): AdjustmentOperation => ({
-  type: 'upsertResource',
-  resource: {
-    id: `auto-resource-${cls.key}-${cls.source}-${key}`,
-    sourceId: `auto-resource-${cls.key}-${cls.source}-${key}`,
-    sourceName: `${cls.name} ${cls.source}`,
-    name,
-    current: Math.max(0, max),
-    max: Math.max(0, max),
-    reset,
-    note,
-    ruleSystem,
-  },
-});
-
-const getRageUses = (level: number): number => {
-  if (level >= 17) return 6;
-  if (level >= 12) return 5;
-  if (level >= 6) return 4;
-  if (level >= 3) return 3;
-  return 2;
-};
-
-const getSecondWindUses = (cls: AutoBuilderClass, level: number): number => {
-  if (cls.source === 'XPHB') {
-    if (level >= 10) return 4;
-    if (level >= 4) return 3;
-    return 2;
-  }
-  return 1;
-};
-
-const getProgressionValue = (progression: number[] | undefined, level: number): number => (
-  progression?.[Math.max(0, level - 1)] || 0
-);
-
-const getBardicInspirationDie = (level: number): string => {
-  if (level >= 15) return 'd12';
-  if (level >= 10) return 'd10';
-  if (level >= 5) return 'd8';
-  return 'd6';
-};
-
-const getChannelDivinityUses = (cls: AutoBuilderClass, level: number, characterLevel: number): number => {
-  const tableValue = getProgressionValue(cls.channelDivinityProgression, level);
-  if (tableValue) return tableValue;
-  if (cls.source === 'XPHB') return calculateProficiencyBonus(characterLevel);
-  if (level >= 18) return 3;
-  if (level >= 6) return 2;
-  return 1;
-};
-
-const getFavoredEnemyUses = (cls: AutoBuilderClass, level: number): number => {
-  const tableValue = getProgressionValue(cls.favoredEnemyProgression, level);
-  if (tableValue) return tableValue;
-  if (level >= 17) return 6;
-  if (level >= 13) return 5;
-  if (level >= 9) return 4;
-  if (level >= 5) return 3;
-  return 2;
-};
-
-const getSorceryPoints = (cls: AutoBuilderClass, level: number): number => (
-  getProgressionValue(cls.sorceryPointProgression, level) || level
-);
-
 const createClassResourceOperations = (
   cls: AutoBuilderClass,
   ruleSystem: RuleSystem,
   classLevel: number,
   character: CharacterData,
-  characterLevel = Math.max(1, getTotalLevel(character.classes)),
-): AdjustmentOperation[] => {
-  const operations: AdjustmentOperation[] = [];
-  const chaMod = Math.max(1, calculateModifier(character.abilities.CHA));
-
-  if (cls.key === 'Barbarian' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Rage', '狂暴')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'rage', '狂暴', getRageUses(classLevel), 'longRest'));
-  }
-  if (cls.key === 'Bard' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Bardic Inspiration', '诗人激励')) {
-    const hasFontOfInspiration = classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Font of Inspiration', '激励之源');
-    operations.push(makeClassResource(
-      cls,
-      ruleSystem,
-      'bardic-inspiration',
-      '诗人激励',
-      chaMod,
-      hasFontOfInspiration ? 'shortRest' : 'longRest',
-      `次数等于魅力调整值, 至少 1. 激励骰 ${getBardicInspirationDie(classLevel)}.${cls.source === 'XPHB' && hasFontOfInspiration ? ' 也可消耗法术位恢复一次使用次数.' : ''}`,
-    ));
-  }
-  if ((cls.key === 'Cleric' || cls.key === 'Paladin') && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Channel Divinity', '引导神力')) {
-    operations.push(makeClassResource(
-      cls,
-      ruleSystem,
-      'channel-divinity',
-      '引导神力',
-      getChannelDivinityUses(cls, classLevel, characterLevel),
-      cls.source === 'XPHB' ? 'longRest' : 'shortRest',
-    ));
-  }
-  if (cls.key === 'Druid' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Wild Shape', '荒野形态')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'wild-shape', '荒野形态', cls.source === 'XPHB' ? calculateProficiencyBonus(characterLevel) : 2, 'shortRest'));
-  }
-  if (cls.key === 'Fighter') {
-    if (classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Second Wind', '回气')) {
-      operations.push(makeClassResource(
-        cls,
-        ruleSystem,
-        'second-wind',
-        '回气',
-        getSecondWindUses(cls, classLevel),
-        cls.source === 'XPHB' ? 'manual' : 'shortRest',
-        cls.source === 'XPHB' ? '短休恢复 1 次已消耗次数, 长休恢复全部.' : undefined,
-      ));
-    }
-    if (classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Action Surge', '动作如潮')) {
-      operations.push(makeClassResource(cls, ruleSystem, 'action-surge', '动作如潮', classLevel >= 17 ? 2 : 1, 'shortRest'));
-    }
-    if (classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Indomitable', '不屈')) {
-      operations.push(makeClassResource(cls, ruleSystem, 'indomitable', '不屈', Math.max(1, Math.ceil((classLevel - 8) / 4)), 'longRest'));
-    }
-  }
-  if (cls.key === 'Monk' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Ki', '气')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'ki', cls.source === 'XPHB' ? '功力' : '气', classLevel, 'shortRest'));
-  }
-  if (cls.key === 'Monk' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Monk\u0027s Focus', '武僧专注')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'focus-points', '功力', classLevel, 'shortRest'));
-  }
-  if (cls.key === 'Monk' && cls.source === 'XPHB' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Uncanny Metabolism', '运转周天')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'uncanny-metabolism', '运转周天', 1, 'longRest', '骰先攻时可恢复全部功力, 并恢复武艺骰 + 武僧等级的生命值.'));
-  }
-  if (cls.key === 'Paladin' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Lay on Hands', '圣疗')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'lay-on-hands', '圣疗池', classLevel * 5, 'longRest', '以生命值计数.'));
-  }
-  if (cls.key === 'Paladin' && cls.source === 'PHB' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Divine Sense', '神圣感知')) {
-    operations.push(makeClassResource(
-      cls,
-      ruleSystem,
-      'divine-sense',
-      '神圣感知',
-      Math.max(1, 1 + calculateModifier(character.abilities.CHA)),
-      'longRest',
-      '次数等于 1 + 魅力调整值, 至少 1.',
-    ));
-  }
-  if (cls.key === 'Ranger' && cls.source === 'XPHB' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Favored Enemy', '宿敌')) {
-    operations.push(makeClassResource(
-      cls,
-      ruleSystem,
-      'favored-enemy',
-      '宿敌: 猎人印记',
-      getFavoredEnemyUses(cls, classLevel),
-      'longRest',
-      '无需消耗法术位施展猎人印记的次数.',
-    ));
-  }
-  if (cls.key === 'Sorcerer' && cls.source === 'XPHB' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Innate Sorcery', '先天术法')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'innate-sorcery', '先天术法', 2, 'longRest'));
-  }
-  if (cls.key === 'Sorcerer' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Font of Magic', '魔力泉涌')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'sorcery-points', '术法点', getSorceryPoints(cls, classLevel), 'longRest'));
-  }
-  if (cls.key === 'Sorcerer' && cls.source === 'XPHB' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Sorcerous Restoration', '术法复苏')) {
-    operations.push(makeClassResource(
-      cls,
-      ruleSystem,
-      'sorcerous-restoration',
-      '术法复苏',
-      1,
-      'longRest',
-      '完成短休时可恢复不大于术士等级一半的已消耗术法点.',
-    ));
-  }
-  if (cls.key === 'Warlock' && cls.source === 'XPHB' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Magical Cunning', '秘法回流')) {
-    operations.push(makeClassResource(
-      cls,
-      ruleSystem,
-      'magical-cunning',
-      '秘法回流',
-      1,
-      'longRest',
-      '1 分钟仪式后重获一半已消耗的魔契师法术位, 向上取整.',
-    ));
-  }
-  if (cls.key === 'Wizard' && classHasFeatureAtOrBeforeLevel(cls, classLevel, 'Arcane Recovery', '奥术回想')) {
-    operations.push(makeClassResource(cls, ruleSystem, 'arcane-recovery', '奥术回想', 1, 'longRest', '恢复法术位总环阶不超过法师等级一半.'));
-  }
-
-  return operations;
-};
+  projectedTotalLevel: number,
+): AdjustmentOperation[] => createRuleClassResourceEffects(
+  cls,
+  {
+    classes: character.classes.map(({ level }) => ({ level })),
+    abilities: character.abilities,
+  },
+  classLevel,
+  projectedTotalLevel,
+).map((resource): AdjustmentOperation => ({
+  type: 'upsertResource',
+  resource: {
+    ...resource,
+    name: resource.name ?? resource.id,
+    sourceName: resource.sourceName ?? `${cls.name} ${cls.source}`,
+    ruleSystem,
+  },
+}));
 
 const createAllClassResourceOperations = (
   content: AutoBuilderContent,

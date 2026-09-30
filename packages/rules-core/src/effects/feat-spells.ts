@@ -19,12 +19,12 @@ import {
 import { validateRuleChoiceSelections } from '../validation/common.js';
 
 export interface RuleFeatSpellSelections {
-  blockId?: string;
-  ability?: RuleAbilityName;
-  choices?: Readonly<Record<string, readonly string[]>>;
-  replaceRemoveId?: string;
-  replaceAddId?: string;
-  allowIncompleteChoices?: boolean;
+  blockId?: string | undefined;
+  ability?: RuleAbilityName | undefined;
+  choices?: Readonly<Record<string, readonly string[]>> | undefined;
+  replaceRemoveId?: string | undefined;
+  replaceAddId?: string | undefined;
+  allowIncompleteChoices?: boolean | undefined;
 }
 
 export interface RuleFeatSpellReplacementState {

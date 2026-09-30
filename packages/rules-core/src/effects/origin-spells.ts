@@ -15,9 +15,9 @@ import { createRuleAdditionalSpellChoiceState } from '../options/additional-spel
 import { validateRuleChoiceSelections } from '../validation/common.js';
 
 export interface RuleOriginSpellSelections {
-  blockId?: string;
-  ability?: RuleAbilityName;
-  choices?: Readonly<Record<string, readonly string[]>>;
+  blockId?: string | undefined;
+  ability?: RuleAbilityName | undefined;
+  choices?: Readonly<Record<string, readonly string[]>> | undefined;
 }
 
 export interface RuleOriginSpellLevelUpChoiceBlock {
