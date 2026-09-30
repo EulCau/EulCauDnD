@@ -24,6 +24,7 @@ export interface RuleSpellReplacementSelection {
 
 export interface RuleSpellcastingEffectOptions {
   existingProfile?: RuleSpellcastingProfile;
+  classId?: string;
   selections?: Readonly<Record<string, readonly string[]>>;
   replacement?: RuleSpellReplacementSelection | null;
   slots?: RuleSpellSlots;
@@ -210,10 +211,13 @@ export function createRuleSpellcastingAdvancementState(
     0,
   );
   // Reprints remain available as choices, but one known spell consumes one slot.
-  const countedExisting = existingSpells.filter((spell, index) => (
-    existingSpells.findIndex(candidate => sameSpellIdentity(candidate, spell)) === index
-    && !automaticIds.has(spell.id) && !bonusSpellIds.includes(spell.id)
-  ));
+  const excludedIdentities = new Set([
+    ...automaticSpells,
+    ...context.catalog.spells.filter(({ id }) => bonusSpellIds.includes(id)),
+  ].map(getRuleSpellIdentity));
+  const countedExisting = [...new Map(existingSpells
+    .filter(spell => !excludedIdentities.has(getRuleSpellIdentity(spell)))
+    .map(spell => [getRuleSpellIdentity(spell), spell])).values()];
   const existingCantrips = countedExisting.filter(spell => spell.level === 0).length;
   const existingLeveled = countedExisting.filter(spell => spell.level > 0).length;
   const needed = {
@@ -222,8 +226,9 @@ export function createRuleSpellcastingAdvancementState(
       ? 0
       : Math.max(0, limits.leveled - existingLeveled - fixedNeeded),
   };
-  const cantrips = options.filter((spell) => spell.level === 0 && !automaticIds.has(spell.id));
-  const leveled = options.filter((spell) => spell.level > 0 && !automaticIds.has(spell.id));
+  const automaticIdentities = new Set(automaticSpells.map(getRuleSpellIdentity));
+  const cantrips = options.filter((spell) => spell.level === 0 && !automaticIdentities.has(getRuleSpellIdentity(spell)));
+  const leveled = options.filter((spell) => spell.level > 0 && !automaticIdentities.has(getRuleSpellIdentity(spell)));
   const magicalSecretGroups = magicalSecretsGroups(
     context,
     authorizedClass,
@@ -309,6 +314,7 @@ export function getRuleMulticlassSpellSlots(
     && Boolean(ruleClass.spellcastingAbility)
     && Boolean(ruleClass.casterProgression)
     && ruleClass.casterProgression !== 'pact'
+    && getRuleMaxSpellLevel(ruleClass, level) >= 0
   ));
   if (casters.length < 2) return { applies: false, casterLevel: 0, slots: {} };
   const casterLevel = Math.min(20, casters.reduce((total, entry) => (
@@ -337,7 +343,8 @@ export function createRuleSpellcastingAdvancementEffects(
   const validated = validateRuleChoiceSelections(state.groups, options.selections ?? {});
   if (!validated.ok) return validated;
   const selectedIds = validated.value.flatMap(({ selectedIds: ids }) => ids);
-  if (new Set(selectedIds).size !== selectedIds.length) {
+  const selectedSpells = selectedIds.map(id => context.catalog.spells.find(spell => spell.id === id)!);
+  if (new Set(selectedSpells.map(getRuleSpellIdentity)).size !== selectedIds.length) {
     return invalid('choice_conflict', ['spellcasting', 'choices'], 'spell_selected_in_multiple_groups');
   }
   const selected = state.groups.flatMap(({ options: groupOptions }) => (
@@ -348,7 +355,7 @@ export function createRuleSpellcastingAdvancementEffects(
   const automaticIds = new Set(state.automaticSpells.map(({ id }) => id));
   const profileId = existing?.id
     ?? `auto-${authorizedClass.key.toLowerCase()}-${authorizedClass.source.toLowerCase()}-spellcasting`;
-  const classId = existing?.classId;
+  const classId = options.classId ?? existing?.classId;
   const sourceId = profileId;
   const spells = new Map(existingById);
   const subclassPrefix = state.subclass ? `subclass:${state.subclass.id}:` : undefined;
@@ -382,17 +389,25 @@ export function createRuleSpellcastingAdvancementEffects(
     });
   }
 
-  const replacement = validateSpellReplacement(state, existing, options.replacement);
+  const replacement = validateSpellReplacement(context, state, existing, options.replacement);
   if (!replacement.ok) return replacement;
   if (replacement.value) {
-    spells.delete(replacement.value.remove.id);
+    const removed = context.catalog.spells.find(spell => spell.id === replacement.value!.remove.id)!;
     const add = replacement.value.add;
+    if (selectedSpells.some(spell => sameSpellIdentity(spell, add))) {
+      return invalid('choice_conflict', ['spellcasting', 'replacement'], 'spell_replacement_duplicates_new_choice');
+    }
+    for (const [id] of spells) {
+      const spell = context.catalog.spells.find(candidate => candidate.id === id);
+      if (spell && sameSpellIdentity(spell, removed)) spells.delete(id);
+    }
     spells.set(add.id, {
       id: add.id,
       key: add.key || add.name,
       source: add.source,
       prepared: true,
       alwaysPrepared: true,
+      countsAgainstKnownLimit: true,
     });
   }
 
@@ -568,15 +583,16 @@ function fixedSpellGroups(
   });
 }
 
-function sameSpellIdentity(left: RuleSpell, right: RuleSpell): boolean {
-  const normalize = (spell: RuleSpell) => (String(spell.englishName || spell.key || spell.name)
+export function getRuleSpellIdentity(spell: RuleSpell): string {
+  return (String(spell.englishName || spell.key || spell.name)
     .split('|')[0] ?? '')
     .normalize('NFKC')
     .trim()
     .toLocaleLowerCase('en-US');
-  const leftName = normalize(left);
-  const rightName = normalize(right);
-  return leftName === rightName;
+}
+
+function sameSpellIdentity(left: RuleSpell, right: RuleSpell): boolean {
+  return getRuleSpellIdentity(left) === getRuleSpellIdentity(right);
 }
 
 function magicalSecretsGroups(
@@ -614,6 +630,7 @@ export function getRuleMagicalSecretSpellOptions(
 }
 
 function validateSpellReplacement(
+  context: RuleContext,
   state: RuleSpellcastingAdvancementState,
   existing: RuleSpellcastingProfile | undefined,
   selection: RuleSpellReplacementSelection | null | undefined,
@@ -622,9 +639,15 @@ function validateSpellReplacement(
   if (state.mode !== 'knownSelection' || !existing) {
     return invalid('choice_not_available', ['spellcasting', 'replacement'], 'spell_replacement_not_available');
   }
-  const automaticIds = new Set(state.automaticSpells.map(({ id }) => id));
-  const remove = existing.spells.find(({ id }) => (
-    id === selection.removeId && !automaticIds.has(id)
+  const automatic = new Set(state.automaticSpells.map(getRuleSpellIdentity));
+  const removeSpell = context.catalog.spells.find(({ id }) => id === selection.removeId);
+  const bonus = existing.spells.some(spell => spell.countsAgainstKnownLimit === false
+    && context.catalog.spells.some(candidate => candidate.id === spell.id
+      && removeSpell !== undefined && sameSpellIdentity(candidate, removeSpell)));
+  const remove = existing.spells.find(spell => (
+    spell.id === selection.removeId && !bonus
+    && removeSpell !== undefined && removeSpell.level > 0
+    && !automatic.has(getRuleSpellIdentity(removeSpell))
   ));
   const add = state.leveled.find(({ id }) => (
     id === selection.addId
@@ -641,7 +664,7 @@ function multiclassCasterLevelContribution(ruleClass: RuleClass, level: number):
   if (!ruleClass.spellcastingAbility || !ruleClass.casterProgression || ruleClass.casterProgression === 'pact') return 0;
   if (ruleClass.casterProgression === 'full') return level;
   if (ruleClass.casterProgression === 'artificer') return Math.ceil(level / 2);
-  if (ruleClass.casterProgression === '1/2') return Math.floor(level / 2);
+  if (ruleClass.casterProgression === '1/2') return ruleClass.ruleSystem === '5r' ? Math.ceil(level / 2) : Math.floor(level / 2);
   if (ruleClass.casterProgression === '1/3') return Math.floor(level / 3);
   return 0;
 }

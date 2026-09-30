@@ -187,7 +187,9 @@ export function getEligibleAbilityScoreImprovementFeats<T extends RuleFeat>(
   const byName = new Map<string, T>();
   for (const feat of feats) {
     if (!allowedSources.has('*') && !allowedSources.has(feat.source)) continue;
-    if (!feat.repeatable && character.knownFeats.some((knownFeat) => (
+    // The PHB entry records Elemental Adept's repeatability only in its description.
+    const repeatable = feat.repeatable || (feat.key === 'Elemental Adept' && feat.source === 'PHB');
+    if (!repeatable && character.knownFeats.some((knownFeat) => (
       knownFeat.id === `${feat.key}|${feat.source}`
       || knownFeat.key === feat.key
       || knownFeat.name === feat.key

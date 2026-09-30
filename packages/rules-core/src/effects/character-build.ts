@@ -1,6 +1,7 @@
 import type {
   RuleAbilityName,
   RuleClass,
+  RuleFeatCatalogEntry,
   RuleFeature,
   RuleSystem,
 } from '../catalog/model.js';
@@ -8,6 +9,7 @@ import type {
   CanonicalRuleCharacterSnapshot,
   RuleClassState,
   RuleEntityRef,
+  RuleSpellcastingProfile,
 } from '../model/character.js';
 import type { RuleContext } from '../model/context.js';
 import type { RuleEffect } from '../model/effect.js';
@@ -21,6 +23,7 @@ import { createRuleFeatAdvancementEffects, createRuleFeatFixedEffects } from './
 import { createRuleFeatEffects } from './feat.js';
 import {
   createRuleFeatSpellEffects,
+  createRuleFeatSpellChoiceState,
   createRuleFeatSpellLevelUpEffects,
   type RuleFeatSpellSelections,
 } from './feat-spells.js';
@@ -32,6 +35,7 @@ import { createRuleClassResourceEffects } from './class-resources.js';
 import {
   createRuleSpellcastingAdvancementEffects,
   createRuleSpellcastingAdvancementState,
+  getRuleMulticlassSpellSlots,
   type RuleSpellReplacementSelection,
 } from './spellcasting-advancement.js';
 import {
@@ -59,6 +63,7 @@ import {
   createRuleOptionalFeatureAdvancementEffects,
   createRuleManeuverAdvancementState,
 } from './optional-feature-advancement.js';
+import { evaluateFeatPrerequisite, type RuleCharacterSnapshot } from '../index.js';
 
 export interface RuleLevelOneChoice {
   class: { key: string; source: string };
@@ -68,6 +73,7 @@ export interface RuleLevelOneChoice {
   spellcasting?: RuleBuildSpellcastingChoice;
   fightingStyleIds?: readonly string[];
   fightingStyleCantripIds?: readonly string[];
+  maneuverIds?: readonly string[];
 }
 
 export interface RuleLevelUpTarget {
@@ -81,6 +87,7 @@ export interface RuleLevelUpChoice {
   abilityIncreases?: Partial<Record<RuleAbilityName, number>>;
   feat?: RuleEntityRef;
   featChoices?: Readonly<Record<string, readonly string[]>>;
+  featDamageType?: string;
   featSpellChoices?: Readonly<Record<string, RuleFeatSpellSelections>>;
   existingFeatSpellChoices?: Readonly<Record<string, RuleFeatSpellSelections>>;
   originSpellChoices?: Readonly<Record<string, RuleOriginSpellSelections & { kind: 'race' | 'background' }>>;
@@ -243,7 +250,7 @@ function projectClassAdvancement(
     choice,
   );
   if (!abilityEffects.ok) return abilityEffects;
-  const featEffects = validateSelectedFeat(context, character, choice);
+  const featEffects = validateSelectedFeat(context, character, ruleClass, newClassLevel, selectedSubclass, choice);
   if (!featEffects.ok) return featEffects;
   const oldCharacterLevel = character.classes.reduce((total, item) => total + item.level, 0);
   const newCharacterLevel = oldCharacterLevel + 1;
@@ -260,7 +267,9 @@ function projectClassAdvancement(
     ruleClass,
     oldClassLevel,
     newClassLevel,
-    character.proficiencies,
+    [...new Set([...character.proficiencies, ...multiclassProficiencyEffects.flatMap(effect => (
+      effect.type === 'proficiency.add' ? [effect.proficiency] : []
+    ))])],
     character.expertises,
   );
   if (!expertiseState.ok) return expertiseState;
@@ -295,6 +304,7 @@ function projectClassAdvancement(
       ],
       knownSpellIds: character.spellcastingProfiles.flatMap(({ spells }) => spells.map(({ id }) => id)),
     },
+    knownFeatDefinitions(context, character).reduce((total, feat) => total + (feat.invocationCount ?? 0), 0),
   );
   if (!invocationState.ok) return invocationState;
   const invocationEffects = createRuleInvocationAdvancementEffects(
@@ -321,6 +331,7 @@ function projectClassAdvancement(
   )).map(({ id, key, source }) => id ?? `${key}|${source}`);
   const metamagicState = createRuleMetamagicAdvancementState(
     context, ruleClass, oldClassLevel, newClassLevel, metamagicIds,
+    knownFeatDefinitions(context, character).reduce((total, feat) => total + (feat.metamagicCount ?? 0), 0),
   );
   if (!metamagicState.ok) return metamagicState;
   const metamagicEffects = createRuleOptionalFeatureAdvancementEffects(
@@ -338,6 +349,10 @@ function projectClassAdvancement(
     oldClassLevel,
     newClassLevel,
     maneuverIds,
+    knownFeatDefinitions(context, character).reduce((total, feat) => total + (feat.maneuverCount ?? 0), 0)
+      + (character.features.some(({ key }) => key === 'Superior Technique')
+        || context.catalog.fightingStyles.some(style => style.key === 'Superior Technique'
+          && choice.fightingStyleIds?.includes(style.id)) ? 1 : 0),
   );
   if (!maneuverState.ok) return maneuverState;
   const maneuverEffects = createRuleOptionalFeatureAdvancementEffects(
@@ -345,10 +360,10 @@ function projectClassAdvancement(
     'maneuverIds' in choice ? choice.maneuverIds ?? [] : [],
   );
   if (!maneuverEffects.ok) return maneuverEffects;
-  const fightingStyleIds = context.catalog.fightingStyles.filter((entry) => (
+  const fightingStyleIds = [...context.catalog.fightingStyles.filter((entry) => (
     character.features.some((feature) => feature.id === entry.id
       || (feature.key === entry.key && feature.source === entry.source))
-  )).map(({ id }) => id);
+  )).map(({ id }) => id), ...character.feats.map(({ id }) => id)];
   const fightingStyleState = createRuleFightingStyleAdvancementState(
     context,
     ruleClass,
@@ -412,36 +427,11 @@ function projectClassAdvancement(
     ...fightingStyleEffects.value,
     ...multiclassProficiencyEffects,
     ...createRuleFeatAdvancementEffects(
-      context.catalog.feats.filter((feat) => (
-        character.feats.some(({ id }) => id === feat.id)
-      )),
+      knownFeatDefinitions(context, character),
       context.ruleSystem,
       oldCharacterLevel,
       newCharacterLevel,
     ),
-    ...('feat' in choice && choice.feat !== undefined
-      ? (() => {
-          const feat = context.catalog.feats.find(({ id, key, source }) => (
-            (id ?? `${key}|${source}`) === choice.feat!.id
-            && key === choice.feat!.key && source === choice.feat!.source
-          ));
-          return feat ? createRuleFeatFixedEffects(
-            feat,
-            context.ruleSystem,
-            newCharacterLevel,
-          ) : [];
-        })()
-      : []),
-    ...createRuleClassResourceEffects(
-      ruleClass,
-      character,
-      newClassLevel,
-      character.classes.reduce((total, item) => total + item.level, 0) + 1,
-    ).map((resource) => ({
-      type: 'resource.upsert' as const,
-      resource,
-      sourceId: resource.sourceId,
-    })),
   ];
   const spellEffects = projectSpellcasting(
     context,
@@ -451,6 +441,7 @@ function projectClassAdvancement(
     newClassLevel,
     selectedSubclass,
     choice.spellcasting,
+    classState.id,
   );
   if (!spellEffects.ok) return spellEffects;
   effects.push(...spellEffects.value);
@@ -459,6 +450,16 @@ function projectClassAdvancement(
   if (hpEffect) effects.push(hpEffect);
   const applied = applyRuleEffects(character, effects);
   if (!applied.ok) return applied;
+  const refreshEffects: RuleEffect[] = applied.value.classes.flatMap(classEntry => {
+    const definition = context.catalog.classes.find(({ key, source }) => key === classEntry.key && source === classEntry.source);
+    return definition === undefined ? [] : createRuleClassResourceEffects(
+      definition, applied.value, classEntry.level, newCharacterLevel,
+    ).map(resource => ({ type: 'resource.upsert' as const, resource, sourceId: resource.sourceId }));
+  });
+  refreshEffects.push(...sharedSpellSlotEffects(context, applied.value));
+  const refreshed = applyRuleEffects(applied.value, refreshEffects);
+  if (!refreshed.ok) return refreshed;
+  effects.push(...refreshEffects);
   const choiceRecords = [
     {
       level: character.classes.reduce((total, item) => total + item.level, 0) + 1,
@@ -472,12 +473,25 @@ function projectClassAdvancement(
         ?? `class-${ruleClass.key}-${ruleClass.source}-subclass`,
       selectedIds: [choice.subclassId],
     }]),
+    ...featEffects.value.flatMap(effect => {
+      if (effect.type !== 'feat.add') return [];
+      const selections = 'featSpellChoices' in choice ? choice.featSpellChoices?.[choice.feat!.id] : undefined;
+      const damageType = 'featDamageType' in choice ? choice.featDamageType : undefined;
+      return [
+        ...(selections?.blockId === undefined ? [] : [{
+          level: newCharacterLevel, groupId: `feat:${effect.feat.id}:spell-block`, selectedIds: [selections.blockId],
+        }]),
+        ...(damageType === undefined ? [] : [{
+          level: newCharacterLevel, groupId: `feat:${effect.feat.id}:damage-type`, selectedIds: [damageType],
+        }]),
+      ];
+    }),
   ];
-  applied.value.choices.push(...choiceRecords);
+  refreshed.value.choices.push(...choiceRecords);
   return {
     ok: true,
     value: {
-      character: applied.value,
+      character: refreshed.value,
       effects,
       choices: choiceRecords,
     },
@@ -493,14 +507,11 @@ function projectSpellcasting(
   newClassLevel: number,
   subclass: Parameters<typeof createRuleSpellcastingAdvancementState>[5],
   choice: RuleBuildSpellcastingChoice | undefined,
+  classId: string,
 ): RuleResult<readonly RuleEffect[]> {
-  if (!choice) return success([]);
   const profileId = `auto-${ruleClass.key.toLowerCase()}-${ruleClass.source.toLowerCase()}-spellcasting`;
-  const existingProfile = character.spellcastingProfiles.find(({ id, classId }) => (
-    id === profileId
-    || classId === character.classes.find(({ key, source }) => (
-      key === ruleClass.key && source === ruleClass.source
-    ))?.id
+  const existingProfile = character.spellcastingProfiles.find(profile => (
+    profile.id === profileId || profile.classId === classId
   ));
   const state = createRuleSpellcastingAdvancementState(
     context,
@@ -509,17 +520,20 @@ function projectSpellcasting(
     newClassLevel,
     existingProfile?.spells.map(({ id }) => id) ?? [],
     subclass,
+    existingProfile?.spells.filter(spell => spell.countsAgainstKnownLimit === false).map(({ id }) => id) ?? [],
   );
   if (!state.ok) return state;
   if (!state.value) {
-    return Object.keys(choice.selections).length === 0 && !choice.replacement
+    return Object.keys(choice?.selections ?? {}).length === 0 && !choice?.replacement
       ? success([])
       : invalid('choice_not_available', ['spellcasting'], 'spellcasting_not_available');
   }
   return createRuleSpellcastingAdvancementEffects(context, state.value, {
     ...(existingProfile === undefined ? {} : { existingProfile }),
-    selections: choice.selections,
-    ...(choice.replacement === undefined ? {} : { replacement: choice.replacement }),
+    classId,
+    selections: choice?.selections ?? {},
+    ...(choice?.replacement === undefined ? {} : { replacement: choice.replacement }),
+    ...(existingProfile?.slotSource === 'shared' ? { slots: existingProfile.slots, slotSource: 'shared' } : {}),
   });
 }
 
@@ -552,8 +566,6 @@ function validateAbilityScoreIncrease(
   if (
     (required && !hasFeat && total !== 2)
     || (epicBoon && !hasFeat)
-    || (required && hasFeat && total > 2)
-    || (epicBoon && hasFeat && total !== 1)
     || (!required && !epicBoon && (total !== 0 || hasFeat))
   ) {
     return invalid(
@@ -562,7 +574,7 @@ function validateAbilityScoreIncrease(
       'ability_increase_count_invalid',
     );
   }
-  if (values.some(({ ability, value }) => character.abilities[ability] + value > (epicBoon ? 30 : 20))) {
+  if (!hasFeat && values.some(({ ability, value }) => value > 0 && character.abilities[ability] + value > 20)) {
     return invalid('ability_cap_exceeded', ['abilityIncreases'], 'ability_cap_exceeded');
   }
   return success(values.flatMap(({ ability, value }): RuleEffect[] => (
@@ -578,10 +590,15 @@ function validateAbilityScoreIncrease(
 function validateSelectedFeat(
   context: RuleContext,
   character: CanonicalRuleCharacterSnapshot,
+  ruleClass: RuleClass,
+  newClassLevel: number,
+  subclass: Parameters<typeof createRuleSpellcastingAdvancementState>[5],
   choice: RuleLevelOneChoice | RuleLevelUpChoice,
 ): RuleResult<RuleEffect[]> {
   if (!('feat' in choice) || choice.feat === undefined) {
     return Object.keys('featSpellChoices' in choice ? choice.featSpellChoices ?? {} : {}).length === 0
+      && Object.keys('featChoices' in choice ? choice.featChoices ?? {} : {}).length === 0
+      && !('featDamageType' in choice && choice.featDamageType !== undefined)
       ? success([])
       : invalid('choice_not_available', ['featSpellChoices'], 'feat_not_selected');
   }
@@ -592,24 +609,53 @@ function validateSelectedFeat(
     && isRuleEntityAuthorized('feat', candidate, context.authorization)
   ));
   if (!feat) return invalid('entity_not_authorized', ['feat'], 'feat_not_authorized');
-  const epicBoonLevel = context.ruleSystem === '5r' && context.catalog.classes.some((ruleClass) => (
-    character.classes.some(({ key, source, level }) => (
-      key === ruleClass.key && source === ruleClass.source
-      && ruleClass.levelFeatures.some((feature) => (
-        feature.level === level + 1 && isNamed(feature, 'Epic Boon', '史诗恩惠')
-      ))
-    ))
-  ));
-  if (epicBoonLevel ? feat.category !== 'EB' : feat.category === 'EB') {
-    return invalid('choice_not_available', ['feat'], 'epic_boon_required');
-  }
-  if (character.feats.some(({ id }) => id === feat.id)) {
+  const featId = feat.id ?? `${feat.key}|${feat.source}`;
+  const prior = character.feats.filter(selected => selected.key === feat.key || selected.id === featId);
+  // The 2014 catalog only describes Elemental Adept's repeatability in its text.
+  const repeatable = feat.repeatable || (feat.key === 'Elemental Adept' && feat.source === 'PHB');
+  if (!repeatable && prior.length > 0) {
     return invalid('entity_already_selected', ['feat'], 'feat_already_selected');
   }
-  const featId = feat.id ?? `${feat.key}|${feat.source}`;
+  const prerequisiteCharacter = featPrerequisiteCharacter(context, character, ruleClass, newClassLevel, subclass);
+  const prerequisite = evaluateFeatPrerequisite(
+    feat, prerequisiteCharacter,
+    character.classes.reduce((total, item) => total + item.level, 0) + 1,
+  );
+  if (!prerequisite.eligible) return invalid('prerequisite_not_met', ['feat'], 'feat_prerequisite_not_met');
+  const input = 'abilityIncreases' in choice ? choice.abilityIncreases ?? {} : {};
+  const ability = validateFeatAbilityIncreases(feat, character, input);
+  if (!ability.ok) return ability;
   const featSpellSelections = 'featSpellChoices' in choice
     ? choice.featSpellChoices?.[featId]
     : undefined;
+  if (featSpellSelections?.allowIncompleteChoices) {
+    return invalid('choice_not_available', ['featSpellChoices'], 'incomplete_choices_not_allowed');
+  }
+  if (feat.key === 'Magic Initiate' && prior.length > 0) {
+    const state = createRuleFeatSpellChoiceState(context.catalog, context.ruleSystem, feat);
+    if (!state.ok) return state;
+    const block = featSpellSelections?.blockId ?? (state.value?.blocks.length === 1 ? state.value.blocks[0]!.id : undefined);
+    if (prior.some(selected => !character.choices.some(record => (
+      record.groupId === `feat:${selected.id}:spell-block` && record.selectedIds.length === 1
+    )))) return invalid('choice_required', ['featSpellChoices'], 'prior_feat_spell_block_required');
+    if (character.choices.some(record => prior.some(selected => record.groupId === `feat:${selected.id}:spell-block`)
+      && record.selectedIds.includes(block ?? ''))) {
+      return invalid('entity_already_selected', ['featSpellChoices'], 'feat_spell_block_already_selected');
+    }
+  }
+  const damageType = 'featDamageType' in choice ? choice.featDamageType : undefined;
+  if (feat.key === 'Elemental Adept') {
+    if (!['acid', 'cold', 'fire', 'lightning', 'thunder'].includes(damageType ?? '')) {
+      return invalid('choice_required', ['featDamageType'], 'feat_damage_type_required');
+    }
+    if (character.choices.some(record => prior.some(selected => record.groupId === `feat:${selected.id}:damage-type`)
+      && record.selectedIds.includes(damageType!))) {
+      return invalid('entity_already_selected', ['featDamageType'], 'feat_damage_type_already_selected');
+    }
+    if (prior.some(selected => !character.choices.some(record => record.groupId === `feat:${selected.id}:damage-type`))) {
+      return invalid('choice_required', ['featDamageType'], 'prior_feat_damage_type_required');
+    }
+  } else if (damageType !== undefined) return invalid('choice_not_available', ['featDamageType'], 'feat_damage_type_not_available');
   const selectedChoices = createRuleFeatEffects(
     context.catalog,
     context.ruleSystem,
@@ -618,7 +664,7 @@ function validateSelectedFeat(
       abilities: character.abilities,
       proficiencies: character.proficiencies,
       knownFeatureIds: character.features.map(({ id }) => id),
-      knownFeatureNames: character.features.map(({ key }) => key),
+      knownFeatureNames: prerequisiteCharacter.features ?? [],
       selectedFeatureIds: character.features.map(({ id }) => id),
       knownSpellIds: character.spellcastingProfiles.flatMap(({ spells }) => spells.map(({ id }) => id)),
       selectedSpellIds: [
@@ -628,13 +674,21 @@ function validateSelectedFeat(
       ],
       warlockLevel: character.classes
         .filter(({ key }) => key === 'Warlock')
-        .reduce((total, { level }) => total + level, 0),
+        .reduce((total, { level }) => total + level, 0) + (ruleClass.key === 'Warlock' ? 1 : 0),
     },
     'featChoices' in choice && choice.featChoices !== undefined
       ? { choices: choice.featChoices }
       : {},
+    context.authorization,
   );
   if (!selectedChoices.ok) return selectedChoices;
+  if (feat.key === 'Resilient') {
+    const ability = (Object.keys(input) as RuleAbilityName[]).find(key => (input[key] ?? 0) > 0);
+    if (!selectedChoices.value.some(effect => effect.type === 'proficiency.add' && effect.proficiency === ability)
+      || (feat.source === 'XPHB' && ability !== undefined && character.proficiencies.includes(ability))) {
+      return invalid('choice_conflict', ['featChoices'], 'resilient_ability_and_save_mismatch');
+    }
+  }
   if (Object.keys(choice.featSpellChoices ?? {}).some((id) => id !== featId)) {
     return invalid('choice_not_available', ['featSpellChoices'], 'feat_not_selected');
   }
@@ -646,11 +700,144 @@ function validateSelectedFeat(
     'featSpellChoices' in choice ? choice.featSpellChoices?.[featId] : undefined,
   );
   if (!featSpellEffects.ok) return featSpellEffects;
+  for (const effect of featSpellEffects.value) {
+    if (effect.type === 'spell.profile.upsert' && effect.profile.spells.some(spell => (
+      !isRuleEntityAuthorized('spell', spell, context.authorization)
+    ))) return invalid('entity_not_authorized', ['featSpellChoices'], 'feat_spell_not_authorized');
+  }
+  let instanceId = featId;
+  let instanceNumber = 2;
+  while (character.feats.some(selected => selected.id === instanceId)) {
+    instanceId = `${featId}-instance-${instanceNumber++}`;
+  }
+  const instanceEffects = [...selectedChoices.value, ...featSpellEffects.value,
+    ...createRuleFeatFixedEffects(feat, context.ruleSystem, character.classes.reduce((total, item) => total + item.level, 0) + 1),
+  ].map(effect => instanceId === featId ? effect : suffixFeatEffect(effect, instanceId.slice(featId.length)));
   return success([{
     type: 'feat.add',
-    feat: toRef({ id: featId, key: feat.key, source: feat.source }),
+    feat: toRef({ id: instanceId, key: feat.key, source: feat.source }),
     sourceId: `auto-feat-${feat.key}-${feat.source}`,
-  }, ...selectedChoices.value, ...featSpellEffects.value]);
+  }, ...instanceEffects]);
+}
+
+function knownFeatDefinitions(context: RuleContext, character: CanonicalRuleCharacterSnapshot): RuleFeatCatalogEntry[] {
+  return character.feats.flatMap(selected => {
+    const feat = context.catalog.feats.find(({ key, source }) => key === selected.key && source === selected.source);
+    return feat === undefined ? [] : [feat];
+  });
+}
+
+function featPrerequisiteCharacter(
+  context: RuleContext,
+  character: CanonicalRuleCharacterSnapshot,
+  ruleClass: RuleClass,
+  newClassLevel: number,
+  subclass: Parameters<typeof createRuleSpellcastingAdvancementState>[5],
+): RuleCharacterSnapshot {
+  const names = [
+    ...character.features.map(({ key }) => key),
+    ...[...ruleClass.levelOneFeatures, ...ruleClass.levelFeatures, ...(subclass?.features ?? [])]
+      .filter(feature => feature.level !== undefined && feature.level <= newClassLevel)
+      .flatMap(feature => [feature.name, feature.englishName ?? feature.name]),
+  ];
+  const hasSpellcastingFeature = names.some(name => ['Spellcasting', 'Pact Magic', '施法', '契约魔法'].includes(name))
+    || character.classes.some(entry => {
+      const definition = context.catalog.classes.find(({ key, source }) => key === entry.key && source === entry.source);
+      return Boolean(definition?.spellcastingAbility && definition.casterProgression
+        && (definition.casterProgression !== '1/2' || definition.ruleSystem === '5r' || entry.level >= 2));
+    });
+  const originName = (ref: RuleEntityRef | undefined, entries: readonly { key: string; source: string; name: string }[]) => (
+    entries.find(entry => entry.key === ref?.key && entry.source === ref.source)?.name ?? ref?.key ?? ''
+  );
+  const classes = character.classes.map(entry => ({ name: entry.key, level: entry.key === ruleClass.key && entry.source === ruleClass.source ? newClassLevel : entry.level }));
+  if (!classes.some(entry => entry.name === ruleClass.key)) classes.push({ name: ruleClass.key, level: newClassLevel });
+  return {
+    abilities: character.abilities,
+    race: originName(character.species, context.catalog.races),
+    subrace: originName(character.subrace, context.catalog.subraces),
+    background: originName(character.background, context.catalog.backgrounds),
+    size: character.combat.size,
+    classes,
+    proficiencies: character.proficiencies,
+    features: names,
+    knownFeats: knownFeatDefinitions(context, character),
+    hasSpellcastingFeature,
+    hasSpellcasting: hasSpellcastingFeature || character.spellcastingProfiles.some(profile => profile.spells.length > 0),
+  };
+}
+
+function validateFeatAbilityIncreases(
+  feat: RuleFeatCatalogEntry,
+  character: CanonicalRuleCharacterSnapshot,
+  input: Partial<Record<RuleAbilityName, number>>,
+): RuleResult<[]> {
+  const abilities = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
+  const selected = abilities.filter(ability => (input[ability] ?? 0) > 0);
+  if ((feat.ability?.length ?? 0) === 0) return selected.length === 0
+    ? success([]) : invalid('choice_not_available', ['abilityIncreases'], 'feat_ability_increase_invalid');
+  let capExceeded = false;
+  const matches = feat.ability!.some(entry => {
+    const value = entry as Record<string, unknown>;
+    if (Object.entries(value).some(([key, amount]) => key !== 'choose' && key !== 'max' && key !== 'hidden'
+      && (!abilities.some(ability => ability.toLowerCase() === key) || !Number.isInteger(amount) || Number(amount) < 0))) return false;
+    const fixed = Object.fromEntries(abilities.map(ability => [ability, Number(value[ability.toLowerCase()] ?? 0)]));
+    const maximum = typeof value.max === 'number' ? value.max : 20;
+    const choose = value.choose;
+    const remainder = abilities.map(ability => ({ ability, value: (input[ability] ?? 0) - fixed[ability]! }));
+    let shapeMatches = remainder.every(({ value }) => value === 0);
+    if (choose !== undefined) {
+      if (typeof choose !== 'object' || choose === null || Array.isArray(choose)) return false;
+      const choice = choose as { from?: unknown; count?: unknown; amount?: unknown };
+      if (!Array.isArray(choice.from)) return false;
+      const count = choice.count ?? 1;
+      const amount = choice.amount ?? 1;
+      const allowed = new Set(choice.from.map(value => String(value).toUpperCase()));
+      const increased = remainder.filter(({ value }) => value > 0);
+      shapeMatches = Number.isInteger(count) && Number(count) > 0 && Number.isInteger(amount) && Number(amount) > 0
+        && increased.length === count && remainder.every(({ ability, value }) => (
+          value === 0 || (value === amount && allowed.has(ability))
+        ));
+    }
+    if (!shapeMatches) return false;
+    if (selected.some(ability => character.abilities[ability] + input[ability]! > maximum)) {
+      capExceeded = true;
+      return false;
+    }
+    return true;
+  });
+  return matches ? success([]) : invalid(capExceeded ? 'ability_cap_exceeded' : 'choice_required', ['abilityIncreases'], 'feat_ability_increase_invalid');
+}
+
+function suffixFeatEffect(effect: RuleEffect, suffix: string): RuleEffect {
+  if (effect.type === 'spell.profile.upsert') return { ...effect, profile: { ...effect.profile, id: effect.profile.id + suffix } };
+  if (effect.type === 'resource.upsert') return { ...effect, resource: { ...effect.resource, id: effect.resource.id + suffix } };
+  return effect;
+}
+
+function sharedSpellSlotEffects(context: RuleContext, character: CanonicalRuleCharacterSnapshot): RuleEffect[] {
+  const classes = character.classes.flatMap(entry => {
+    const ruleClass = context.catalog.classes.find(({ key, source }) => key === entry.key && source === entry.source);
+    return ruleClass === undefined ? [] : [{ ruleClass, level: entry.level, id: entry.id }];
+  });
+  const classForProfile = (profile: RuleSpellcastingProfile) => classes.find(entry => profile.classId === entry.id
+    || profile.id === `auto-${entry.ruleClass.key.toLowerCase()}-${entry.ruleClass.source.toLowerCase()}-spellcasting`);
+  const expended: RuleSpellcastingProfile['slots'] = {};
+  for (const profile of character.spellcastingProfiles) {
+    const entry = classForProfile(profile);
+    if (!entry || entry.ruleClass.casterProgression === 'pact') continue;
+    for (const [level, slot] of Object.entries(profile.slots)) {
+      expended[level] = { total: slot.total, expended: Math.max(expended[level]?.expended ?? 0, slot.expended) };
+    }
+  }
+  const shared = getRuleMulticlassSpellSlots(classes, expended);
+  if (!shared.applies) return [];
+  return character.spellcastingProfiles.flatMap(profile => {
+    const entry = classForProfile(profile);
+    if (!entry?.ruleClass.spellcastingAbility || entry.ruleClass.casterProgression === 'pact') return [];
+    return [{ type: 'spell.profile.upsert' as const, sourceId: profile.id,
+      profile: { ...profile, classId: entry.id, slotSource: 'shared' as const, slots: shared.slots },
+    }];
+  });
 }
 
 function createExistingSpellAdvancementEffects(
@@ -664,13 +851,17 @@ function createExistingSpellAdvancementEffects(
   const knownFeatIds = new Set<string>();
   for (const selected of character.feats) {
     const feat = context.catalog.feats.find((item) => (
-      (item.id ?? `${item.key}|${item.source}`) === selected.id
+      item.key === selected.key && item.source === selected.source
     ));
     if (feat === undefined) continue;
     const id = feat.id ?? `${feat.key}|${feat.source}`;
-    knownFeatIds.add(id);
-    const profileId = `auto-feat-${feat.key}-${feat.source}-spells`;
+    knownFeatIds.add(selected.id);
+    const suffix = selected.id.startsWith(id) ? selected.id.slice(id.length) : '';
+    const profileId = `auto-feat-${feat.key}-${feat.source}-spells${suffix}`;
     const existingProfile = character.spellcastingProfiles.find(({ id: value }) => value === profileId);
+    if (choice.existingFeatSpellChoices?.[selected.id]?.allowIncompleteChoices) {
+      return invalid('choice_not_available', ['existingFeatSpellChoices'], 'incomplete_choices_not_allowed');
+    }
     const result = createRuleFeatSpellLevelUpEffects(
       context.catalog,
       context.ruleSystem,
@@ -678,7 +869,7 @@ function createExistingSpellAdvancementEffects(
       oldCharacterLevel,
       newCharacterLevel,
       existingProfile,
-      choice.existingFeatSpellChoices?.[id],
+      choice.existingFeatSpellChoices?.[selected.id],
     );
     if (!result.ok) return result;
     effects.push(...result.value);

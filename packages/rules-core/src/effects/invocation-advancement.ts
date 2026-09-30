@@ -25,6 +25,7 @@ export function createRuleInvocationAdvancementState(
   newClassLevel: number,
   existingInvocationIds: readonly string[],
   prerequisiteContext: RuleSpecializedFeatContext = {},
+  extraTargetCount = 0,
 ): RuleResult<RuleInvocationAdvancementState> {
   if (
     !Number.isInteger(oldClassLevel)
@@ -44,7 +45,10 @@ export function createRuleInvocationAdvancementState(
   if (!authorizedClass) {
     return invalid('entity_not_authorized', ['class'], 'class_not_authorized');
   }
-  const targetCount = authorizedClass.invocationProgression?.[newClassLevel - 1] ?? 0;
+  if (!Number.isInteger(extraTargetCount) || extraTargetCount < 0) {
+    return invalid('choice_count_invalid', ['invocation'], 'extra_count_invalid');
+  }
+  const targetCount = (authorizedClass.invocationProgression?.[newClassLevel - 1] ?? 0) + extraTargetCount;
   const knownIds = [...new Set(existingInvocationIds)];
   const needed = Math.max(0, targetCount - knownIds.length);
   const known = new Set([

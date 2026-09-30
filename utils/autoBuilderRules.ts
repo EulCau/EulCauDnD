@@ -924,7 +924,7 @@ const getOfficialFeatOptions = (
     toRuleCharacterSnapshot(content, character),
     level,
   ).filter(predicate).filter(feat => {
-    if (feat.key === 'Elemental Adept' && feat.repeatable) return getFeatDamageTypeOptions(feat, character).length > 0;
+    if (feat.key === 'Elemental Adept') return getFeatDamageTypeOptions(feat, character).length > 0;
     if (feat.key === 'Magic Initiate' && feat.repeatable) return Boolean(getFeatSpellChoiceState(content, feat, ruleSystem, level, character)?.blocks.length);
     return true;
   });
@@ -1773,6 +1773,13 @@ const getExistingMetamagicExtraTarget = (
   return count + feat.metamagicCount;
 }, 0);
 
+const getExistingInvocationExtraTarget = (
+  content: AutoBuilderContent,
+  character: CharacterData,
+): number => content.feats.reduce((count, feat) => (
+  hasAppliedFeat(character, feat.key, feat.source) ? count + (feat.invocationCount || 0) : count
+), 0);
+
 export const getInvocationChoiceState = (
   content: AutoBuilderContent,
   cls: AutoBuilderClass | undefined,
@@ -1796,6 +1803,7 @@ export const getInvocationChoiceState = (
     level,
     getExistingInvocationIds(character),
     getSpecializedFeatContext(content, character, selectedIds, selectedSpellIds),
+    getExistingInvocationExtraTarget(content, character),
   );
   if (!result.ok) throwRuleResultError(result, cls.key);
   return {
@@ -2003,8 +2011,21 @@ const applySharedSpellSlotsToProfiles = (
   classes: CharacterData['classes'],
   profiles: SpellcastingProfile[],
 ): SpellcastingProfile[] => {
+  const sharedExpended = createEmptySpellSlots();
+  for (const profile of profiles) {
+    const entry = classes.find(cls => cls.id === profile.classId);
+    const definition = entry ? getClassDefinitionForCharacterClass(content, entry) : undefined;
+    if (!definition?.spellcastingAbility || !definition.casterProgression || definition.casterProgression === 'pact') continue;
+    for (const [level, slot] of Object.entries(profile.slots)) {
+      const previous = sharedExpended[Number(level)];
+      sharedExpended[Number(level)] = {
+        total: String(Math.max(Number(previous?.total) || 0, Number(slot.total) || 0)),
+        expended: String(Math.max(Number(previous?.expended) || 0, Number(slot.expended) || 0)),
+      };
+    }
+  }
   return profiles.map(profile => {
-    const shared = getSharedMulticlassSlots(content, classes, profile.slots);
+    const shared = getSharedMulticlassSlots(content, classes, sharedExpended);
     const characterClass = classes.find(cls => cls.id === profile.classId);
     const definition = characterClass ? getClassDefinitionForCharacterClass(content, characterClass) : undefined;
     if (definition?.casterProgression === 'pact') {
@@ -2197,6 +2218,8 @@ const projectRuleSpellcastingProfile = (
     ...(canonicalExisting === undefined ? {} : { existingProfile: canonicalExisting }),
     selections,
     replacement: replaceSpell,
+    ...(canonicalExisting?.slotSource === 'shared'
+      ? { slots: canonicalExisting.slots, slotSource: 'shared' as const } : {}),
   });
   if (!effectResult.ok) {
     const first = effectResult.issues[0];
@@ -2460,6 +2483,7 @@ const createInvocationOperations = (
     newClassLevel,
     getExistingInvocationIds(character),
     getSpecializedFeatContext(content, character, ids, selectedSpellIds),
+    getExistingInvocationExtraTarget(content, character),
   );
   if (!state.ok) throwRuleResultError(state, cls.key);
   const effects = createRuleInvocationAdvancementEffects(

@@ -22,6 +22,7 @@ import {
   getManeuverChoiceState,
   getMetamagicChoiceState,
   getWeaponMasteryChoiceState,
+  getSpellChoiceState,
 } from '${projectImport('utils/autoBuilderRules.ts')}';
 import content from '${projectImport('public/data/auto-builder-core.json')}';
 
@@ -156,6 +157,45 @@ const invocations5e = getInvocationChoiceState(content, warlock5e, character({})
 const invocations5r = getInvocationChoiceState(content, warlock5r, character({}), 1);
 assert(invocations5e.needed === 2, '5e Warlock level 2 should require two invocations');
 assert(invocations5r.needed === 1, '5r Warlock level 1 should require one invocation');
+const featInvocation = invocations5e.options[0];
+const withInvocationFeat = character({ featureEntries: [
+  { id: 'eldritch-adept', sourceId: 'auto-feat-Eldritch Adept-TCE', name: 'Eldritch Adept' },
+  { id: 'feat-invocation', sourceId: \`auto-invocation-\${featInvocation.key}-\${featInvocation.source}\`, name: featInvocation.name },
+] });
+assert(getInvocationChoiceState(content, warlock5e, withInvocationFeat, 2).needed === 2,
+  'Eldritch Adept invocation must remain additional to class progression');
+
+const wizard5e = getClass('Wizard', '5e');
+const profile = (id, cls, slots) => ({ id: \`auto-\${cls.key.toLowerCase()}-phb-spellcasting\`,
+  classId: id, className: cls.name, ability: cls.spellcastingAbility,
+  preparationMode: 'knownSelection', slotSource: 'shared', spells: [], slots,
+  saveDCOverride: '', attackBonusOverride: '',
+});
+const sharedCaster = character({
+  classes: [
+    { id: 'wizard', name: 'Wizard', source: 'PHB', level: 1, subclass: '' },
+    { id: 'cleric', name: 'Cleric', source: 'PHB', level: 3, subclass: '' },
+  ],
+  spellcastingProfiles: [
+    profile('wizard', wizard5e, { 1: { total: '4', expended: '3' }, 2: { total: '3', expended: '3' } }),
+    profile('cleric', cleric5e, { 1: { total: '4', expended: '1' }, 2: { total: '3', expended: '1' } }),
+  ],
+});
+const wizardChoices = getSpellChoiceState(content, wizard5e, 2);
+const distinctSpellIds = (spells, count) => [...new Map(spells.map(spell => [spell.englishName || spell.name, spell])).values()]
+  .slice(0, count).map(spell => spell.id);
+const upgradedSharedCaster = buildLevelUpCharacter(sharedCaster, content, wizard5e, {
+  ruleSystem: '5e',
+  subclass: getAutoBuilderSubclasses(content, wizard5e)[0],
+  spellChoices: {
+    cantrips: distinctSpellIds(wizardChoices.cantrips, wizardChoices.needed.cantrips),
+    leveled: distinctSpellIds(wizardChoices.leveled, wizardChoices.needed.leveled),
+  },
+});
+for (const profile of upgradedSharedCaster.spellcastingProfiles) {
+  assert(profile.slotSource === 'shared' && profile.slots[2]?.expended === '3',
+    'shared expended slots must survive class projection and be consistent across profiles');
+}
 
 const sorcerer5e = getClass('Sorcerer', '5e');
 const sorcerer5r = getClass('Sorcerer', '5r');
@@ -234,5 +274,6 @@ console.log(JSON.stringify({
     'level-up refreshes ability-dependent resources from other existing classes',
     'weapon mastery, invocation, maneuver, and metamagic counts follow progression',
     'feat and fighting-style grants remain additional to class progression',
+    'shared expended spell slots survive intermediate class projection and remain synchronized',
   ],
 }, null, 2));

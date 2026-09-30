@@ -39,7 +39,9 @@ export function createRuleClassResourceEffects(
   }
   if (ruleClass.key === 'Druid' && has('Wild Shape', '荒野形态')) {
     definitions.push(resource('wild-shape', '荒野形态',
-      ruleClass.source === 'XPHB' ? proficiencyBonus(projectedTotalLevel) : 2, 'shortRest'));
+      ruleClass.source === 'XPHB' ? classLevel >= 17 ? 4 : classLevel >= 6 ? 3 : 2 : 2,
+      ruleClass.source === 'XPHB' ? 'manual' : 'shortRest',
+      ruleClass.source === 'XPHB' ? '短休恢复 1 次已消耗次数, 长休恢复全部.' : undefined));
   }
   if (ruleClass.key === 'Fighter') {
     if (has('Second Wind', '回气')) {

@@ -17,7 +17,8 @@ import {
   parseRuleToolChoiceGroups,
   parseRuleCatalog,
   validateAndProjectLevelOne,
-  validateAndProjectLevelUp,
+  validateAndProjectLevelUp as projectLevelUp,
+  getRuleSpellIdentity,
   type CanonicalRuleCharacterSnapshot,
   type RuleCatalog,
   type RuleClass,
@@ -66,7 +67,7 @@ test('adds a multiclass only after both class prerequisites and projects profici
   const toolId = tool.options[0]!.id;
   const spellSelections = Object.fromEntries(spellState.value.groups.map((group) => [
     group.id,
-    group.options.slice(0, group.min).map(({ id }) => id),
+    distinctOptions(group.options).slice(0, group.min).map(({ id }) => id),
   ]));
   const target = { class: { key: bard.key, source: bard.source }, targetClassLevel: 1 };
   const selections = {
@@ -89,7 +90,7 @@ test('adds a multiclass only after both class prerequisites and projects profici
   assert.ok(projected.value.character.proficiencies.includes(`tool:${toolId}`));
   assert.ok(projected.value.character.resources.some(({ id, max }) => id.endsWith('bardic-inspiration') && max === 1));
   assert.ok(projected.value.character.spellcastingProfiles.some(({ classId, spells }) => (
-    classId === undefined && spells.length === 6
+    classId === projected.value.character.classes[1]?.id && spells.length === 6
   )));
 });
 
@@ -108,7 +109,7 @@ test('uses the 5r prerequisite table for a valid and invalid multiclass addition
   if (!skillGroups.ok || !toolGroups.ok || !spellState.ok || !spellState.value) return;
   const selections = Object.fromEntries(spellState.value.groups.map((group) => [
     group.id,
-    group.options.slice(0, group.min).map(({ id }) => id),
+    distinctOptions(group.options).slice(0, group.min).map(({ id }) => id),
   ]));
   const choice = {
     multiclassSkillChoices: ['Performance'],
@@ -193,6 +194,8 @@ test('projects specialized ASI feat selections into authorized feature refs and 
     key: rogueSubclass.key,
     source: rogueSubclass.source,
   };
+  input.proficiencies.push('weapon:martial');
+  input.features.push({ id: 'test-spellcasting', key: 'Spellcasting', source: 'PHB' });
   const feats = [
     ['Fighting Initiate', 'TCE', 'fightingStyle'],
     ['Eldritch Adept', 'TCE', 'invocation'],
@@ -306,7 +309,7 @@ test('projects class resources and preserves expended uses across level-ups', as
   const resourceAtNine = createRuleClassResourceEffects(druid2024, levelEight, 9, 9)
     .find(({ id }) => id.endsWith('-wild-shape'));
   assert.equal(resourceAtEight?.max, 3);
-  assert.equal(resourceAtNine?.max, 4);
+  assert.equal(resourceAtNine?.max, 3);
 });
 
 test('requires and projects an authorized subclass at its threshold', async () => {
@@ -480,7 +483,7 @@ test('validates and projects a class fighting style', async () => {
   }
 });
 
-test('requires a 5r Epic Boon at level 19 and projects its ability and resources', async () => {
+test('requires a qualifying feat at the 5r Epic Boon feature and projects boon abilities and resources', async () => {
   const catalog = await loadCatalog();
   const wizard = findClass(catalog, 'Wizard', 'XPHB');
   const input = character('5r', wizard, 18);
@@ -535,6 +538,38 @@ test('rejects stale targets, unauthorized classes, and the total level cap', asy
     {},
   ).ok, false);
 });
+
+// Complete unrelated spell choices so each original test isolates its named feature.
+function distinctOptions<T extends { id: string; key?: string; name: string; englishName?: string }>(options: readonly T[]): T[] {
+  return [...new Map(options.map(option => [option.englishName ?? option.key ?? option.name, option])).values()];
+}
+
+function validateAndProjectLevelUp(...args: Parameters<typeof projectLevelUp>): ReturnType<typeof projectLevelUp> {
+  const [ctx, input, target, choice] = args;
+  if (choice.spellcasting !== undefined) return projectLevelUp(...args);
+  const entry = input.classes.find(entry => entry.id === target.classId);
+  const cls = ctx.catalog.classes.find(cls => cls.key === (target.class?.key ?? entry?.key)
+    && cls.source === (target.class?.source ?? entry?.source));
+  if (!cls) return projectLevelUp(...args);
+  const profile = input.spellcastingProfiles.find(profile => profile.classId === entry?.id && entry !== undefined);
+  const subclass = ctx.catalog.subclasses.find(subclass => subclass.id === (choice.subclassId ?? entry?.subclass?.id));
+  const state = createRuleSpellcastingAdvancementState(ctx, cls, entry?.level ?? 0, (entry?.level ?? 0) + 1,
+    profile?.spells.map(spell => spell.id) ?? [], subclass,
+    profile?.spells.filter(spell => spell.countsAgainstKnownLimit === false).map(spell => spell.id) ?? []);
+  if (!state.ok || !state.value) return projectLevelUp(...args);
+  const chosen = new Set<string>();
+  const selections = Object.fromEntries(state.value.groups.map(group => {
+    const ids: string[] = [];
+    for (const spell of group.options) {
+      const identity = getRuleSpellIdentity(spell);
+      if (chosen.has(identity)) continue;
+      chosen.add(identity); ids.push(spell.id);
+      if (ids.length === group.min) break;
+    }
+    return [group.id, ids];
+  }));
+  return projectLevelUp(ctx, input, target, { ...choice, spellcasting: { selections } });
+}
 
 async function loadCatalog(): Promise<RuleCatalog> {
   const content = await readFile(

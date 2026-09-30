@@ -14,6 +14,8 @@ import {
 import { normalizeRuleSkillName } from '../options/common-choices.js';
 import { createRuleSpecializedFeatChoiceState, createRuleSpecializedFeatEffects } from '../options/feat-specialized.js';
 import { validateRuleChoiceSelections } from '../validation/common.js';
+import type { RuleAuthorizationPolicy } from '../policy/authorization.js';
+import { createDefaultRuleAuthorizationPolicy } from '../policy/default-policy.js';
 
 export interface RuleFeatEffectCharacter {
   abilities: Readonly<Record<RuleAbilityName, number>>;
@@ -46,6 +48,7 @@ export function createRuleFeatEffects(
   feat: RuleFeatCatalogEntry,
   character: RuleFeatEffectCharacter,
   selections: RuleFeatEffectSelections = {},
+  policy: RuleAuthorizationPolicy = createDefaultRuleAuthorizationPolicy(catalog, ruleSystem),
 ): RuleResult<RuleEffect[]> {
   const initial = createRuleFeatChoiceGroups(catalog, ruleSystem, feat, {
     proficientSkills: character.proficiencies,
@@ -68,7 +71,7 @@ export function createRuleFeatEffects(
     ...(character.warlockLevel === undefined ? {} : { warlockLevel: character.warlockLevel }),
   };
   const specializedState = createRuleSpecializedFeatChoiceState(
-    catalog, ruleSystem, feat, specializedContext,
+    catalog, ruleSystem, feat, specializedContext, policy,
   );
   if (!specializedState.ok) return specializedState;
   const allGroups = [...state.value.all, ...specializedState.value.groups];
@@ -88,7 +91,7 @@ export function createRuleFeatEffects(
     && Object.keys(specializedChoices).length === 0
     ? { ok: true, value: [], warnings: [] }
     : createRuleSpecializedFeatEffects(
-        catalog, ruleSystem, feat, specializedContext, specializedChoices,
+        catalog, ruleSystem, feat, specializedContext, specializedChoices, policy,
       );
   if (!specializedEffects.ok) return specializedEffects;
 

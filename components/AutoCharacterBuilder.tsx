@@ -366,7 +366,6 @@ export const AutoCharacterBuilder: React.FC<AutoCharacterBuilderProps> = ({
     && (isAbilityScoreImprovementLevel(selectedClass, targetClassLevel) || requiresEpicBoonChoice);
   const abilityScoreImprovementFeatOptions = content
     ? getAbilityScoreImprovementFeatOptions(content, ruleSystem, prerequisiteCharacter, targetCharacterLevel)
-      .filter((feat) => requiresEpicBoonChoice ? feat.category === 'EB' : feat.category !== 'EB')
     : [];
   useEffect(() => {
     if (requiresEpicBoonChoice && abilityScoreImprovementChoice.mode !== 'feat') {
